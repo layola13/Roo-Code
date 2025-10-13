@@ -1,0 +1,57 @@
+[package]
+name = "roo_core"
+version = "0.1.0"
+edition = "2021"
+authors = ["Roo-Code Team"]
+description = "Rust core logic for Roo-Code VSCode extension"
+license = "MIT"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# WASM bindings
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde-wasm-bindgen = "0.6"
+
+# Async runtime (WASM-compatible)
+futures = "0.3"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+log = "0.4"
+console_error_panic_hook = "0.1"
+
+# Web APIs for WASM
+web-sys = { version = "0.3", features = [
+    "console",
+    "Window",
+    "Document",
+] }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[profile.release]
+# Optimize for size (target < 2MB)
+opt-level = "z"     # Optimize for size
+lto = true          # Link-time optimization
+codegen-units = 1   # Better optimization at the cost of compile time
+strip = true        # Strip symbols
+panic = "abort"     # Smaller panic implementation
+
+[profile.dev]
+opt-level = 0
+debug = true
