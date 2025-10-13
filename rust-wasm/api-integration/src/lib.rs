@@ -4,12 +4,15 @@ pub mod types;
 pub mod error;
 pub mod stream;
 pub mod client;
+pub mod providers;
 
 // 重新导出核心类型
 pub use types::*;
 pub use error::{ApiError, ApiResult};
 pub use stream::{ApiStreamChunk, StreamAccumulator, GroundingSource};
 pub use client::HttpClient;
+pub use providers::base::BaseProvider;
+pub use providers::anthropic::AnthropicProvider;
 
 /// API Integration模块版本
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

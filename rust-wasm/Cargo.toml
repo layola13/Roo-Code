@@ -1,5 +1,5 @@
 [workspace]
-members = [
+members = ["api-integration",
     "task-engine",
 ]
 resolver = "2"
