@@ -52,3 +52,4 @@ qdrant_storage/
 qdrant/qdrant_data
 .ollama.txt
 /agumentcode/
+/rust-wasm/target/
