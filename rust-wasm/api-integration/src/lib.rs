@@ -18,10 +18,9 @@ pub use providers::openai::OpenAIProvider;
 /// API Integration模块版本
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// 初始化API Integration模块
-#[wasm_bindgen(start)]
-pub fn init() {
-    // 设置panic hook以便在浏览器控制台看到panic信息
+/// 初始化API Integration模块 (internal use only)
+/// Call this from the main WASM module's init function
+pub fn init_api_integration() {
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
 }

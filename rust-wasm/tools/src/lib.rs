@@ -14,12 +14,9 @@ pub use types::{ToolGroup, ToolName, ToolUse};
 
 use wasm_bindgen::prelude::*;
 
-/// Initialize the tools system
-///
-/// This should be called when the WASM module is loaded.
-#[wasm_bindgen(start)]
-pub fn init() {
-    // Set panic hook for better error messages in browser console
+/// Initialize the tools system (internal use only)
+/// Call this from the main WASM module's init function
+pub fn init_tools() {
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
 }

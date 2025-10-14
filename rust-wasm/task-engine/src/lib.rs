@@ -137,9 +137,9 @@ impl Task {
     }
 }
 
-/// Initialize the WASM module
-#[wasm_bindgen(start)]
-pub fn init() {
-    // WASM module initialization
-    // Console error panic hook can be added here if needed
+/// Initialize the task engine (internal use only)
+/// Call this from the main WASM module's init function
+pub fn init_task_engine() {
+    #[cfg(feature = "console_error_panic_hook")]
+    console_error_panic_hook::set_once();
 }

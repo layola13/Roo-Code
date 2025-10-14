@@ -15,9 +15,9 @@ use wasm_bindgen::prelude::*;
 #[cfg(feature = "console_error_panic_hook")]
 pub use console_error_panic_hook::set_once as set_panic_hook;
 
-/// Initialize the WASM module (call this first)
-#[wasm_bindgen(start)]
-pub fn init() {
+/// Initialize the memory system (internal use only)
+/// Call this from the main WASM module's init function
+pub fn init_memory() {
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
 }

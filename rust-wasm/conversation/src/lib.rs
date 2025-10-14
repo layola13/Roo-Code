@@ -16,9 +16,9 @@ pub use types::*;
 pub use manager::ConversationManager;
 pub use condense::*;
 
-/// Initialize the conversation system
-#[wasm_bindgen(start)]
-pub fn init() {
+/// Initialize the conversation system (internal use only)
+/// Call this from the main WASM module's init function
+pub fn init_conversation() {
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
 }
