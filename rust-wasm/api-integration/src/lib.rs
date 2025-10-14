@@ -13,6 +13,7 @@ pub use stream::{ApiStreamChunk, StreamAccumulator, GroundingSource};
 pub use client::HttpClient;
 pub use providers::base::BaseProvider;
 pub use providers::anthropic::AnthropicProvider;
+pub use providers::openai::OpenAIProvider;
 
 /// API Integration模块版本
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

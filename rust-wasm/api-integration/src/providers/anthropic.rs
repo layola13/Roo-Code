@@ -469,7 +469,7 @@ impl BaseProvider for AnthropicProvider {
     }
 
     fn get_provider_name(&self) -> &str {
-        "Anthropic"
+        "anthropic"
     }
 }
 

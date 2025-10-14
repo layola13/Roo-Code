@@ -30,6 +30,9 @@ pub enum ApiError {
     #[error("Timeout: {0}")]
     TimeoutError(String),
     
+    #[error("Unsupported provider: {0}")]
+    UnsupportedProvider(String),
+    
     #[error("Unknown error: {0}")]
     Unknown(String),
 }
