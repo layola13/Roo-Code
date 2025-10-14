@@ -3,6 +3,8 @@ members = [
     "api-integration",
     "task-engine",
     "tools",
+    "conversation",
+    "memory",
 ]
 resolver = "2"
 

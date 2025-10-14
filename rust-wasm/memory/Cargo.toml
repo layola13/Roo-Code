@@ -1,0 +1,35 @@
+[package]
+name = "roo-memory"
+version = "0.1.0"
+edition = "2021"
+authors = ["Roo Code Team"]
+description = "Memory system for Roo Code - conversation memory management and vector search"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde-wasm-bindgen = "0.6"
+thiserror.workspace = true
+chrono.workspace = true
+regex = "1.10"
+console_error_panic_hook = { version = "0.1", optional = true }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[profile.release]
+opt-level = "z"       # 优化大小
+lto = true            # 链接时优化
+codegen-units = 1     # 增加优化机会
+panic = "abort"       # panic时中止
+strip = true          # 移除符号
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-O", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
+
+[features]
+default = ["console_error_panic_hook"]
