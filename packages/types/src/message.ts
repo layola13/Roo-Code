@@ -184,6 +184,21 @@ export const toolProgressStatusSchema = z.object({
 export type ToolProgressStatus = z.infer<typeof toolProgressStatusSchema>
 
 /**
+ * SubAgentTokenUsage
+ *
+ * Token usage tracking for individual subagents in the compression system
+ */
+
+export const subAgentTokenUsageSchema = z.object({
+	agentName: z.string(),
+	tokensIn: z.number(),
+	tokensOut: z.number(),
+	cost: z.number(),
+})
+
+export type SubAgentTokenUsage = z.infer<typeof subAgentTokenUsageSchema>
+
+/**
  * ContextCondense
  */
 
@@ -192,6 +207,7 @@ export const contextCondenseSchema = z.object({
 	prevContextTokens: z.number(),
 	newContextTokens: z.number(),
 	summary: z.string(),
+	subAgentTokenUsage: z.array(subAgentTokenUsageSchema).optional(),
 })
 
 export type ContextCondense = z.infer<typeof contextCondenseSchema>
@@ -243,6 +259,7 @@ export const tokenUsageSchema = z.object({
 	totalCacheReads: z.number().optional(),
 	totalCost: z.number(),
 	contextTokens: z.number(),
+	subAgentTokenUsage: z.array(subAgentTokenUsageSchema).optional(),
 })
 
 export type TokenUsage = z.infer<typeof tokenUsageSchema>

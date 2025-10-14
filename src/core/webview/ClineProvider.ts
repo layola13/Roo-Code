@@ -1828,6 +1828,7 @@ export class ClineProvider
 			openRouterImageGenerationSelectedModel,
 			openRouterUseMiddleOutTransform,
 			featureRoomoteControlEnabled,
+			useSubAgentCompression,
 		} = await this.getState()
 
 		let cloudOrganizations: CloudOrganizationMembership[] = []
@@ -1979,6 +1980,8 @@ export class ClineProvider
 			openRouterImageGenerationSelectedModel,
 			openRouterUseMiddleOutTransform,
 			featureRoomoteControlEnabled,
+			useSubAgentCompression: useSubAgentCompression ?? false,
+			subAgentCompressionEnabled: useSubAgentCompression ?? false,
 		}
 	}
 
@@ -2212,6 +2215,8 @@ export class ClineProvider
 					return false
 				}
 			})(),
+			useSubAgentCompression: stateValues.useSubAgentCompression ?? false,
+			subAgentCompressionEnabled: stateValues.useSubAgentCompression ?? false,
 		}
 	}
 

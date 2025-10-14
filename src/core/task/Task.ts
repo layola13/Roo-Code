@@ -1148,6 +1148,17 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const condensingApiConfigId = state?.condensingApiConfigId
 		const listApiConfigMeta = state?.listApiConfigMeta
 
+		// Get subagent compression configuration
+		const useSubAgentCompression = state?.useSubAgentCompression ?? false
+		const modelInfo = this.api.getModel().info
+		const contextWindow = modelInfo.contextWindow
+		const maxTokens = getModelMaxOutputTokens({
+			modelId: this.api.getModel().id,
+			model: modelInfo,
+			settings: this.apiConfiguration,
+		})
+		const reservedTokens = maxTokens
+
 		// Determine API handler to use
 		let condensingApiHandler: ApiHandler | undefined
 		if (condensingApiConfigId && listApiConfigMeta && Array.isArray(listApiConfigMeta)) {
@@ -1172,6 +1183,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			cost,
 			newContextTokens = 0,
 			error,
+			subAgentTokenUsage,
 		} = await summarizeConversation(
 			this.apiConversationHistory,
 			this.api, // Main API handler (fallback)
@@ -1184,6 +1196,16 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			this.conversationMemory,
 			true, // useMemoryEnhancement
 			this.vectorMemoryStore, // Vector memory store for semantic search
+			useSubAgentCompression
+				? {
+						enabled: true,
+						useContextAnalyzer: true,
+						useMemoryExtractor: true,
+						useCodeSummarizer: true,
+						verboseLogging: false,
+					}
+				: undefined,
+			this, // Pass Task instance for subagent compression
 		)
 		if (error) {
 			this.say(
@@ -1202,7 +1224,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// Set flag to skip previous_response_id on the next API call after manual condense
 		this.skipPrevResponseIdOnce = true
 
-		const contextCondense: ContextCondense = { summary, cost, newContextTokens, prevContextTokens }
+		const contextCondense: ContextCondense = {
+			summary,
+			cost,
+			newContextTokens,
+			prevContextTokens,
+			subAgentTokenUsage,
+		}
 		await this.say(
 			"condense_context",
 			undefined /* text */,
@@ -2665,6 +2693,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// Get the current profile ID using the helper method
 		const currentProfileId = this.getCurrentProfileId(state)
 
+		// Get subagent compression configuration
+		const useSubAgentCompression = state?.useSubAgentCompression ?? false
+
 		// Log the context window error for debugging
 		console.warn(
 			`[Task#${this.taskId}] Context window exceeded for model ${this.api.getModel().id}. ` +
@@ -2688,6 +2719,16 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			conversationMemory: this.conversationMemory,
 			useMemoryEnhancement: true,
 			vectorMemoryStore: this.vectorMemoryStore,
+			subAgentConfig: useSubAgentCompression
+				? {
+						enabled: true,
+						useContextAnalyzer: true,
+						useMemoryExtractor: true,
+						useCodeSummarizer: true,
+						verboseLogging: false,
+					}
+				: undefined,
+			task: this, // Pass Task instance for subagent compression
 		})
 
 		if (truncateResult.messages !== this.apiConversationHistory) {
@@ -2790,6 +2831,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 			// Get the current profile ID using the helper method
 			const currentProfileId = this.getCurrentProfileId(state)
+			// Get subagent compression configuration
+			const useSubAgentCompression = state?.useSubAgentCompression ?? false
 
 			const truncateResult = await truncateConversationIfNeeded({
 				messages: this.apiConversationHistory,
@@ -2808,6 +2851,16 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				conversationMemory: this.conversationMemory,
 				useMemoryEnhancement: true,
 				vectorMemoryStore: this.vectorMemoryStore,
+				subAgentConfig: useSubAgentCompression
+					? {
+							enabled: true,
+							useContextAnalyzer: true,
+							useMemoryExtractor: true,
+							useCodeSummarizer: true,
+							verboseLogging: false,
+						}
+					: undefined,
+				task: this, // Pass Task instance for subagent compression
 			})
 			if (truncateResult.messages !== this.apiConversationHistory) {
 				await this.overwriteApiConversationHistory(truncateResult.messages)

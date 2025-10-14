@@ -79,6 +79,13 @@ export const globalSettingsSchema = z.object({
 	vectorMemoryEnabled: z.boolean().optional(),
 	maxConcurrentFileReads: z.number().optional(),
 
+	// Sub-agent compression settings (experimental)
+	useSubAgentCompression: z.boolean().optional(),
+	subAgentUseContextAnalyzer: z.boolean().optional(),
+	subAgentUseMemoryExtractor: z.boolean().optional(),
+	subAgentUseCompressionDecider: z.boolean().optional(),
+	subAgentVerboseLogging: z.boolean().optional(),
+
 	/**
 	 * Whether to include diagnostic messages (errors, warnings) in tool outputs
 	 * @default true

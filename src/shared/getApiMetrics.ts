@@ -1,4 +1,4 @@
-import type { TokenUsage, ClineMessage } from "@roo-code/types"
+import type { TokenUsage, ClineMessage, SubAgentTokenUsage } from "@roo-code/types"
 
 export type ParsedApiReqStartedTextType = {
 	tokensIn: number
@@ -7,6 +7,10 @@ export type ParsedApiReqStartedTextType = {
 	cacheReads: number
 	cost?: number // Only present if combineApiRequests has been called
 	apiProtocol?: "anthropic" | "openai"
+}
+
+export type ApiMetricsWithSubAgents = TokenUsage & {
+	subAgentTokenUsage?: SubAgentTokenUsage[]
 }
 
 /**
@@ -26,15 +30,19 @@ export type ParsedApiReqStartedTextType = {
  * const { totalTokensIn, totalTokensOut, totalCost } = getApiMetrics(messages);
  * // Result: { totalTokensIn: 10, totalTokensOut: 20, totalCost: 0.005 }
  */
-export function getApiMetrics(messages: ClineMessage[]) {
-	const result: TokenUsage = {
+export function getApiMetrics(messages: ClineMessage[]): ApiMetricsWithSubAgents {
+	const result: ApiMetricsWithSubAgents = {
 		totalTokensIn: 0,
 		totalTokensOut: 0,
 		totalCacheWrites: undefined,
 		totalCacheReads: undefined,
 		totalCost: 0,
 		contextTokens: 0,
+		subAgentTokenUsage: [],
 	}
+
+	// Track sub-agent token usage across all condense operations
+	const subAgentMap = new Map<string, SubAgentTokenUsage>()
 
 	// Calculate running totals.
 	messages.forEach((message) => {
@@ -67,6 +75,20 @@ export function getApiMetrics(messages: ClineMessage[]) {
 			}
 		} else if (message.type === "say" && message.say === "condense_context") {
 			result.totalCost += message.contextCondense?.cost ?? 0
+
+			// Aggregate sub-agent token usage
+			if (message.contextCondense?.subAgentTokenUsage) {
+				message.contextCondense.subAgentTokenUsage.forEach((usage) => {
+					const existing = subAgentMap.get(usage.agentName)
+					if (existing) {
+						existing.tokensIn += usage.tokensIn
+						existing.tokensOut += usage.tokensOut
+						existing.cost += usage.cost
+					} else {
+						subAgentMap.set(usage.agentName, { ...usage })
+					}
+				})
+			}
 		}
 	})
 
@@ -99,6 +121,11 @@ export function getApiMetrics(messages: ClineMessage[]) {
 		if (result.contextTokens) {
 			break
 		}
+	}
+
+	// Convert sub-agent map to array
+	if (subAgentMap.size > 0) {
+		result.subAgentTokenUsage = Array.from(subAgentMap.values())
 	}
 
 	return result

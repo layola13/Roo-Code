@@ -35,6 +35,12 @@ export interface TaskHeaderProps {
 	buttonsDisabled: boolean
 	handleCondenseContext: (taskId: string) => void
 	todos?: any[]
+	subAgentTokenUsage?: Array<{
+		agentName: string
+		tokensIn: number
+		tokensOut: number
+		cost: number
+	}>
 }
 
 const TaskHeader = ({
@@ -48,6 +54,7 @@ const TaskHeader = ({
 	buttonsDisabled,
 	handleCondenseContext,
 	todos,
+	subAgentTokenUsage,
 }: TaskHeaderProps) => {
 	const { t } = useTranslation()
 	const { apiConfiguration, currentTaskItem, clineMessages } = useExtensionState()
@@ -313,6 +320,27 @@ const TaskHeader = ({
 												{t("chat:task.size")}
 											</th>
 											<td className="align-top">{prettyBytes(currentTaskItem.size)}</td>
+										</tr>
+									)}
+
+									{/* Sub-agent token usage display */}
+									{subAgentTokenUsage && subAgentTokenUsage.length > 0 && (
+										<tr>
+											<th className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-3 h-[24px]">
+												{t("chat:task.subAgents")}
+											</th>
+											<td className="align-top">
+												<div className="flex flex-col gap-1">
+													{subAgentTokenUsage.map((agent, index) => (
+														<div key={index} className="flex items-center gap-2 text-xs">
+															<span className="font-medium">{agent.agentName}:</span>
+															<span>↑ {formatLargeNumber(agent.tokensIn)}</span>
+															<span>↓ {formatLargeNumber(agent.tokensOut)}</span>
+															<span>${agent.cost.toFixed(4)}</span>
+														</div>
+													))}
+												</div>
+											</td>
 										</tr>
 									)}
 								</tbody>

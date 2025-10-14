@@ -89,6 +89,7 @@ export interface WebviewMessage {
 		| "autoCondenseContext"
 		| "autoCondenseContextPercent"
 		| "vectorMemoryEnabled"
+		| "useSubAgentCompression"
 		| "condensingApiConfigId"
 		| "updateCondensingPrompt"
 		| "playSound"

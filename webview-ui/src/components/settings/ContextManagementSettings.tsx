@@ -28,6 +28,7 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	maxDiagnosticMessages?: number
 	writeDelayMs: number
 	vectorMemoryEnabled?: boolean
+	subAgentCompressionEnabled?: boolean
 	setCachedStateField: SetCachedStateField<
 		| "autoCondenseContext"
 		| "autoCondenseContextPercent"
@@ -43,6 +44,7 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 		| "maxDiagnosticMessages"
 		| "writeDelayMs"
 		| "vectorMemoryEnabled"
+		| "subAgentCompressionEnabled"
 	>
 }
 
@@ -63,6 +65,7 @@ export const ContextManagementSettings = ({
 	maxDiagnosticMessages,
 	writeDelayMs,
 	vectorMemoryEnabled,
+	subAgentCompressionEnabled,
 	className,
 	...props
 }: ContextManagementSettingsProps) => {
@@ -453,6 +456,21 @@ export const ContextManagementSettings = ({
 					</VSCodeCheckbox>
 					<div className="text-vscode-descriptionForeground text-sm">
 						{t("settings:contextManagement.vectorMemory.description")}
+					</div>
+				</div>
+			</Section>
+
+			{/* Sub-Agent Compression Section */}
+			<Section className="pt-2">
+				<div className="flex flex-col gap-3">
+					<VSCodeCheckbox
+						checked={subAgentCompressionEnabled}
+						onChange={(e: any) => setCachedStateField("subAgentCompressionEnabled", e.target.checked)}
+						data-testid="sub-agent-compression-enabled-checkbox">
+						<span className="font-medium">{t("settings:contextManagement.subAgentCompression.label")}</span>
+					</VSCodeCheckbox>
+					<div className="text-vscode-descriptionForeground text-sm">
+						{t("settings:contextManagement.subAgentCompression.description")}
 					</div>
 				</div>
 			</Section>

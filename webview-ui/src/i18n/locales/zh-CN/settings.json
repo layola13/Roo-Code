@@ -609,6 +609,8 @@
 			"waitingForIndex": "等待代码库索引完成...",
 			"ready": "向量记忆已就绪"
 		},
+		"useSubAgentCompression": "启用子代理压缩（实验性）",
+		"useSubAgentCompressionDesc": "启用后，Roo 将使用专门的子代理智能分析和压缩上下文。此实验性功能可显著减少 token 使用量，但需要额外的 API 调用。",
 		"maxImageFileSize": {
 			"label": "最大图像文件大小",
 			"mb": "MB",

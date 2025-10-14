@@ -622,7 +622,9 @@
 			"requiresCodeIndex": "Vector memory requires codebase indexing to be enabled and completed first",
 			"waitingForIndex": "Waiting for codebase indexing to complete...",
 			"ready": "Vector memory is ready to use"
-		}
+		},
+		"useSubAgentCompression": "Enable sub-agent compression (Experimental)",
+		"useSubAgentCompressionDesc": "When enabled, Roo will use specialized sub-agents to intelligently analyze and compress context. This experimental feature may significantly reduce token usage but requires additional API calls."
 	},
 	"terminal": {
 		"basic": {

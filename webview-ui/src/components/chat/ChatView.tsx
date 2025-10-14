@@ -1805,6 +1805,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 						buttonsDisabled={sendingDisabled}
 						handleCondenseContext={handleCondenseContext}
 						todos={latestTodos}
+						subAgentTokenUsage={apiMetrics.subAgentTokenUsage}
 					/>
 
 					{hasSystemPromptOverride && (

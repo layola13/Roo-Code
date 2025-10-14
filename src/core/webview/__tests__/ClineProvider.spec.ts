@@ -558,6 +558,8 @@ describe("ClineProvider", () => {
 			taskSyncEnabled: false,
 			featureRoomoteControlEnabled: false,
 			vectorMemoryEnabled: false,
+			useSubAgentCompression: false,
+			subAgentCompressionEnabled: false,
 		}
 
 		const message: ExtensionMessage = {

@@ -258,6 +258,8 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		autoCondenseContext: true,
 		autoCondenseContextPercent: 100,
 		vectorMemoryEnabled: false,
+		subAgentCompressionEnabled: false,
+		useSubAgentCompression: false,
 		profileThresholds: {},
 		codebaseIndexConfig: {
 			codebaseIndexEnabled: true,

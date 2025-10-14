@@ -8,6 +8,7 @@ import { ApiMessage } from "../task-persistence/apiMessages"
 import { ANTHROPIC_DEFAULT_MAX_TOKENS } from "@roo-code/types"
 import { ConversationMemory } from "../memory/ConversationMemory"
 import { VectorMemoryStore } from "../memory/VectorMemoryStore"
+import { SubAgentConfig } from "../condense/subagent-caller"
 
 /**
  * Default percentage of the context window to use as a buffer when deciding when to truncate
@@ -82,6 +83,8 @@ type TruncateOptions = {
 	conversationMemory?: ConversationMemory
 	useMemoryEnhancement?: boolean
 	vectorMemoryStore?: VectorMemoryStore
+	subAgentConfig?: SubAgentConfig
+	task?: any // Task instance for subagent compression
 }
 
 type TruncateResponse = SummarizeResponse & { prevContextTokens: number }
@@ -110,6 +113,8 @@ export async function truncateConversationIfNeeded({
 	conversationMemory,
 	useMemoryEnhancement = true,
 	vectorMemoryStore,
+	subAgentConfig,
+	task,
 }: TruncateOptions): Promise<TruncateResponse> {
 	let error: string | undefined
 	let cost = 0
@@ -172,6 +177,8 @@ export async function truncateConversationIfNeeded({
 				conversationMemory,
 				useMemoryEnhancement,
 				vectorMemoryStore,
+				subAgentConfig,
+				task,
 			)
 			if (result.error) {
 				error = result.error

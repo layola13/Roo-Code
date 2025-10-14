@@ -12,6 +12,8 @@
 		"size": "Size",
 		"condenseContext": "Intelligently condense context",
 		"contextWindow": "Context Length",
+		"subAgents": "Sub-Agents",
+		"subAgentTokens": "Sub-Agent Token Usage",
 		"closeAndStart": "Close task and start a new one",
 		"export": "Export task history",
 		"share": "Share task",
