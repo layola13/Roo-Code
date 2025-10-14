@@ -4,6 +4,8 @@
  * 负责加载和初始化Rust WASM模块
  */
 
+import * as fs from "fs"
+import * as path from "path"
 import initWasm, {
 	type InitOutput,
 	initialize,
@@ -45,8 +47,19 @@ export class WasmLoader {
 
 		try {
 			// 加载WASM模块
-			const wasmPath = require.resolve("../../../rust-wasm/wasm-dist/roo_core_wasm_bg.wasm")
-			this.wasmModule = await initWasm()
+			// 在Node.js环境中，需要读取WASM文件并传入buffer
+			const wasmPath = path.join(__dirname, "../../../rust-wasm/wasm-dist/roo_core_wasm_bg.wasm")
+
+			// 检查文件是否存在
+			if (!fs.existsSync(wasmPath)) {
+				throw new Error(`WASM file not found at: ${wasmPath}`)
+			}
+
+			// 读取WASM文件
+			const wasmBuffer = fs.readFileSync(wasmPath)
+
+			// 初始化WASM模块（传入buffer）
+			this.wasmModule = await initWasm(wasmBuffer)
 
 			// 调用初始化函数
 			const version = initialize()

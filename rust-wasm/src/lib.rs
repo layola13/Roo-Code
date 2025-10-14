@@ -101,7 +101,6 @@ pub fn get_module_info() -> JsValue {
             "memory"
         ],
         "build_info": {
-            "rust_version": env!("CARGO_PKG_RUST_VERSION"),
             "opt_level": if cfg!(debug_assertions) { "debug" } else { "release" }
         }
     });
