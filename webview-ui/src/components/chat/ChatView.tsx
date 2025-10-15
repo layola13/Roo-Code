@@ -10,7 +10,6 @@ import { Trans, useTranslation } from "react-i18next"
 
 import { useDebounceEffect } from "@src/utils/useDebounceEffect"
 import { appendImages } from "@src/utils/imageUtils"
-import { isMessageOlderThanOneDay, isMessageOlderThanOneHour } from "@src/utils/formatTime"
 
 import type { ClineAsk, ClineMessage, McpServerUse } from "@roo-code/types"
 
@@ -191,9 +190,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	const disableAutoScrollRef = useRef(false)
 	const [showScrollToBottom, setShowScrollToBottom] = useState(false)
 	const [isAtBottom, setIsAtBottom] = useState(false)
-	const [currentPage, setCurrentPage] = useState(0)
-	const [isPaginationEnabled, setIsPaginationEnabled] = useState(false)
-	const [totalFilteredMessagesCount, setTotalFilteredMessagesCount] = useState(0)
 	const lastTtsRef = useRef<string>("")
 	const [wasStreaming, setWasStreaming] = useState<boolean>(false)
 	const [showCheckpointWarning, setShowCheckpointWarning] = useState<boolean>(false)
@@ -871,14 +867,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			}
 		})
 
-		// Remove the 500-message limit to prevent array index shifting
-		// Virtuoso is designed to efficiently handle large lists through virtualization
-		let filteredMessages = modifiedMessages.filter((message) => {
-			// Filter out messages older than 1 hour (completely remove from DOM)
-			if (isMessageOlderThanOneHour(message.ts)) {
-				return false
-			}
-
+		// 简化消息过滤逻辑 - 不再基于时间过滤
+		// Virtuoso 通过虚拟化可以高效处理大量消息
+		const filteredMessages = modifiedMessages.filter((message) => {
 			// Filter out checkpoint_saved messages that should be suppressed
 			if (message.say === "checkpoint_saved") {
 				// Check if this checkpoint has the suppressMessage flag set
@@ -948,44 +939,13 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			return true
 		})
 
-		// Apply pagination if enabled
-		if (isPaginationEnabled) {
-			const messagesPerPage = 50
-			const startIndex = currentPage * messagesPerPage
-			const endIndex = startIndex + messagesPerPage
-			filteredMessages = filteredMessages.slice(startIndex, endIndex)
-		}
-
+		// 标记最近100条消息为已可见,用于缓存优化
 		const viewportStart = Math.max(0, filteredMessages.length - 100)
 		filteredMessages
 			.slice(viewportStart)
 			.forEach((msg: ClineMessage) => everVisibleMessagesTsRef.current.set(msg.ts, true))
 
 		return filteredMessages
-	}, [modifiedMessages, isPaginationEnabled, currentPage])
-
-	// Sync totalFilteredMessagesCount with visibleMessages for pagination calculation
-	useEffect(() => {
-		// Calculate the total filtered count before pagination is applied
-		const filteredCount = modifiedMessages.filter((message) => {
-			if (isMessageOlderThanOneHour(message.ts)) {
-				return false
-			}
-			// Apply same filters as visibleMessages
-			if (message.say === "checkpoint_saved") {
-				if (
-					message.checkpoint &&
-					typeof message.checkpoint === "object" &&
-					"suppressMessage" in message.checkpoint &&
-					message.checkpoint.suppressMessage
-				) {
-					return false
-				}
-			}
-			return true
-		}).length
-
-		setTotalFilteredMessagesCount(filteredCount)
 	}, [modifiedMessages])
 
 	useEffect(() => {
@@ -1004,24 +964,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 		return () => clearInterval(cleanupInterval)
 	}, [modifiedMessages, visibleMessages])
-
-	useEffect(() => {
-		// Check if messages span more than one day
-		if (messages.length > 0) {
-			const oldestMessage = messages[0]
-			const spanMoreThanOneDay = isMessageOlderThanOneDay(oldestMessage.ts)
-			setIsPaginationEnabled(spanMoreThanOneDay)
-			if (!spanMoreThanOneDay) {
-				setCurrentPage(0)
-			} else {
-				// Calculate total pages based on messages length
-				const messagesPerPage = 50
-				const totalPages = Math.ceil(messages.length / messagesPerPage)
-				// Start from the last page (most recent messages)
-				setCurrentPage(Math.max(0, totalPages - 1))
-			}
-		}
-	}, [messages])
 
 	useDebounceEffect(
 		() => {
@@ -1948,23 +1890,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 								}
 								setShowScrollToBottom(disableAutoScrollRef.current && !isAtBottom)
 							}}
-							rangeChanged={(range: { startIndex: number; endIndex: number }) => {
-								if (isPaginationEnabled && totalFilteredMessagesCount > 0) {
-									const messagesPerPage = 50
-									const totalPages = Math.ceil(totalFilteredMessagesCount / messagesPerPage)
-
-									// If scrolling near top, load older messages (increase page number)
-									if (range.startIndex < 5 && currentPage < totalPages - 1) {
-										setCurrentPage((prev) => Math.min(prev + 1, totalPages - 1))
-									}
-									// If scrolling near bottom, load newer messages (decrease page number)
-									else if (range.endIndex > groupedMessages.length - 5 && currentPage > 0) {
-										setCurrentPage((prev) => Math.max(prev - 1, 0))
-									}
-								}
-							}}
 							atBottomThreshold={10}
-							initialTopMostItemIndex={groupedMessages.length - 1}
+							initialTopMostItemIndex={Math.max(0, groupedMessages.length - 1)}
+							followOutput="smooth"
 						/>
 					</div>
 					{areButtonsVisible && (
