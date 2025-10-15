@@ -121,6 +121,8 @@ import { Gpt5Metadata, ClineMessageWithMetadata } from "./types"
 import { MessageQueueService } from "../message-queue/MessageQueueService"
 
 import { AutoApprovalHandler } from "./AutoApprovalHandler"
+import { TaskAdapter, TaskAdapterConfig } from "../wasm/adapters/TaskAdapter"
+import { HostInterface } from "../wasm/host/HostInterface"
 
 const MAX_EXPONENTIAL_BACKOFF_SECONDS = 600 // 10 minutes
 const DEFAULT_USAGE_COLLECTION_TIMEOUT_MS = 5000 // 5 seconds
@@ -146,6 +148,16 @@ export interface TaskOptions extends CreateTaskOptions {
 	onCreated?: (task: Task) => void
 	initialTodos?: TodoItem[]
 	workspacePath?: string
+
+	// WASM Integration Options
+	/** Enable WASM mode for task execution (default: false) */
+	enableWasm?: boolean
+	/** Enable automatic fallback to TypeScript mode if WASM fails (default: true) */
+	enableWasmFallback?: boolean
+	/** Custom path for WASM task state persistence (default: globalStoragePath/wasm-tasks/{taskId}) */
+	wasmPersistencePath?: string
+	/** Maximum retry attempts before falling back to TypeScript mode (default: 3) */
+	wasmMaxRetries?: number
 }
 
 export class Task extends EventEmitter<TaskEvents> implements TaskLike {
@@ -248,6 +260,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	conversationMemory: ConversationMemory
 	vectorMemoryStore?: VectorMemoryStore
 
+	// WASM Integration
+	private hostInterface?: HostInterface
+	private taskAdapter?: TaskAdapter
+
 	// Judge Service
 	private judgeService?: JudgeService
 
@@ -333,6 +349,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		onCreated,
 		initialTodos,
 		workspacePath,
+		enableWasm = false,
+		enableWasmFallback = true,
+		wasmPersistencePath,
+		wasmMaxRetries = 3,
 	}: TaskOptions) {
 		super()
 
@@ -440,6 +460,44 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// Initialize todo list if provided
 		if (initialTodos && initialTodos.length > 0) {
 			this.todoList = initialTodos
+		}
+
+		// Initialize WASM integration (if enabled)
+		if (enableWasm) {
+			try {
+				// Create output channel for WASM logging
+				const outputChannel = vscode.window.createOutputChannel("Roo-Code WASM")
+
+				// Create HostInterface instance with workspacePath and outputChannel
+				this.hostInterface = new HostInterface(this.workspacePath, outputChannel)
+
+				// Initialize TaskMode before creating TaskAdapter
+				const taskMode = historyItem?.mode || defaultModeSlug
+
+				// Configure TaskAdapter
+				const adapterConfig: TaskAdapterConfig = {
+					enableWasm: true,
+					enableFallback: enableWasmFallback,
+					persistencePath: wasmPersistencePath || `${this.globalStoragePath}/wasm-tasks`,
+					maxRetries: wasmMaxRetries,
+				}
+
+				// Create TaskAdapter instance
+				this.taskAdapter = new TaskAdapter(
+					this.taskId,
+					taskMode,
+					this.hostInterface,
+					adapterConfig,
+					this.parentTaskId,
+				)
+
+				console.log(`[Task] WASM integration enabled for task ${this.taskId}`)
+			} catch (error) {
+				console.error(`[Task] Failed to initialize WASM integration:`, error)
+				// Continue without WASM - fallback to pure TypeScript mode
+				this.hostInterface = undefined
+				this.taskAdapter = undefined
+			}
 		}
 
 		onCreated?.(this)
@@ -1377,6 +1435,18 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		await this.say("text", task, images)
 		this.isInitialized = true
 
+		// Start WASM Task (if enabled)
+		if (this.taskAdapter) {
+			try {
+				const initialMessage = task || "Starting task"
+				await this.taskAdapter.start(initialMessage)
+				console.log(`[Task] WASM task started: ${this.taskId}`)
+			} catch (error) {
+				console.error(`[Task] Failed to start WASM task:`, error)
+				// Continue with TypeScript mode - TaskAdapter handles fallback internally
+			}
+		}
+
 		let imageBlocks: Anthropic.ImageBlockParam[] = formatResponse.imageBlocks(images)
 
 		// Task starting
@@ -1398,6 +1468,17 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				console.error(
 					`[Task#resumeTaskFromHistory] BridgeOrchestrator.subscribeToTask() failed: ${error instanceof Error ? error.message : String(error)}`,
 				)
+			}
+		}
+
+		// Resume WASM Task (if enabled)
+		if (this.taskAdapter) {
+			try {
+				await this.taskAdapter.resume()
+				console.log(`[Task] WASM task resumed: ${this.taskId}`)
+			} catch (error) {
+				console.error(`[Task] Failed to resume WASM task:`, error)
+				// Continue with TypeScript mode - TaskAdapter handles fallback internally
 			}
 		}
 
@@ -1671,6 +1752,18 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.abort = true
 		this.emit(RooCodeEventName.TaskAborted)
 
+		// Abort WASM Task (if enabled)
+		if (this.taskAdapter) {
+			try {
+				const reason = isAbandoned ? "abandoned" : "user_cancelled"
+				await this.taskAdapter.abort(reason)
+				console.log(`[Task] WASM task aborted: ${this.taskId}`)
+			} catch (error) {
+				console.error(`[Task] Failed to abort WASM task:`, error)
+				// Continue with disposal - don't let WASM errors block abort
+			}
+		}
+
 		try {
 			this.dispose() // Call the centralized dispose method
 		} catch (error) {
@@ -1688,6 +1781,23 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	public dispose(): void {
 		console.log(`[Task#dispose] disposing task ${this.taskId}.${this.instanceId}`)
+
+		// Dispose WASM resources first (if enabled)
+		if (this.taskAdapter) {
+			try {
+				this.taskAdapter.dispose()
+				console.log(`[Task] WASM task disposed: ${this.taskId}`)
+			} catch (error) {
+				console.error(`[Task] Failed to dispose WASM task:`, error)
+				// Continue with other disposal - don't let WASM errors block cleanup
+			}
+			this.taskAdapter = undefined
+		}
+
+		// Clear HostInterface reference (no dispose method needed)
+		if (this.hostInterface) {
+			this.hostInterface = undefined
+		}
 
 		// Flush any pending saves before disposal
 		try {
