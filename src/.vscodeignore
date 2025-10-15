@@ -34,3 +34,6 @@
 
 # Include .env file for telemetry
 !.env
+
+# Include .roo/agents directory for subagent prompts
+!.roo/agents/**

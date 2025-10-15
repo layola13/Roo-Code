@@ -2232,9 +2232,9 @@ export class ClineProvider
 			useContextAnalyzer: stateValues.useContextAnalyzer ?? true,
 			useMemoryExtractor: stateValues.useMemoryExtractor ?? true,
 			useCodeSummarizer: stateValues.useCodeSummarizer ?? true,
-			contextAnalyzerPrompt: stateValues.contextAnalyzerPrompt,
-			memoryExtractorPrompt: stateValues.memoryExtractorPrompt,
-			codeSummarizerPrompt: stateValues.codeSummarizerPrompt,
+			contextAnalyzerPrompt: stateValues.contextAnalyzerPrompt || undefined,
+			memoryExtractorPrompt: stateValues.memoryExtractorPrompt || undefined,
+			codeSummarizerPrompt: stateValues.codeSummarizerPrompt || undefined,
 		}
 	}
 

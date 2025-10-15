@@ -184,7 +184,18 @@ export class ContextProxy {
 	}
 
 	private getAllGlobalState(): GlobalState {
-		return Object.fromEntries(GLOBAL_STATE_KEYS.map((key) => [key, this.getGlobalState(key)]))
+		const result = Object.fromEntries(GLOBAL_STATE_KEYS.map((key) => [key, this.getGlobalState(key)]))
+
+		// Debug logging for subagent prompts
+		logger.info("[ContextProxy] getAllGlobalState - Subagent prompts check:")
+		logger.info(`  - contextAnalyzerPrompt: ${JSON.stringify(result.contextAnalyzerPrompt)}`)
+		logger.info(`  - memoryExtractorPrompt: ${JSON.stringify(result.memoryExtractorPrompt)}`)
+		logger.info(`  - codeSummarizerPrompt: ${JSON.stringify(result.codeSummarizerPrompt)}`)
+		logger.info(
+			`[ContextProxy] GLOBAL_STATE_KEYS includes these fields: ${GLOBAL_STATE_KEYS.includes("contextAnalyzerPrompt" as any)}, ${GLOBAL_STATE_KEYS.includes("memoryExtractorPrompt" as any)}, ${GLOBAL_STATE_KEYS.includes("codeSummarizerPrompt" as any)}`,
+		)
+
+		return result
 	}
 
 	/**
@@ -321,8 +332,24 @@ export class ContextProxy {
 		const globalState = this.getAllGlobalState()
 		const secretState = this.getAllSecretState()
 
-		// Simply merge all states - no nested secrets to handle
-		return { ...globalState, ...secretState }
+		// Merge all states
+		const values = { ...globalState, ...secretState }
+
+		// Convert empty strings to undefined for subagent prompts
+		// This ensures the UI displays default prompts when no custom prompt is set
+		const subAgentPromptKeys: (keyof RooCodeSettings)[] = [
+			"contextAnalyzerPrompt",
+			"memoryExtractorPrompt",
+			"codeSummarizerPrompt",
+		]
+
+		for (const key of subAgentPromptKeys) {
+			if (values[key] === "") {
+				values[key] = undefined
+			}
+		}
+
+		return values
 	}
 
 	public async setValues(values: RooCodeSettings) {

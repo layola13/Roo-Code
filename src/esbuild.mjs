@@ -4,6 +4,7 @@ import * as path from "path"
 import { fileURLToPath } from "url"
 import process from "node:process"
 import * as console from "node:console"
+import { execSync } from "node:child_process"
 
 import { copyPaths, copyWasms, copyLocales, setupLocaleWatcher } from "@roo-code/build"
 
@@ -44,6 +45,23 @@ async function main() {
 	 */
 	const plugins = [
 		{
+			name: "generateSubagentPrompts",
+			setup(build) {
+				build.onStart(() => {
+					console.log("[generateSubagentPrompts] Generating subagent prompts from MD files...")
+					try {
+						execSync("node ../scripts/generate-subagent-prompts.mjs", {
+							cwd: srcDir,
+							stdio: "inherit",
+						})
+					} catch (error) {
+						console.error("[generateSubagentPrompts] Failed to generate prompts:", error.message)
+						throw error
+					}
+				})
+			},
+		},
+		{
 			name: "copyFiles",
 			setup(build) {
 				build.onEnd(() => {
@@ -55,6 +73,7 @@ async function main() {
 							["../.env", ".env", { optional: true }],
 							["node_modules/vscode-material-icons/generated", "assets/vscode-material-icons"],
 							["../webview-ui/audio", "webview-ui/audio"],
+							["../.roo/agents", ".roo/agents"],
 						],
 						srcDir,
 						buildDir,

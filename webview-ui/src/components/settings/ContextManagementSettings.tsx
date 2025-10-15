@@ -91,6 +91,34 @@ export const ContextManagementSettings = ({
 	const { t } = useAppTranslation()
 	const [selectedThresholdProfile, setSelectedThresholdProfile] = React.useState<string>("default")
 
+	// 🔍 DEBUG: Log current state and defaults
+	React.useEffect(() => {
+		console.log("🔍 [SubAgent Debug] Current State:", {
+			contextAnalyzerPrompt: contextAnalyzerPrompt,
+			contextAnalyzerPrompt_type: typeof contextAnalyzerPrompt,
+			contextAnalyzerPrompt_length: contextAnalyzerPrompt?.length,
+			contextAnalyzerPrompt_isEmpty: contextAnalyzerPrompt === "",
+			contextAnalyzerPrompt_isUndefined: contextAnalyzerPrompt === undefined,
+			memoryExtractorPrompt: memoryExtractorPrompt,
+			memoryExtractorPrompt_type: typeof memoryExtractorPrompt,
+			codeSummarizerPrompt: codeSummarizerPrompt,
+			codeSummarizerPrompt_type: typeof codeSummarizerPrompt,
+		})
+		console.log("🔍 [SubAgent Debug] DEFAULT_SUBAGENT_PROMPTS:", {
+			contextAnalyzer_exists: !!DEFAULT_SUBAGENT_PROMPTS.contextAnalyzer,
+			contextAnalyzer_length: DEFAULT_SUBAGENT_PROMPTS.contextAnalyzer?.length,
+			contextAnalyzer_preview: DEFAULT_SUBAGENT_PROMPTS.contextAnalyzer?.substring(0, 100),
+			memoryExtractor_exists: !!DEFAULT_SUBAGENT_PROMPTS.memoryExtractor,
+			memoryExtractor_length: DEFAULT_SUBAGENT_PROMPTS.memoryExtractor?.length,
+			codeSummarizer_exists: !!DEFAULT_SUBAGENT_PROMPTS.codeSummarizer,
+			codeSummarizer_length: DEFAULT_SUBAGENT_PROMPTS.codeSummarizer?.length,
+		})
+		console.log("🔍 [SubAgent Debug] Textarea will show:", {
+			contextAnalyzer_value: contextAnalyzerPrompt ?? DEFAULT_SUBAGENT_PROMPTS.contextAnalyzer,
+			contextAnalyzer_finalLength: (contextAnalyzerPrompt ?? DEFAULT_SUBAGENT_PROMPTS.contextAnalyzer)?.length,
+		})
+	}, [contextAnalyzerPrompt, memoryExtractorPrompt, codeSummarizerPrompt])
+
 	// Helper function to get the current threshold value based on selected profile
 	const getCurrentThresholdValue = () => {
 		if (selectedThresholdProfile === "default") {
@@ -522,7 +550,11 @@ export const ContextManagementSettings = ({
 										</label>
 										<textarea
 											className="w-full min-h-[80px] bg-vscode-input-background text-vscode-input-foreground border border-vscode-input-border px-2 py-1 rounded text-xs resize-y"
-											value={contextAnalyzerPrompt ?? DEFAULT_SUBAGENT_PROMPTS.contextAnalyzer}
+											value={
+												contextAnalyzerPrompt && contextAnalyzerPrompt.trim()
+													? contextAnalyzerPrompt
+													: DEFAULT_SUBAGENT_PROMPTS.contextAnalyzer
+											}
 											onChange={(e) =>
 												setCachedStateField(
 													"contextAnalyzerPrompt",
@@ -534,6 +566,52 @@ export const ContextManagementSettings = ({
 											)}
 											data-testid="context-analyzer-prompt-textarea"
 										/>
+										{/* 🔍 DEBUG INFO - 可见调试面板 */}
+										<div className="mt-2 p-2 bg-yellow-900 bg-opacity-20 border border-yellow-600 rounded text-xs">
+											<div className="font-bold text-yellow-400 mb-1">🔍 调试信息:</div>
+											<div className="text-yellow-200 space-y-1">
+												<div>
+													• Prop值类型: <code>{typeof contextAnalyzerPrompt}</code>
+												</div>
+												<div>
+													• Prop值:{" "}
+													<code>
+														{contextAnalyzerPrompt === undefined
+															? "undefined"
+															: contextAnalyzerPrompt === ""
+																? '空字符串("")'
+																: `有值(${contextAnalyzerPrompt?.length}字符)`}
+													</code>
+												</div>
+												<div>
+													• 默认值存在:{" "}
+													<code>
+														{DEFAULT_SUBAGENT_PROMPTS.contextAnalyzer
+															? `是(${DEFAULT_SUBAGENT_PROMPTS.contextAnalyzer.length}字符)`
+															: "否"}
+													</code>
+												</div>
+												<div>
+													• Fallback结果:{" "}
+													<code>
+														{(
+															contextAnalyzerPrompt ??
+															DEFAULT_SUBAGENT_PROMPTS.contextAnalyzer
+														)?.length || 0}
+														字符
+													</code>
+												</div>
+												<div>
+													• Textarea显示内容长度:{" "}
+													<code>
+														{(
+															contextAnalyzerPrompt ??
+															DEFAULT_SUBAGENT_PROMPTS.contextAnalyzer
+														)?.length || 0}
+													</code>
+												</div>
+											</div>
+										</div>
 										{contextAnalyzerPrompt && (
 											<Button
 												variant="ghost"
@@ -568,7 +646,11 @@ export const ContextManagementSettings = ({
 										</label>
 										<textarea
 											className="w-full min-h-[80px] bg-vscode-input-background text-vscode-input-foreground border border-vscode-input-border px-2 py-1 rounded text-xs resize-y"
-											value={memoryExtractorPrompt ?? DEFAULT_SUBAGENT_PROMPTS.memoryExtractor}
+											value={
+												memoryExtractorPrompt && memoryExtractorPrompt.trim()
+													? memoryExtractorPrompt
+													: DEFAULT_SUBAGENT_PROMPTS.memoryExtractor
+											}
 											onChange={(e) =>
 												setCachedStateField(
 													"memoryExtractorPrompt",
@@ -614,7 +696,11 @@ export const ContextManagementSettings = ({
 										</label>
 										<textarea
 											className="w-full min-h-[80px] bg-vscode-input-background text-vscode-input-foreground border border-vscode-input-border px-2 py-1 rounded text-xs resize-y"
-											value={codeSummarizerPrompt ?? DEFAULT_SUBAGENT_PROMPTS.codeSummarizer}
+											value={
+												codeSummarizerPrompt && codeSummarizerPrompt.trim()
+													? codeSummarizerPrompt
+													: DEFAULT_SUBAGENT_PROMPTS.codeSummarizer
+											}
 											onChange={(e) =>
 												setCachedStateField("codeSummarizerPrompt", e.target.value || undefined)
 											}
