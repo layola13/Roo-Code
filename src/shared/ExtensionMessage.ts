@@ -288,6 +288,13 @@ export type ExtensionState = Pick<
 	| "openRouterImageGenerationSelectedModel"
 	| "includeTaskHistoryInEnhance"
 	| "reasoningBlockCollapsed"
+	// Sub-agent configuration (UI settings)
+	| "useContextAnalyzer"
+	| "useMemoryExtractor"
+	| "useCodeSummarizer"
+	| "contextAnalyzerPrompt"
+	| "memoryExtractorPrompt"
+	| "codeSummarizerPrompt"
 > & {
 	// Judge mode configuration
 	judgeConfig?: {

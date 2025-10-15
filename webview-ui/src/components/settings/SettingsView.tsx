@@ -197,6 +197,12 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		reasoningBlockCollapsed,
 		vectorMemoryEnabled,
 		subAgentCompressionEnabled,
+		useContextAnalyzer,
+		useMemoryExtractor,
+		useCodeSummarizer,
+		contextAnalyzerPrompt,
+		memoryExtractorPrompt,
+		codeSummarizerPrompt,
 	} = cachedState
 
 	const apiConfiguration = useMemo(() => cachedState.apiConfiguration ?? {}, [cachedState.apiConfiguration])
@@ -388,6 +394,12 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			vscode.postMessage({ type: "setReasoningBlockCollapsed", bool: reasoningBlockCollapsed ?? true })
 			vscode.postMessage({ type: "vectorMemoryEnabled", bool: vectorMemoryEnabled ?? false })
 			vscode.postMessage({ type: "useSubAgentCompression", bool: subAgentCompressionEnabled ?? false })
+			vscode.postMessage({ type: "useContextAnalyzer", bool: useContextAnalyzer ?? true })
+			vscode.postMessage({ type: "useMemoryExtractor", bool: useMemoryExtractor ?? true })
+			vscode.postMessage({ type: "useCodeSummarizer", bool: useCodeSummarizer ?? true })
+			vscode.postMessage({ type: "contextAnalyzerPrompt", text: contextAnalyzerPrompt ?? "" })
+			vscode.postMessage({ type: "memoryExtractorPrompt", text: memoryExtractorPrompt ?? "" })
+			vscode.postMessage({ type: "codeSummarizerPrompt", text: codeSummarizerPrompt ?? "" })
 			vscode.postMessage({ type: "upsertApiConfiguration", text: currentApiConfigName, apiConfiguration })
 			vscode.postMessage({ type: "telemetrySetting", text: telemetrySetting })
 			vscode.postMessage({ type: "profileThresholds", values: profileThresholds })
@@ -750,6 +762,12 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 							writeDelayMs={writeDelayMs}
 							vectorMemoryEnabled={vectorMemoryEnabled}
 							subAgentCompressionEnabled={subAgentCompressionEnabled}
+							useContextAnalyzer={useContextAnalyzer}
+							useMemoryExtractor={useMemoryExtractor}
+							useCodeSummarizer={useCodeSummarizer}
+							contextAnalyzerPrompt={contextAnalyzerPrompt}
+							memoryExtractorPrompt={memoryExtractorPrompt}
+							codeSummarizerPrompt={codeSummarizerPrompt}
 							setCachedStateField={setCachedStateField}
 						/>
 					)}

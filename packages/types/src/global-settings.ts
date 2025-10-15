@@ -86,6 +86,14 @@ export const globalSettingsSchema = z.object({
 	subAgentUseCompressionDecider: z.boolean().optional(),
 	subAgentVerboseLogging: z.boolean().optional(),
 
+	// Sub-agent configuration (UI settings)
+	useContextAnalyzer: z.boolean().optional(),
+	useMemoryExtractor: z.boolean().optional(),
+	useCodeSummarizer: z.boolean().optional(),
+	contextAnalyzerPrompt: z.string().optional(),
+	memoryExtractorPrompt: z.string().optional(),
+	codeSummarizerPrompt: z.string().optional(),
+
 	/**
 	 * Whether to include diagnostic messages (errors, warnings) in tool outputs
 	 * @default true

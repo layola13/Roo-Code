@@ -623,8 +623,33 @@
 			"waitingForIndex": "Waiting for codebase indexing to complete...",
 			"ready": "Vector memory is ready to use"
 		},
-		"useSubAgentCompression": "Enable sub-agent compression (Experimental)",
-		"useSubAgentCompressionDesc": "When enabled, Roo will use specialized sub-agents to intelligently analyze and compress context. This experimental feature may significantly reduce token usage but requires additional API calls."
+		"subAgentCompression": {
+			"label": "Enable sub-agent compression (Experimental)",
+			"description": "When enabled, Roo will use specialized sub-agents to intelligently analyze and compress context. This experimental feature may significantly reduce token usage but requires additional API calls."
+		},
+		"subAgentConfig": {
+			"title": "Sub-Agent Configuration",
+			"description": "Configure individual sub-agents and customize their system prompts. Each sub-agent has a specific role in analyzing and compressing conversation context.",
+			"contextAnalyzer": {
+				"label": "Context Analyzer",
+				"description": "Analyzes conversation flow and identifies dialogue stages",
+				"promptLabel": "System Prompt",
+				"promptPlaceholder": "Enter custom system prompt for Context Analyzer..."
+			},
+			"memoryExtractor": {
+				"label": "Memory Extractor",
+				"description": "Extracts critical user instructions and requirements",
+				"promptLabel": "System Prompt",
+				"promptPlaceholder": "Enter custom system prompt for Memory Extractor..."
+			},
+			"codeSummarizer": {
+				"label": "Code Summarizer",
+				"description": "Summarizes technical context and code changes",
+				"promptLabel": "System Prompt",
+				"promptPlaceholder": "Enter custom system prompt for Code Summarizer..."
+			},
+			"resetButton": "Reset to Default"
+		}
 	},
 	"terminal": {
 		"basic": {

@@ -2,6 +2,7 @@
 
 import { render, screen, fireEvent, waitFor } from "@/utils/test-utils"
 import { ContextManagementSettings } from "../ContextManagementSettings"
+import { DEFAULT_SUBAGENT_PROMPTS } from "../../../../../src/shared/subagent-prompts"
 
 // Mock the translation hook
 vi.mock("@/hooks/useAppTranslation", () => ({
@@ -97,6 +98,14 @@ describe("ContextManagementSettings", () => {
 		includeDiagnosticMessages: true,
 		maxDiagnosticMessages: 50,
 		writeDelayMs: 1000,
+		vectorMemoryEnabled: false,
+		subAgentCompressionEnabled: false,
+		useContextAnalyzer: true,
+		useMemoryExtractor: true,
+		useCodeSummarizer: true,
+		contextAnalyzerPrompt: undefined,
+		memoryExtractorPrompt: undefined,
+		codeSummarizerPrompt: undefined,
 		setCachedStateField: vi.fn(),
 	}
 
@@ -551,6 +560,295 @@ describe("ContextManagementSettings", () => {
 			expect(screen.getByText("settings:contextManagement.openTabs.label")).toBeInTheDocument()
 			expect(screen.getByText("settings:contextManagement.workspaceFiles.label")).toBeInTheDocument()
 			expect(screen.getByText("settings:contextManagement.rooignore.label")).toBeInTheDocument()
+		})
+	})
+
+	describe("Sub-Agent Configuration", () => {
+		const subAgentProps = {
+			...defaultProps,
+			subAgentCompressionEnabled: true,
+			useContextAnalyzer: true,
+			useMemoryExtractor: false,
+			useCodeSummarizer: true,
+			contextAnalyzerPrompt: "Custom context analyzer prompt",
+			memoryExtractorPrompt: undefined,
+			codeSummarizerPrompt: "Custom code summarizer prompt",
+		}
+
+		it("renders sub-agent configuration section when subAgentCompressionEnabled is true", () => {
+			render(<ContextManagementSettings {...subAgentProps} />)
+
+			// Check for sub-agent configuration title
+			expect(screen.getByText("settings:contextManagement.subAgentConfig.title")).toBeInTheDocument()
+
+			// Check for all three sub-agent checkboxes
+			expect(screen.getByTestId("use-context-analyzer-checkbox")).toBeInTheDocument()
+			expect(screen.getByTestId("use-memory-extractor-checkbox")).toBeInTheDocument()
+			expect(screen.getByTestId("use-code-summarizer-checkbox")).toBeInTheDocument()
+		})
+
+		it("does not render sub-agent configuration when subAgentCompressionEnabled is false", () => {
+			const propsWithoutSubAgent = {
+				...defaultProps,
+				subAgentCompressionEnabled: false,
+			}
+			render(<ContextManagementSettings {...propsWithoutSubAgent} />)
+
+			// Sub-agent configuration should not be visible
+			expect(screen.queryByText("settings:contextManagement.subAgentConfig.title")).not.toBeInTheDocument()
+			expect(screen.queryByTestId("use-context-analyzer-checkbox")).not.toBeInTheDocument()
+		})
+
+		it("renders sub-agent checkboxes with correct initial states", () => {
+			render(<ContextManagementSettings {...subAgentProps} />)
+
+			const contextAnalyzerCheckbox = screen
+				.getByTestId("use-context-analyzer-checkbox")
+				.querySelector('input[type="checkbox"]')
+			const memoryExtractorCheckbox = screen
+				.getByTestId("use-memory-extractor-checkbox")
+				.querySelector('input[type="checkbox"]')
+			const codeSummarizerCheckbox = screen
+				.getByTestId("use-code-summarizer-checkbox")
+				.querySelector('input[type="checkbox"]')
+
+			expect(contextAnalyzerCheckbox).toBeChecked()
+			expect(memoryExtractorCheckbox).not.toBeChecked()
+			expect(codeSummarizerCheckbox).toBeChecked()
+		})
+
+		it("toggles context analyzer checkbox", async () => {
+			const mockSetCachedStateField = vi.fn()
+			const props = { ...subAgentProps, setCachedStateField: mockSetCachedStateField }
+			render(<ContextManagementSettings {...props} />)
+
+			const checkbox = screen.getByTestId("use-context-analyzer-checkbox").querySelector("input")!
+			fireEvent.click(checkbox)
+
+			await waitFor(() => {
+				expect(mockSetCachedStateField).toHaveBeenCalledWith("useContextAnalyzer", false)
+			})
+		})
+
+		it("toggles memory extractor checkbox", async () => {
+			const mockSetCachedStateField = vi.fn()
+			const props = { ...subAgentProps, setCachedStateField: mockSetCachedStateField }
+			render(<ContextManagementSettings {...props} />)
+
+			const checkbox = screen.getByTestId("use-memory-extractor-checkbox").querySelector("input")!
+			fireEvent.click(checkbox)
+
+			await waitFor(() => {
+				expect(mockSetCachedStateField).toHaveBeenCalledWith("useMemoryExtractor", true)
+			})
+		})
+
+		it("toggles code summarizer checkbox", async () => {
+			const mockSetCachedStateField = vi.fn()
+			const props = { ...subAgentProps, setCachedStateField: mockSetCachedStateField }
+			render(<ContextManagementSettings {...props} />)
+
+			const checkbox = screen.getByTestId("use-code-summarizer-checkbox").querySelector("input")!
+			fireEvent.click(checkbox)
+
+			await waitFor(() => {
+				expect(mockSetCachedStateField).toHaveBeenCalledWith("useCodeSummarizer", false)
+			})
+		})
+
+		it("renders custom prompt textarea for context analyzer", () => {
+			render(<ContextManagementSettings {...subAgentProps} />)
+
+			const textarea = screen.getByTestId("context-analyzer-prompt-textarea")
+			expect(textarea).toBeInTheDocument()
+			expect(textarea).toHaveValue("Custom context analyzer prompt")
+		})
+
+		it("renders custom prompt textarea for memory extractor when enabled", () => {
+			const props = {
+				...subAgentProps,
+				useMemoryExtractor: true,
+			}
+			render(<ContextManagementSettings {...props} />)
+
+			const textarea = screen.getByTestId("memory-extractor-prompt-textarea")
+			expect(textarea).toBeInTheDocument()
+			// When no custom prompt is set, it should display the default prompt
+			expect(textarea).toHaveValue(DEFAULT_SUBAGENT_PROMPTS.memoryExtractor)
+		})
+
+		it("renders custom prompt textarea for code summarizer", () => {
+			render(<ContextManagementSettings {...subAgentProps} />)
+
+			const textarea = screen.getByTestId("code-summarizer-prompt-textarea")
+			expect(textarea).toBeInTheDocument()
+			expect(textarea).toHaveValue("Custom code summarizer prompt")
+		})
+
+		it("updates context analyzer custom prompt", async () => {
+			const mockSetCachedStateField = vi.fn()
+			const props = { ...subAgentProps, setCachedStateField: mockSetCachedStateField }
+			render(<ContextManagementSettings {...props} />)
+
+			const textarea = screen.getByTestId("context-analyzer-prompt-textarea")
+			fireEvent.change(textarea, { target: { value: "New custom prompt" } })
+
+			await waitFor(() => {
+				expect(mockSetCachedStateField).toHaveBeenCalledWith("contextAnalyzerPrompt", "New custom prompt")
+			})
+		})
+
+		it("updates memory extractor custom prompt", async () => {
+			const mockSetCachedStateField = vi.fn()
+			const props = {
+				...subAgentProps,
+				useMemoryExtractor: true,
+				setCachedStateField: mockSetCachedStateField,
+			}
+			render(<ContextManagementSettings {...props} />)
+
+			const textarea = screen.getByTestId("memory-extractor-prompt-textarea")
+			fireEvent.change(textarea, { target: { value: "New memory prompt" } })
+
+			await waitFor(() => {
+				expect(mockSetCachedStateField).toHaveBeenCalledWith("memoryExtractorPrompt", "New memory prompt")
+			})
+		})
+
+		it("updates code summarizer custom prompt", async () => {
+			const mockSetCachedStateField = vi.fn()
+			const props = { ...subAgentProps, setCachedStateField: mockSetCachedStateField }
+			render(<ContextManagementSettings {...props} />)
+
+			const textarea = screen.getByTestId("code-summarizer-prompt-textarea")
+			fireEvent.change(textarea, { target: { value: "New code summary prompt" } })
+
+			await waitFor(() => {
+				expect(mockSetCachedStateField).toHaveBeenCalledWith("codeSummarizerPrompt", "New code summary prompt")
+			})
+		})
+
+		it("renders reset button for context analyzer when custom prompt exists", () => {
+			render(<ContextManagementSettings {...subAgentProps} />)
+
+			const resetButton = screen.getByTestId("context-analyzer-prompt-reset")
+			expect(resetButton).toBeInTheDocument()
+		})
+
+		it("does not render reset button for memory extractor when no custom prompt", () => {
+			render(<ContextManagementSettings {...subAgentProps} />)
+
+			const resetButton = screen.queryByTestId("memory-extractor-prompt-reset")
+			expect(resetButton).not.toBeInTheDocument()
+		})
+
+		it("renders reset button for code summarizer when custom prompt exists", () => {
+			render(<ContextManagementSettings {...subAgentProps} />)
+
+			const resetButton = screen.getByTestId("code-summarizer-prompt-reset")
+			expect(resetButton).toBeInTheDocument()
+		})
+
+		it("resets context analyzer custom prompt to default", async () => {
+			const mockSetCachedStateField = vi.fn()
+			const props = { ...subAgentProps, setCachedStateField: mockSetCachedStateField }
+			render(<ContextManagementSettings {...props} />)
+
+			const resetButton = screen.getByTestId("context-analyzer-prompt-reset")
+			fireEvent.click(resetButton)
+
+			await waitFor(() => {
+				expect(mockSetCachedStateField).toHaveBeenCalledWith("contextAnalyzerPrompt", undefined)
+			})
+		})
+
+		it("resets code summarizer custom prompt to default", async () => {
+			const mockSetCachedStateField = vi.fn()
+			const props = { ...subAgentProps, setCachedStateField: mockSetCachedStateField }
+			render(<ContextManagementSettings {...props} />)
+
+			const resetButton = screen.getByTestId("code-summarizer-prompt-reset")
+			fireEvent.click(resetButton)
+
+			await waitFor(() => {
+				expect(mockSetCachedStateField).toHaveBeenCalledWith("codeSummarizerPrompt", undefined)
+			})
+		})
+
+		it("handles all sub-agents enabled", () => {
+			const allEnabledProps = {
+				...defaultProps,
+				subAgentCompressionEnabled: true,
+				useContextAnalyzer: true,
+				useMemoryExtractor: true,
+				useCodeSummarizer: true,
+			}
+			render(<ContextManagementSettings {...allEnabledProps} />)
+
+			const contextAnalyzerCheckbox = screen
+				.getByTestId("use-context-analyzer-checkbox")
+				.querySelector('input[type="checkbox"]')
+			const memoryExtractorCheckbox = screen
+				.getByTestId("use-memory-extractor-checkbox")
+				.querySelector('input[type="checkbox"]')
+			const codeSummarizerCheckbox = screen
+				.getByTestId("use-code-summarizer-checkbox")
+				.querySelector('input[type="checkbox"]')
+
+			expect(contextAnalyzerCheckbox).toBeChecked()
+			expect(memoryExtractorCheckbox).toBeChecked()
+			expect(codeSummarizerCheckbox).toBeChecked()
+		})
+
+		it("handles all sub-agents disabled", () => {
+			const allDisabledProps = {
+				...defaultProps,
+				subAgentCompressionEnabled: true,
+				useContextAnalyzer: false,
+				useMemoryExtractor: false,
+				useCodeSummarizer: false,
+			}
+			render(<ContextManagementSettings {...allDisabledProps} />)
+
+			const contextAnalyzerCheckbox = screen
+				.getByTestId("use-context-analyzer-checkbox")
+				.querySelector('input[type="checkbox"]')
+			const memoryExtractorCheckbox = screen
+				.getByTestId("use-memory-extractor-checkbox")
+				.querySelector('input[type="checkbox"]')
+			const codeSummarizerCheckbox = screen
+				.getByTestId("use-code-summarizer-checkbox")
+				.querySelector('input[type="checkbox"]')
+
+			expect(contextAnalyzerCheckbox).not.toBeChecked()
+			expect(memoryExtractorCheckbox).not.toBeChecked()
+			expect(codeSummarizerCheckbox).not.toBeChecked()
+		})
+
+		it("renders sub-agent labels and descriptions", () => {
+			render(<ContextManagementSettings {...subAgentProps} />)
+
+			// Check for labels
+			expect(
+				screen.getByText("settings:contextManagement.subAgentConfig.contextAnalyzer.label"),
+			).toBeInTheDocument()
+			expect(
+				screen.getByText("settings:contextManagement.subAgentConfig.memoryExtractor.label"),
+			).toBeInTheDocument()
+			expect(
+				screen.getByText("settings:contextManagement.subAgentConfig.codeSummarizer.label"),
+			).toBeInTheDocument()
+
+			// Check for descriptions
+			expect(
+				screen.getByText("settings:contextManagement.subAgentConfig.contextAnalyzer.description"),
+			).toBeInTheDocument()
+			expect(
+				screen.getByText("settings:contextManagement.subAgentConfig.memoryExtractor.description"),
+			).toBeInTheDocument()
+			expect(
+				screen.getByText("settings:contextManagement.subAgentConfig.codeSummarizer.description"),
+			).toBeInTheDocument()
 		})
 	})
 })

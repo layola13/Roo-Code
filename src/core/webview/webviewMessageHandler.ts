@@ -592,6 +592,30 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("useSubAgentCompression", message.bool)
 			await provider.postStateToWebview()
 			break
+		case "useContextAnalyzer":
+			await updateGlobalState("useContextAnalyzer", message.bool)
+			await provider.postStateToWebview()
+			break
+		case "useMemoryExtractor":
+			await updateGlobalState("useMemoryExtractor", message.bool)
+			await provider.postStateToWebview()
+			break
+		case "useCodeSummarizer":
+			await updateGlobalState("useCodeSummarizer", message.bool)
+			await provider.postStateToWebview()
+			break
+		case "contextAnalyzerPrompt":
+			await updateGlobalState("contextAnalyzerPrompt", message.text)
+			await provider.postStateToWebview()
+			break
+		case "memoryExtractorPrompt":
+			await updateGlobalState("memoryExtractorPrompt", message.text)
+			await provider.postStateToWebview()
+			break
+		case "codeSummarizerPrompt":
+			await updateGlobalState("codeSummarizerPrompt", message.text)
+			await provider.postStateToWebview()
+			break
 		case "autoCondenseContextPercent":
 			await updateGlobalState("autoCondenseContextPercent", message.value)
 			await provider.postStateToWebview()

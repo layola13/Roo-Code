@@ -1829,6 +1829,12 @@ export class ClineProvider
 			openRouterUseMiddleOutTransform,
 			featureRoomoteControlEnabled,
 			useSubAgentCompression,
+			useContextAnalyzer,
+			useMemoryExtractor,
+			useCodeSummarizer,
+			contextAnalyzerPrompt,
+			memoryExtractorPrompt,
+			codeSummarizerPrompt,
 		} = await this.getState()
 
 		let cloudOrganizations: CloudOrganizationMembership[] = []
@@ -1982,6 +1988,12 @@ export class ClineProvider
 			featureRoomoteControlEnabled,
 			useSubAgentCompression: useSubAgentCompression ?? false,
 			subAgentCompressionEnabled: useSubAgentCompression ?? false,
+			useContextAnalyzer: useContextAnalyzer ?? true,
+			useMemoryExtractor: useMemoryExtractor ?? true,
+			useCodeSummarizer: useCodeSummarizer ?? true,
+			contextAnalyzerPrompt,
+			memoryExtractorPrompt,
+			codeSummarizerPrompt,
 		}
 	}
 
@@ -2217,6 +2229,12 @@ export class ClineProvider
 			})(),
 			useSubAgentCompression: stateValues.useSubAgentCompression ?? false,
 			subAgentCompressionEnabled: stateValues.useSubAgentCompression ?? false,
+			useContextAnalyzer: stateValues.useContextAnalyzer ?? true,
+			useMemoryExtractor: stateValues.useMemoryExtractor ?? true,
+			useCodeSummarizer: stateValues.useCodeSummarizer ?? true,
+			contextAnalyzerPrompt: stateValues.contextAnalyzerPrompt,
+			memoryExtractorPrompt: stateValues.memoryExtractorPrompt,
+			codeSummarizerPrompt: stateValues.codeSummarizerPrompt,
 		}
 	}
 

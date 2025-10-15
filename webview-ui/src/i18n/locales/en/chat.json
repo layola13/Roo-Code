@@ -171,7 +171,15 @@
 		"title": "Context Condensed",
 		"condensing": "Condensing context...",
 		"errorHeader": "Failed to condense context",
-		"tokens": "tokens"
+		"tokens": "tokens",
+		"subAgents": "sub-agents",
+		"statistics": "Compression Statistics",
+		"before": "Before",
+		"after": "After",
+		"reduced": "Reduced",
+		"ratio": "Compression Ratio",
+		"subAgentDetails": "Sub-Agent Details",
+		"summary": "Summary"
 	},
 	"instructions": {
 		"wantsToFetch": "Roo wants to fetch detailed instructions to assist with the current task"

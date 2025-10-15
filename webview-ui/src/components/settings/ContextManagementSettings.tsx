@@ -11,6 +11,7 @@ import { SetCachedStateField } from "./types"
 import { SectionHeader } from "./SectionHeader"
 import { Section } from "./Section"
 import { vscode } from "@/utils/vscode"
+import { DEFAULT_SUBAGENT_PROMPTS } from "../../../../src/shared/subagent-prompts"
 
 type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	autoCondenseContext: boolean
@@ -29,6 +30,12 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	writeDelayMs: number
 	vectorMemoryEnabled?: boolean
 	subAgentCompressionEnabled?: boolean
+	useContextAnalyzer?: boolean
+	useMemoryExtractor?: boolean
+	useCodeSummarizer?: boolean
+	contextAnalyzerPrompt?: string
+	memoryExtractorPrompt?: string
+	codeSummarizerPrompt?: string
 	setCachedStateField: SetCachedStateField<
 		| "autoCondenseContext"
 		| "autoCondenseContextPercent"
@@ -45,6 +52,12 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 		| "writeDelayMs"
 		| "vectorMemoryEnabled"
 		| "subAgentCompressionEnabled"
+		| "useContextAnalyzer"
+		| "useMemoryExtractor"
+		| "useCodeSummarizer"
+		| "contextAnalyzerPrompt"
+		| "memoryExtractorPrompt"
+		| "codeSummarizerPrompt"
 	>
 }
 
@@ -66,6 +79,12 @@ export const ContextManagementSettings = ({
 	writeDelayMs,
 	vectorMemoryEnabled,
 	subAgentCompressionEnabled,
+	useContextAnalyzer,
+	useMemoryExtractor,
+	useCodeSummarizer,
+	contextAnalyzerPrompt,
+	memoryExtractorPrompt,
+	codeSummarizerPrompt,
 	className,
 	...props
 }: ContextManagementSettingsProps) => {
@@ -472,6 +491,153 @@ export const ContextManagementSettings = ({
 					<div className="text-vscode-descriptionForeground text-sm">
 						{t("settings:contextManagement.subAgentCompression.description")}
 					</div>
+
+					{/* Sub-Agent Configuration UI */}
+					{subAgentCompressionEnabled && (
+						<div className="flex flex-col gap-4 pl-3 mt-2 border-l-2 border-vscode-button-background">
+							<div className="text-sm font-semibold">
+								{t("settings:contextManagement.subAgentConfig.title")}
+							</div>
+							<div className="text-vscode-descriptionForeground text-sm">
+								{t("settings:contextManagement.subAgentConfig.description")}
+							</div>
+
+							{/* Context Analyzer */}
+							<div className="flex flex-col gap-2">
+								<VSCodeCheckbox
+									checked={useContextAnalyzer ?? true}
+									onChange={(e: any) => setCachedStateField("useContextAnalyzer", e.target.checked)}
+									data-testid="use-context-analyzer-checkbox">
+									<span className="font-medium">
+										{t("settings:contextManagement.subAgentConfig.contextAnalyzer.label")}
+									</span>
+								</VSCodeCheckbox>
+								<div className="text-vscode-descriptionForeground text-xs pl-6">
+									{t("settings:contextManagement.subAgentConfig.contextAnalyzer.description")}
+								</div>
+								{(useContextAnalyzer ?? true) && (
+									<div className="flex flex-col gap-1 pl-6">
+										<label className="text-xs font-medium">
+											{t("settings:contextManagement.subAgentConfig.contextAnalyzer.promptLabel")}
+										</label>
+										<textarea
+											className="w-full min-h-[80px] bg-vscode-input-background text-vscode-input-foreground border border-vscode-input-border px-2 py-1 rounded text-xs resize-y"
+											value={contextAnalyzerPrompt ?? DEFAULT_SUBAGENT_PROMPTS.contextAnalyzer}
+											onChange={(e) =>
+												setCachedStateField(
+													"contextAnalyzerPrompt",
+													e.target.value || undefined,
+												)
+											}
+											placeholder={t(
+												"settings:contextManagement.subAgentConfig.contextAnalyzer.promptPlaceholder",
+											)}
+											data-testid="context-analyzer-prompt-textarea"
+										/>
+										{contextAnalyzerPrompt && (
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => setCachedStateField("contextAnalyzerPrompt", undefined)}
+												className="self-start text-xs"
+												data-testid="context-analyzer-prompt-reset">
+												{t("settings:contextManagement.subAgentConfig.resetButton")}
+											</Button>
+										)}
+									</div>
+								)}
+							</div>
+
+							{/* Memory Extractor */}
+							<div className="flex flex-col gap-2">
+								<VSCodeCheckbox
+									checked={useMemoryExtractor ?? true}
+									onChange={(e: any) => setCachedStateField("useMemoryExtractor", e.target.checked)}
+									data-testid="use-memory-extractor-checkbox">
+									<span className="font-medium">
+										{t("settings:contextManagement.subAgentConfig.memoryExtractor.label")}
+									</span>
+								</VSCodeCheckbox>
+								<div className="text-vscode-descriptionForeground text-xs pl-6">
+									{t("settings:contextManagement.subAgentConfig.memoryExtractor.description")}
+								</div>
+								{(useMemoryExtractor ?? true) && (
+									<div className="flex flex-col gap-1 pl-6">
+										<label className="text-xs font-medium">
+											{t("settings:contextManagement.subAgentConfig.memoryExtractor.promptLabel")}
+										</label>
+										<textarea
+											className="w-full min-h-[80px] bg-vscode-input-background text-vscode-input-foreground border border-vscode-input-border px-2 py-1 rounded text-xs resize-y"
+											value={memoryExtractorPrompt ?? DEFAULT_SUBAGENT_PROMPTS.memoryExtractor}
+											onChange={(e) =>
+												setCachedStateField(
+													"memoryExtractorPrompt",
+													e.target.value || undefined,
+												)
+											}
+											placeholder={t(
+												"settings:contextManagement.subAgentConfig.memoryExtractor.promptPlaceholder",
+											)}
+											data-testid="memory-extractor-prompt-textarea"
+										/>
+										{memoryExtractorPrompt && (
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => setCachedStateField("memoryExtractorPrompt", undefined)}
+												className="self-start text-xs"
+												data-testid="memory-extractor-prompt-reset">
+												{t("settings:contextManagement.subAgentConfig.resetButton")}
+											</Button>
+										)}
+									</div>
+								)}
+							</div>
+
+							{/* Code Summarizer */}
+							<div className="flex flex-col gap-2">
+								<VSCodeCheckbox
+									checked={useCodeSummarizer ?? true}
+									onChange={(e: any) => setCachedStateField("useCodeSummarizer", e.target.checked)}
+									data-testid="use-code-summarizer-checkbox">
+									<span className="font-medium">
+										{t("settings:contextManagement.subAgentConfig.codeSummarizer.label")}
+									</span>
+								</VSCodeCheckbox>
+								<div className="text-vscode-descriptionForeground text-xs pl-6">
+									{t("settings:contextManagement.subAgentConfig.codeSummarizer.description")}
+								</div>
+								{(useCodeSummarizer ?? true) && (
+									<div className="flex flex-col gap-1 pl-6">
+										<label className="text-xs font-medium">
+											{t("settings:contextManagement.subAgentConfig.codeSummarizer.promptLabel")}
+										</label>
+										<textarea
+											className="w-full min-h-[80px] bg-vscode-input-background text-vscode-input-foreground border border-vscode-input-border px-2 py-1 rounded text-xs resize-y"
+											value={codeSummarizerPrompt ?? DEFAULT_SUBAGENT_PROMPTS.codeSummarizer}
+											onChange={(e) =>
+												setCachedStateField("codeSummarizerPrompt", e.target.value || undefined)
+											}
+											placeholder={t(
+												"settings:contextManagement.subAgentConfig.codeSummarizer.promptPlaceholder",
+											)}
+											data-testid="code-summarizer-prompt-textarea"
+										/>
+										{codeSummarizerPrompt && (
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => setCachedStateField("codeSummarizerPrompt", undefined)}
+												className="self-start text-xs"
+												data-testid="code-summarizer-prompt-reset">
+												{t("settings:contextManagement.subAgentConfig.resetButton")}
+											</Button>
+										)}
+									</div>
+								)}
+							</div>
+						</div>
+					)}
 				</div>
 			</Section>
 		</div>

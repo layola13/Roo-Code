@@ -1,40 +1,44 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import {
+	SubAgentExecutor,
 	executeSubAgentCompression,
 	shouldUseSubAgentCompression,
 	SubAgentConfig,
-	SubAgentResult,
-} from "../subagent-caller"
+} from "../SubAgentExecutor"
 import { ApiMessage } from "../../task-persistence/apiMessages"
-import { Task } from "../../task/Task"
+import { ApiHandler } from "../../../api/index"
 
-// Mock Task class
-const createMockTask = (completionText: string = "Mock subagent output") => {
-	const mockSubTask = {
-		clineMessages: [
-			{
-				type: "say",
-				text: completionText,
-				ts: Date.now(),
-			},
-		],
-		getTokenUsage: vi.fn().mockReturnValue({
-			totalTokensIn: 100,
-			totalTokensOut: 50,
-			totalCost: 0.005,
+// Mock ApiHandler
+const createMockApiHandler = (responseText: string = "Mock subagent output") => {
+	const mockStream = {
+		on: vi.fn((event: string, handler: (...args: any[]) => void) => {
+			if (event === "text") {
+				handler(responseText)
+			} else if (event === "usage") {
+				handler({
+					inputTokens: 100,
+					outputTokens: 50,
+					totalCost: 0.005,
+				})
+			} else if (event === "end") {
+				setTimeout(() => handler(), 0)
+			}
+			return mockStream
 		}),
 	}
 
-	const mockTask = {
-		startSubtask: vi.fn().mockResolvedValue(mockSubTask),
-		waitForSubtask: vi.fn().mockResolvedValue(undefined),
-		completeSubtask: vi.fn().mockResolvedValue(undefined),
-	} as unknown as Task
+	const mockApiHandler = {
+		createMessage: vi.fn().mockResolvedValue(mockStream),
+		getModel: vi.fn().mockReturnValue({
+			id: "test-model",
+			info: { maxTokens: 100000 },
+		}),
+	} as unknown as ApiHandler
 
-	return { mockTask, mockSubTask }
+	return { mockApiHandler, mockStream }
 }
 
-describe("Subagent Caller", () => {
+describe("SubAgentExecutor", () => {
 	describe("shouldUseSubAgentCompression", () => {
 		it("should return false when config is undefined", () => {
 			expect(shouldUseSubAgentCompression(undefined)).toBe(false)
@@ -93,7 +97,7 @@ describe("Subagent Caller", () => {
 		})
 	})
 
-	describe("executeSubAgentCompression", () => {
+	describe("SubAgentExecutor", () => {
 		const testMessages: ApiMessage[] = [
 			{
 				role: "user",
@@ -117,13 +121,14 @@ describe("Subagent Caller", () => {
 		})
 
 		it("should execute context analyzer when enabled", async () => {
-			const { mockTask } = createMockTask("Context analysis result")
+			const { mockApiHandler } = createMockApiHandler("Context analysis result")
 			const config: SubAgentConfig = {
 				enabled: true,
 				useContextAnalyzer: true,
 			}
 
-			const result = await executeSubAgentCompression(testMessages, config, mockTask)
+			const executor = new SubAgentExecutor(mockApiHandler, config)
+			const result = await executor.executeCompression(testMessages)
 
 			expect(result.success).toBe(true)
 			expect(result.analyzerResult.success).toBe(true)
@@ -131,41 +136,43 @@ describe("Subagent Caller", () => {
 			expect(result.analyzerResult.tokensIn).toBe(100)
 			expect(result.analyzerResult.tokensOut).toBe(50)
 			expect(result.analyzerResult.cost).toBe(0.005)
-			expect(mockTask.startSubtask).toHaveBeenCalledTimes(1)
+			expect(mockApiHandler.createMessage).toHaveBeenCalledTimes(1)
 		})
 
 		it("should execute memory extractor when enabled", async () => {
-			const { mockTask } = createMockTask("Memory extraction result")
+			const { mockApiHandler } = createMockApiHandler("Memory extraction result")
 			const config: SubAgentConfig = {
 				enabled: true,
 				useMemoryExtractor: true,
 			}
 
-			const result = await executeSubAgentCompression(testMessages, config, mockTask)
+			const executor = new SubAgentExecutor(mockApiHandler, config)
+			const result = await executor.executeCompression(testMessages)
 
 			expect(result.success).toBe(true)
 			expect(result.extractorResult.success).toBe(true)
 			expect(result.extractorResult.output).toBe("Memory extraction result")
-			expect(mockTask.startSubtask).toHaveBeenCalledTimes(1)
+			expect(mockApiHandler.createMessage).toHaveBeenCalledTimes(1)
 		})
 
 		it("should execute code summarizer when enabled", async () => {
-			const { mockTask } = createMockTask("Code summary result")
+			const { mockApiHandler } = createMockApiHandler("Code summary result")
 			const config: SubAgentConfig = {
 				enabled: true,
 				useCodeSummarizer: true,
 			}
 
-			const result = await executeSubAgentCompression(testMessages, config, mockTask)
+			const executor = new SubAgentExecutor(mockApiHandler, config)
+			const result = await executor.executeCompression(testMessages)
 
 			expect(result.success).toBe(true)
 			expect(result.summarizerResult.success).toBe(true)
 			expect(result.summarizerResult.output).toBe("Code summary result")
-			expect(mockTask.startSubtask).toHaveBeenCalledTimes(1)
+			expect(mockApiHandler.createMessage).toHaveBeenCalledTimes(1)
 		})
 
 		it("should execute multiple subagents sequentially", async () => {
-			const { mockTask } = createMockTask("Subagent output")
+			const { mockApiHandler } = createMockApiHandler("Subagent output")
 			const config: SubAgentConfig = {
 				enabled: true,
 				useContextAnalyzer: true,
@@ -173,38 +180,43 @@ describe("Subagent Caller", () => {
 				useCodeSummarizer: true,
 			}
 
-			const result = await executeSubAgentCompression(testMessages, config, mockTask)
+			const executor = new SubAgentExecutor(mockApiHandler, config)
+			const result = await executor.executeCompression(testMessages)
 
 			expect(result.success).toBe(true)
 			expect(result.analyzerResult.success).toBe(true)
 			expect(result.extractorResult.success).toBe(true)
 			expect(result.summarizerResult.success).toBe(true)
-			expect(mockTask.startSubtask).toHaveBeenCalledTimes(3)
-			expect(mockTask.waitForSubtask).toHaveBeenCalledTimes(3)
-			expect(mockTask.completeSubtask).toHaveBeenCalledTimes(3)
+			expect(mockApiHandler.createMessage).toHaveBeenCalledTimes(3)
 		})
 
 		it("should calculate total cost correctly", async () => {
-			const mockSubTask = {
-				clineMessages: [
-					{
-						type: "say",
-						text: "Output",
-						ts: Date.now(),
-					},
-				],
-				getTokenUsage: vi.fn().mockReturnValue({
-					totalTokensIn: 100,
-					totalTokensOut: 50,
-					totalCost: 0.01,
+			let callCount = 0
+			const mockStream = {
+				on: vi.fn((event: string, handler: (...args: any[]) => void) => {
+					if (event === "text") {
+						handler("Output")
+					} else if (event === "usage") {
+						callCount++
+						handler({
+							inputTokens: 100,
+							outputTokens: 50,
+							totalCost: 0.01,
+						})
+					} else if (event === "end") {
+						setTimeout(() => handler(), 0)
+					}
+					return mockStream
 				}),
 			}
 
-			const mockTask = {
-				startSubtask: vi.fn().mockResolvedValue(mockSubTask),
-				waitForSubtask: vi.fn().mockResolvedValue(undefined),
-				completeSubtask: vi.fn().mockResolvedValue(undefined),
-			} as unknown as Task
+			const mockApiHandler = {
+				createMessage: vi.fn().mockResolvedValue(mockStream),
+				getModel: vi.fn().mockReturnValue({
+					id: "test-model",
+					info: { maxTokens: 100000 },
+				}),
+			} as unknown as ApiHandler
 
 			const config: SubAgentConfig = {
 				enabled: true,
@@ -212,80 +224,74 @@ describe("Subagent Caller", () => {
 				useMemoryExtractor: true,
 			}
 
-			const result = await executeSubAgentCompression(testMessages, config, mockTask)
+			const executor = new SubAgentExecutor(mockApiHandler, config)
+			const result = await executor.executeCompression(testMessages)
 
 			expect(result.totalCost).toBe(0.02) // 0.01 * 2 subagents
 		})
 
-		it("should handle subagent task creation failure", async () => {
-			const mockTask = {
-				startSubtask: vi.fn().mockResolvedValue(null),
-				waitForSubtask: vi.fn(),
-				completeSubtask: vi.fn(),
-			} as unknown as Task
+		it("should handle API call failure", async () => {
+			const mockApiHandler = {
+				createMessage: vi.fn().mockRejectedValue(new Error("Network error")),
+				getModel: vi.fn().mockReturnValue({
+					id: "test-model",
+					info: { maxTokens: 100000 },
+				}),
+			} as unknown as ApiHandler
 
 			const config: SubAgentConfig = {
 				enabled: true,
 				useContextAnalyzer: true,
 			}
 
-			const result = await executeSubAgentCompression(testMessages, config, mockTask)
+			const executor = new SubAgentExecutor(mockApiHandler, config)
+			const result = await executor.executeCompression(testMessages)
 
 			expect(result.success).toBe(false)
 			expect(result.analyzerResult.success).toBe(false)
-			expect(result.analyzerResult.error).toContain("Failed to create subtask")
+			expect(result.analyzerResult.error).toContain("Network error")
 		})
 
-		it("should handle subagent with no output", async () => {
-			const mockSubTask = {
-				clineMessages: [],
-				getTokenUsage: vi.fn().mockReturnValue({
-					totalTokensIn: 0,
-					totalTokensOut: 0,
-					totalCost: 0,
+		it("should handle stream with no text output", async () => {
+			const mockStream = {
+				on: vi.fn((event: string, handler: (...args: any[]) => void) => {
+					if (event === "usage") {
+						handler({
+							inputTokens: 0,
+							outputTokens: 0,
+							totalCost: 0,
+						})
+					} else if (event === "end") {
+						setTimeout(() => handler(), 0)
+					}
+					return mockStream
 				}),
 			}
 
-			const mockTask = {
-				startSubtask: vi.fn().mockResolvedValue(mockSubTask),
-				waitForSubtask: vi.fn().mockResolvedValue(undefined),
-				completeSubtask: vi.fn().mockResolvedValue(undefined),
-			} as unknown as Task
+			const mockApiHandler = {
+				createMessage: vi.fn().mockResolvedValue(mockStream),
+				getModel: vi.fn().mockReturnValue({
+					id: "test-model",
+					info: { maxTokens: 100000 },
+				}),
+			} as unknown as ApiHandler
 
 			const config: SubAgentConfig = {
 				enabled: true,
 				useContextAnalyzer: true,
 			}
 
-			const result = await executeSubAgentCompression(testMessages, config, mockTask)
+			const executor = new SubAgentExecutor(mockApiHandler, config)
+			const result = await executor.executeCompression(testMessages)
 
 			expect(result.success).toBe(false)
 			expect(result.analyzerResult.success).toBe(false)
 			expect(result.analyzerResult.error).toContain("No valid output")
 		})
 
-		it("should handle exceptions during execution", async () => {
-			const mockTask = {
-				startSubtask: vi.fn().mockRejectedValue(new Error("Network error")),
-				waitForSubtask: vi.fn(),
-				completeSubtask: vi.fn(),
-			} as unknown as Task
-
-			const config: SubAgentConfig = {
-				enabled: true,
-				useContextAnalyzer: true,
-			}
-
-			const result = await executeSubAgentCompression(testMessages, config, mockTask)
-
-			expect(result.success).toBe(false)
-			// When a subagent fails, the error is stored in the individual result
-			expect(result.analyzerResult.error).toContain("Network error")
-		})
-
 		it("should log verbose output when enabled", async () => {
 			const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {})
-			const { mockTask } = createMockTask("Output")
+			const { mockApiHandler } = createMockApiHandler("Output")
 
 			const config: SubAgentConfig = {
 				enabled: true,
@@ -293,7 +299,8 @@ describe("Subagent Caller", () => {
 				verboseLogging: true,
 			}
 
-			await executeSubAgentCompression(testMessages, config, mockTask)
+			const executor = new SubAgentExecutor(mockApiHandler, config)
+			await executor.executeCompression(testMessages)
 
 			expect(consoleSpy).toHaveBeenCalledWith(
 				expect.stringContaining("[SubAgent Compression]"),
@@ -304,7 +311,7 @@ describe("Subagent Caller", () => {
 		})
 
 		it("should handle messages with array content", async () => {
-			const { mockTask } = createMockTask("Array content result")
+			const { mockApiHandler } = createMockApiHandler("Array content result")
 			const messagesWithArrayContent: ApiMessage[] = [
 				{
 					role: "user",
@@ -321,24 +328,22 @@ describe("Subagent Caller", () => {
 				useContextAnalyzer: true,
 			}
 
-			const result = await executeSubAgentCompression(messagesWithArrayContent, config, mockTask)
+			const executor = new SubAgentExecutor(mockApiHandler, config)
+			const result = await executor.executeCompression(messagesWithArrayContent)
 
 			expect(result.success).toBe(true)
-			expect(mockTask.startSubtask).toHaveBeenCalledWith(
-				expect.stringContaining("Check this code"),
-				expect.anything(),
-				expect.anything(),
-			)
+			expect(mockApiHandler.createMessage).toHaveBeenCalled()
 		})
 
-		it("should return default results when no subagents are executed", async () => {
-			const { mockTask } = createMockTask()
+		it("should return error when no subagents are executed", async () => {
+			const { mockApiHandler } = createMockApiHandler()
 			const config: SubAgentConfig = {
 				enabled: true,
 				// All subagents disabled
 			}
 
-			const result = await executeSubAgentCompression(testMessages, config, mockTask)
+			const executor = new SubAgentExecutor(mockApiHandler, config)
+			const result = await executor.executeCompression(testMessages)
 
 			expect(result.success).toBe(false)
 			expect(result.error).toBe("All subagent calls failed")
@@ -349,29 +354,31 @@ describe("Subagent Caller", () => {
 
 		it("should track token usage for each subagent separately", async () => {
 			let callCount = 0
-			const mockSubTask = {
-				clineMessages: [
-					{
-						type: "say",
-						text: "Output",
-						ts: Date.now(),
-					},
-				],
-				getTokenUsage: vi.fn(() => {
-					callCount++
-					return {
-						totalTokensIn: callCount * 100,
-						totalTokensOut: callCount * 50,
-						totalCost: callCount * 0.01,
+			const mockStream = {
+				on: vi.fn((event: string, handler: (...args: any[]) => void) => {
+					if (event === "text") {
+						handler("Output")
+					} else if (event === "usage") {
+						callCount++
+						handler({
+							inputTokens: callCount * 100,
+							outputTokens: callCount * 50,
+							totalCost: callCount * 0.01,
+						})
+					} else if (event === "end") {
+						setTimeout(() => handler(), 0)
 					}
+					return mockStream
 				}),
 			}
 
-			const mockTask = {
-				startSubtask: vi.fn().mockResolvedValue(mockSubTask),
-				waitForSubtask: vi.fn().mockResolvedValue(undefined),
-				completeSubtask: vi.fn().mockResolvedValue(undefined),
-			} as unknown as Task
+			const mockApiHandler = {
+				createMessage: vi.fn().mockResolvedValue(mockStream),
+				getModel: vi.fn().mockReturnValue({
+					id: "test-model",
+					info: { maxTokens: 100000 },
+				}),
+			} as unknown as ApiHandler
 
 			const config: SubAgentConfig = {
 				enabled: true,
@@ -379,12 +386,36 @@ describe("Subagent Caller", () => {
 				useMemoryExtractor: true,
 			}
 
-			const result = await executeSubAgentCompression(testMessages, config, mockTask)
+			const executor = new SubAgentExecutor(mockApiHandler, config)
+			const result = await executor.executeCompression(testMessages)
 
 			expect(result.analyzerResult.tokensIn).toBe(100)
 			expect(result.analyzerResult.tokensOut).toBe(50)
 			expect(result.extractorResult.tokensIn).toBe(200)
 			expect(result.extractorResult.tokensOut).toBe(100)
+		})
+	})
+
+	describe("executeSubAgentCompression (convenience function)", () => {
+		const testMessages: ApiMessage[] = [
+			{
+				role: "user",
+				content: "Test message",
+				ts: Date.now(),
+			},
+		]
+
+		it("should work as a convenience wrapper", async () => {
+			const { mockApiHandler } = createMockApiHandler("Test output")
+			const config: SubAgentConfig = {
+				enabled: true,
+				useContextAnalyzer: true,
+			}
+
+			const result = await executeSubAgentCompression(testMessages, config, mockApiHandler)
+
+			expect(result.success).toBe(true)
+			expect(result.analyzerResult.output).toBe("Test output")
 		})
 	})
 })

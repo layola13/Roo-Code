@@ -1205,7 +1205,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						verboseLogging: false,
 					}
 				: undefined,
-			this, // Pass Task instance for subagent compression
 		)
 		if (error) {
 			this.say(
@@ -2728,7 +2727,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						verboseLogging: false,
 					}
 				: undefined,
-			task: this, // Pass Task instance for subagent compression
 		})
 
 		if (truncateResult.messages !== this.apiConversationHistory) {
@@ -2860,7 +2858,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 							verboseLogging: false,
 						}
 					: undefined,
-				task: this, // Pass Task instance for subagent compression
 			})
 			if (truncateResult.messages !== this.apiConversationHistory) {
 				await this.overwriteApiConversationHistory(truncateResult.messages)
@@ -3198,13 +3195,41 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	/**
 	 * 构建增强的任务描述
-	 * 策略：第一条原始任务 + 上下文总结（用户需求变更、任务完成尝试）
+	 * 策略：父任务上下文（如果是子任务）+ 第一条原始任务 + 上下文总结（用户需求变更、任务完成尝试）
 	 */
 	private buildEnhancedTaskDescription(): string {
-		// 1. 原始任务（第一条消息）
-		let taskDescription = this.metadata.task || ""
+		let taskDescription = ""
 
-		// 2. 构建上下文总结
+		// 1. 如果是子任务，首先包含父任务和根任务的上下文
+		if (this.parentTask) {
+			// 获取根任务描述
+			const rootTask = this.rootTask || this.parentTask
+			const rootTaskDescription = rootTask.metadata.task || ""
+
+			if (rootTaskDescription) {
+				taskDescription += "## Root Task Context\n"
+				taskDescription += rootTaskDescription
+				taskDescription += "\n\n"
+			}
+
+			// 如果父任务不是根任务，也包含父任务描述
+			if (this.parentTask !== rootTask) {
+				const parentTaskDescription = this.parentTask.metadata.task || ""
+				if (parentTaskDescription) {
+					taskDescription += "## Parent Task Context\n"
+					taskDescription += parentTaskDescription
+					taskDescription += "\n\n"
+				}
+			}
+
+			// 标记当前是子任务
+			taskDescription += "## Current Subtask\n"
+		}
+
+		// 2. 当前任务的原始描述
+		taskDescription += this.metadata.task || ""
+
+		// 3. 构建上下文总结
 		const contextSummary = this.buildContextSummary()
 
 		if (contextSummary) {

@@ -58,6 +58,20 @@ export interface ExtensionStateContextType extends ExtensionState {
 	marketplaceInstalledMetadata?: MarketplaceInstalledMetadata
 	profileThresholds: Record<string, number>
 	setProfileThresholds: (value: Record<string, number>) => void
+	// Sub-agent configuration: individual enable/disable flags
+	useContextAnalyzer?: boolean
+	setUseContextAnalyzer: (value: boolean) => void
+	useMemoryExtractor?: boolean
+	setUseMemoryExtractor: (value: boolean) => void
+	useCodeSummarizer?: boolean
+	setUseCodeSummarizer: (value: boolean) => void
+	// Sub-agent configuration: custom system prompts
+	contextAnalyzerPrompt?: string
+	setContextAnalyzerPrompt: (value: string) => void
+	memoryExtractorPrompt?: string
+	setMemoryExtractorPrompt: (value: string) => void
+	codeSummarizerPrompt?: string
+	setCodeSummarizerPrompt: (value: string) => void
 	setApiConfiguration: (config: ProviderSettings) => void
 	setCustomInstructions: (value?: string) => void
 	setAlwaysAllowReadOnly: (value: boolean) => void
@@ -260,6 +274,14 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		vectorMemoryEnabled: false,
 		subAgentCompressionEnabled: false,
 		useSubAgentCompression: false,
+		// Sub-agent configuration: individual enable flags (default all enabled when compression is enabled)
+		useContextAnalyzer: true,
+		useMemoryExtractor: true,
+		useCodeSummarizer: true,
+		// Sub-agent configuration: custom prompts (undefined means use default)
+		contextAnalyzerPrompt: undefined,
+		memoryExtractorPrompt: undefined,
+		codeSummarizerPrompt: undefined,
 		profileThresholds: {},
 		codebaseIndexConfig: {
 			codebaseIndexEnabled: true,
@@ -570,6 +592,19 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		},
 		includeTaskHistoryInEnhance,
 		setIncludeTaskHistoryInEnhance,
+		// Sub-agent configuration getters and setters
+		useContextAnalyzer: state.useContextAnalyzer ?? true,
+		setUseContextAnalyzer: (value) => setState((prevState) => ({ ...prevState, useContextAnalyzer: value })),
+		useMemoryExtractor: state.useMemoryExtractor ?? true,
+		setUseMemoryExtractor: (value) => setState((prevState) => ({ ...prevState, useMemoryExtractor: value })),
+		useCodeSummarizer: state.useCodeSummarizer ?? true,
+		setUseCodeSummarizer: (value) => setState((prevState) => ({ ...prevState, useCodeSummarizer: value })),
+		contextAnalyzerPrompt: state.contextAnalyzerPrompt,
+		setContextAnalyzerPrompt: (value) => setState((prevState) => ({ ...prevState, contextAnalyzerPrompt: value })),
+		memoryExtractorPrompt: state.memoryExtractorPrompt,
+		setMemoryExtractorPrompt: (value) => setState((prevState) => ({ ...prevState, memoryExtractorPrompt: value })),
+		codeSummarizerPrompt: state.codeSummarizerPrompt,
+		setCodeSummarizerPrompt: (value) => setState((prevState) => ({ ...prevState, codeSummarizerPrompt: value })),
 	}
 
 	return <ExtensionStateContext.Provider value={contextValue}>{children}</ExtensionStateContext.Provider>

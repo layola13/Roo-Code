@@ -609,8 +609,33 @@
 			"waitingForIndex": "等待代码库索引完成...",
 			"ready": "向量记忆已就绪"
 		},
-		"useSubAgentCompression": "启用子代理压缩（实验性）",
-		"useSubAgentCompressionDesc": "启用后，Roo 将使用专门的子代理智能分析和压缩上下文。此实验性功能可显著减少 token 使用量，但需要额外的 API 调用。",
+		"subAgentCompression": {
+			"label": "启用子代理压缩（实验性）",
+			"description": "启用后，Roo 将使用专门的子代理智能分析和压缩上下文。此实验性功能可显著减少 token 使用量，但需要额外的 API 调用。"
+		},
+		"subAgentConfig": {
+			"title": "子代理配置",
+			"description": "配置各个子代理并自定义其系统提示词。每个子代理在分析和压缩对话上下文时都有特定的作用。",
+			"contextAnalyzer": {
+				"label": "上下文分析器",
+				"description": "分析对话流程和识别对话阶段",
+				"promptLabel": "系统提示词",
+				"promptPlaceholder": "输入上下文分析器的自定义系统提示词..."
+			},
+			"memoryExtractor": {
+				"label": "记忆提取器",
+				"description": "提取关键用户指令和需求",
+				"promptLabel": "系统提示词",
+				"promptPlaceholder": "输入记忆提取器的自定义系统提示词..."
+			},
+			"codeSummarizer": {
+				"label": "代码总结器",
+				"description": "总结技术上下文和代码变更",
+				"promptLabel": "系统提示词",
+				"promptPlaceholder": "输入代码总结器的自定义系统提示词..."
+			},
+			"resetButton": "恢复默认"
+		},
 		"maxImageFileSize": {
 			"label": "最大图像文件大小",
 			"mb": "MB",
