@@ -1,0 +1,92 @@
+oo-cline:bundle: cache miss, executing c2905f5642e9c154
+roo-cline:bundle: 
+roo-cline:bundle:  WARN  Unsupported engine: wanted: {"node":"20.19.2"} (current: {"node":"v24.10.0","pnpm":"10.8.1"})
+roo-cline:bundle: 
+roo-cline:bundle: > roo-cline@3.28.29 bundle /home/sonygod/projects/Roo-Code/src
+roo-cline:bundle: > node esbuild.mjs
+roo-cline:bundle: 
+roo-cline:bundle: [extension] Cleaning dist directory: /home/sonygod/projects/Roo-Code/src/dist
+roo-cline:bundle: [esbuild-problem-matcher#onStart]
+roo-cline:bundle: [copyPaths] Copied ../README.md to README.md
+roo-cline:bundle: [copyPaths] Copied ../CHANGELOG.md to CHANGELOG.md
+roo-cline:bundle: [copyPaths] Copied ../LICENSE to LICENSE
+roo-cline:bundle: [copyPaths] Optional file not found: ../.env
+roo-cline:bundle: [copyPaths] Copied 911 files from node_modules/vscode-material-icons/generated to assets/vscode-material-icons
+roo-cline:bundle: [copyPaths] Copied 3 files from ../webview-ui/audio to webview-ui/audio
+roo-cline:bundle: [copyWasms] Copied tiktoken WASMs to /home/sonygod/projects/Roo-Code/src/dist
+roo-cline:bundle: [copyWasms] Copied tiktoken WASMs to /home/sonygod/projects/Roo-Code/src/dist/workers
+roo-cline:bundle: [copyWasms] Copied tree-sitter.wasm to /home/sonygod/projects/Roo-Code/src/dist
+roo-cline:bundle: [copyWasms] Copied 35 tree-sitter language wasms to /home/sonygod/projects/Roo-Code/src/dist
+roo-cline:bundle: [copyLocales] Copied 90 locale files to /home/sonygod/projects/Roo-Code/src/dist/i18n/locales
+roo-cline:bundle: [esbuild-problem-matcher#onEnd]
+roo-cline:vsix: cache miss, executing c50af6a671225500
+roo-cline:vsix: 
+roo-cline:vsix:  WARN  Unsupported engine: wanted: {"node":"20.19.2"} (current: {"node":"v24.10.0","pnpm":"10.8.1"})
+roo-cline:vsix: 
+roo-cline:vsix: > roo-cline@3.28.29 vsix /home/sonygod/projects/Roo-Code/src
+roo-cline:vsix: > mkdirp ../bin && vsce package --no-dependencies --out ../bin
+roo-cline:vsix: 
+roo-cline:vsix: Executing prepublish script 'npm run vscode:prepublish'...
+roo-cline:vsix: (node:28884) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+roo-cline:vsix: (Use `node --trace-deprecation ...` to show where the warning was created)
+roo-cline:vsix: npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm.
+roo-cline:vsix: 
+roo-cline:vsix: > roo-cline@3.28.29 vscode:prepublish
+roo-cline:vsix: > pnpm bundle --production
+roo-cline:vsix: 
+ WARN  Unsupported engine: wanted: {"node":"20.19.2"} (current: {"node":"v24.10.0","pnpm":"10.8.1"})
+roo-cline:vsix: 
+roo-cline:vsix: > roo-cline@3.28.29 bundle /home/sonygod/projects/Roo-Code/src
+roo-cline:vsix: > node esbuild.mjs --production
+roo-cline:vsix: 
+roo-cline:vsix: [extension] Cleaning dist directory: /home/sonygod/projects/Roo-Code/src/dist
+roo-cline:vsix: [esbuild-problem-matcher#onStart]
+roo-cline:vsix: [copyPaths] Copied ../README.md to README.md
+roo-cline:vsix: [copyPaths] Copied ../CHANGELOG.md to CHANGELOG.md
+roo-cline:vsix: [copyPaths] Copied ../LICENSE to LICENSE
+roo-cline:vsix: [copyPaths] Optional file not found: ../.env
+roo-cline:vsix: [copyPaths] Copied 911 files from node_modules/vscode-material-icons/generated to assets/vscode-material-icons
+roo-cline:vsix: [copyPaths] Copied 3 files from ../webview-ui/audio to webview-ui/audio
+roo-cline:vsix: [copyWasms] Copied tiktoken WASMs to /home/sonygod/projects/Roo-Code/src/dist
+roo-cline:vsix: [copyWasms] Copied tiktoken WASMs to /home/sonygod/projects/Roo-Code/src/dist/workers
+roo-cline:vsix: [copyWasms] Copied tree-sitter.wasm to /home/sonygod/projects/Roo-Code/src/dist
+roo-cline:vsix: [copyWasms] Copied 35 tree-sitter language wasms to /home/sonygod/projects/Roo-Code/src/dist
+roo-cline:vsix: [copyLocales] Copied 90 locale files to /home/sonygod/projects/Roo-Code/src/dist/i18n/locales
+roo-cline:vsix: [esbuild-problem-matcher#onEnd]
+ WARNING  This extension consists of 1718 files, out of which 286 are JavaScript files. For performance reasons, you should bundle your extension: https://aka.ms/vscode-bundle-extension. You should also exclude unnecessary files by adding them to your .vscodeignore: https://aka.ms/vscode-vscodeignore.
+roo-cline:vsix: 
+roo-cline:vsix:  INFO  Files included in the VSIX:
+roo-cline:vsix: roo-cline-3.28.29.vsix
+roo-cline:vsix: ├─ [Content_Types].xml 
+roo-cline:vsix: ├─ extension.vsixmanifest 
+roo-cline:vsix: └─ extension/
+roo-cline:vsix:    ├─ LICENSE.txt [11.08 KB]
+roo-cline:vsix:    ├─ changelog.md 
+roo-cline:vsix:    ├─ package.json [14.97 KB]
+roo-cline:vsix:    ├─ package.nls.ca.json [4.12 KB]
+roo-cline:vsix:    ├─ package.nls.de.json [4.06 KB]
+roo-cline:vsix:    ├─ package.nls.es.json [4.16 KB]
+roo-cline:vsix:    ├─ package.nls.fr.json [4.25 KB]
+roo-cline:vsix:    ├─ package.nls.hi.json [6.87 KB]
+roo-cline:vsix:    ├─ package.nls.id.json [3.83 KB]
+roo-cline:vsix:    ├─ package.nls.it.json [4.16 KB]
+roo-cline:vsix:    ├─ package.nls.ja.json [4.47 KB]
+roo-cline:vsix:    ├─ package.nls.json [4.19 KB]
+roo-cline:vsix:    ├─ package.nls.ko.json [4 KB]
+roo-cline:vsix:    ├─ package.nls.nl.json [3.96 KB]
+roo-cline:vsix:    ├─ package.nls.pl.json [4.09 KB]
+roo-cline:vsix:    ├─ package.nls.pt-BR.json [4.12 KB]
+roo-cline:vsix:    ├─ package.nls.ru.json [5.73 KB]
+roo-cline:vsix:    ├─ package.nls.tr.json [3.97 KB]
+roo-cline:vsix:    ├─ package.nls.vi.json [4.5 KB]
+roo-cline:vsix:    ├─ package.nls.zh-CN.json [4.04 KB]
+roo-cline:vsix:    ├─ package.nls.zh-TW.json [3.55 KB]
+roo-cline:vsix:    ├─ readme.md 
+roo-cline:vsix:    ├─ assets/ (922 files) [1.38 MB]
+roo-cline:vsix:    ├─ dist/ (132 files) [87.45 MB]
+roo-cline:vsix:    ├─ integrations/ (8 files) [55.17 KB]
+roo-cline:vsix:    └─ webview-ui/ (632 files) [46.08 MB]
+roo-cline:vsix: 
+roo-cline:vsix: => Run vsce ls --tree to see all included files.
+roo-cline:vsix: 
+roo-cline:vsix:  DONE  Packaged: ../bin/roo-cline-3.28.29.vsix (1718 files, 27.43 MB)

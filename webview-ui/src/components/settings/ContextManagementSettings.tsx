@@ -11,7 +11,7 @@ import { SetCachedStateField } from "./types"
 import { SectionHeader } from "./SectionHeader"
 import { Section } from "./Section"
 import { vscode } from "@/utils/vscode"
-import { DEFAULT_SUBAGENT_PROMPTS } from "../../../../src/shared/subagent-prompts"
+import { DEFAULT_SUBAGENT_PROMPTS } from "@roo/subagent-prompts"
 
 type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	autoCondenseContext: boolean
