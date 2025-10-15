@@ -29,7 +29,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Create .env file
-        run: echo "POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }}" >> .env
+        run: |
+          echo "POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }}" >> .env
 
       - name: Run type checking
         run: pnpm check-types
@@ -91,8 +92,8 @@ jobs:
             - Intelligent compression with configurable strategies
           
           - ⚙️ **Configuration:**
-            - UI toggle in Settings → Context Management → "Enable sub-agent compression (Experimental)"
-            - Sub-agent prompts are fully customizable via \`.roo/agents/*.md\` files
+            - UI toggle in Settings → Context Management → \"Enable sub-agent compression (Experimental)\"
+            - Sub-agent prompts are fully customizable via .roo/agents/*.md files
             - Verbose logging available for debugging
           
           ### 📦 Installation
@@ -106,9 +107,9 @@ jobs:
           
           ### 🔧 Technical Implementation
           
-          - **Architecture:** Leverages existing \`Task.startSubtask()\` infrastructure
-          - **Sub-Agent Configs:** \`.roo/agents/condense-*.md\`
-          - **Core Logic:** \`src/core/condense/subagent-caller.ts\` (365 lines)
+          - **Architecture:** Leverages existing Task.startSubtask() infrastructure
+          - **Sub-Agent Configs:** .roo/agents/condense-*.md
+          - **Core Logic:** src/core/condense/subagent-caller.ts (365 lines)
           - **Test Coverage:** 19 test cases, all passing ✅
           - **Type Safety:** Full TypeScript implementation with comprehensive interfaces
           
@@ -124,8 +125,8 @@ jobs:
           ### 📚 Documentation
           
           For more details, see:
-          - \`docs/improve.md\` - Architecture and design principles
-          - \`docs/sub_agents.md\` - Sub-agent implementation guide
+          - docs/improve.md - Architecture and design principles
+          - docs/sub_agents.md - Sub-agent implementation guide
           "
           
           # Create release

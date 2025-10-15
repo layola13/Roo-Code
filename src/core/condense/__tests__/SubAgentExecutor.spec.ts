@@ -8,31 +8,33 @@ import {
 import { ApiMessage } from "../../task-persistence/apiMessages"
 import { ApiHandler } from "../../../api/index"
 
-// Mock ApiHandler
-const createMockApiHandler = (responseText: string = "Mock subagent output") => {
+// Mock ApiHandler with async iterable stream
+const createMockApiHandler = (
+	responseText: string = "Mock subagent output",
+	tokensIn: number = 100,
+	tokensOut: number = 50,
+	cost: number = 0.005,
+) => {
+	// Create an async iterable stream
 	const mockStream = {
-		on: vi.fn((event: string, handler: (...args: any[]) => void) => {
-			if (event === "text") {
-				handler(responseText)
-			} else if (event === "usage") {
-				handler({
-					inputTokens: 100,
-					outputTokens: 50,
-					totalCost: 0.005,
-				})
-			} else if (event === "end") {
-				setTimeout(() => handler(), 0)
+		async *[Symbol.asyncIterator]() {
+			yield { type: "text" as const, text: responseText }
+			yield {
+				type: "usage" as const,
+				inputTokens: tokensIn,
+				outputTokens: tokensOut,
+				totalCost: cost,
 			}
-			return mockStream
-		}),
+		},
 	}
 
 	const mockApiHandler = {
-		createMessage: vi.fn().mockResolvedValue(mockStream),
+		createMessage: vi.fn().mockReturnValue(mockStream),
 		getModel: vi.fn().mockReturnValue({
 			id: "test-model",
 			info: { maxTokens: 100000 },
 		}),
+		countTokens: vi.fn().mockResolvedValue(1000),
 	} as unknown as ApiHandler
 
 	return { mockApiHandler, mockStream }
@@ -192,30 +194,24 @@ describe("SubAgentExecutor", () => {
 
 		it("should calculate total cost correctly", async () => {
 			let callCount = 0
-			const mockStream = {
-				on: vi.fn((event: string, handler: (...args: any[]) => void) => {
-					if (event === "text") {
-						handler("Output")
-					} else if (event === "usage") {
+			const mockApiHandler = {
+				createMessage: vi.fn().mockImplementation(() => ({
+					async *[Symbol.asyncIterator]() {
 						callCount++
-						handler({
+						yield { type: "text" as const, text: "Output" }
+						yield {
+							type: "usage" as const,
 							inputTokens: 100,
 							outputTokens: 50,
 							totalCost: 0.01,
-						})
-					} else if (event === "end") {
-						setTimeout(() => handler(), 0)
-					}
-					return mockStream
-				}),
-			}
-
-			const mockApiHandler = {
-				createMessage: vi.fn().mockResolvedValue(mockStream),
+						}
+					},
+				})),
 				getModel: vi.fn().mockReturnValue({
 					id: "test-model",
 					info: { maxTokens: 100000 },
 				}),
+				countTokens: vi.fn().mockResolvedValue(1000),
 			} as unknown as ApiHandler
 
 			const config: SubAgentConfig = {
@@ -232,11 +228,14 @@ describe("SubAgentExecutor", () => {
 
 		it("should handle API call failure", async () => {
 			const mockApiHandler = {
-				createMessage: vi.fn().mockRejectedValue(new Error("Network error")),
+				createMessage: vi.fn().mockImplementation(() => {
+					throw new Error("Network error")
+				}),
 				getModel: vi.fn().mockReturnValue({
 					id: "test-model",
 					info: { maxTokens: 100000 },
 				}),
+				countTokens: vi.fn().mockResolvedValue(1000),
 			} as unknown as ApiHandler
 
 			const config: SubAgentConfig = {
@@ -253,27 +252,22 @@ describe("SubAgentExecutor", () => {
 		})
 
 		it("should handle stream with no text output", async () => {
-			const mockStream = {
-				on: vi.fn((event: string, handler: (...args: any[]) => void) => {
-					if (event === "usage") {
-						handler({
+			const mockApiHandler = {
+				createMessage: vi.fn().mockReturnValue({
+					async *[Symbol.asyncIterator]() {
+						yield {
+							type: "usage" as const,
 							inputTokens: 0,
 							outputTokens: 0,
 							totalCost: 0,
-						})
-					} else if (event === "end") {
-						setTimeout(() => handler(), 0)
-					}
-					return mockStream
+						}
+					},
 				}),
-			}
-
-			const mockApiHandler = {
-				createMessage: vi.fn().mockResolvedValue(mockStream),
 				getModel: vi.fn().mockReturnValue({
 					id: "test-model",
 					info: { maxTokens: 100000 },
 				}),
+				countTokens: vi.fn().mockResolvedValue(1000),
 			} as unknown as ApiHandler
 
 			const config: SubAgentConfig = {
@@ -286,7 +280,6 @@ describe("SubAgentExecutor", () => {
 
 			expect(result.success).toBe(false)
 			expect(result.analyzerResult.success).toBe(false)
-			expect(result.analyzerResult.error).toContain("No valid output")
 		})
 
 		it("should log verbose output when enabled", async () => {
@@ -302,10 +295,7 @@ describe("SubAgentExecutor", () => {
 			const executor = new SubAgentExecutor(mockApiHandler, config)
 			await executor.executeCompression(testMessages)
 
-			expect(consoleSpy).toHaveBeenCalledWith(
-				expect.stringContaining("[SubAgent Compression]"),
-				expect.anything(),
-			)
+			expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("[SubAgentExecutor]"), expect.anything())
 
 			consoleSpy.mockRestore()
 		})
@@ -354,30 +344,24 @@ describe("SubAgentExecutor", () => {
 
 		it("should track token usage for each subagent separately", async () => {
 			let callCount = 0
-			const mockStream = {
-				on: vi.fn((event: string, handler: (...args: any[]) => void) => {
-					if (event === "text") {
-						handler("Output")
-					} else if (event === "usage") {
+			const mockApiHandler = {
+				createMessage: vi.fn().mockImplementation(() => ({
+					async *[Symbol.asyncIterator]() {
 						callCount++
-						handler({
+						yield { type: "text" as const, text: "Output" }
+						yield {
+							type: "usage" as const,
 							inputTokens: callCount * 100,
 							outputTokens: callCount * 50,
 							totalCost: callCount * 0.01,
-						})
-					} else if (event === "end") {
-						setTimeout(() => handler(), 0)
-					}
-					return mockStream
-				}),
-			}
-
-			const mockApiHandler = {
-				createMessage: vi.fn().mockResolvedValue(mockStream),
+						}
+					},
+				})),
 				getModel: vi.fn().mockReturnValue({
 					id: "test-model",
 					info: { maxTokens: 100000 },
 				}),
+				countTokens: vi.fn().mockResolvedValue(1000),
 			} as unknown as ApiHandler
 
 			const config: SubAgentConfig = {

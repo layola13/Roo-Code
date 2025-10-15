@@ -343,6 +343,67 @@ const TaskHeader = ({
 											</td>
 										</tr>
 									)}
+
+									{/* Sub-agent context savings visualization */}
+									{subAgentTokenUsage && subAgentTokenUsage.length > 0 && (
+										<tr>
+											<th
+												className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-3 h-[24px]"
+												data-testid="sub-agent-savings-label">
+												{t("chat:task.subAgentSavings")}
+											</th>
+											<td className="align-top">
+												<div className="flex flex-col gap-2">
+													{subAgentTokenUsage.map((agent, index) => {
+														const inputTokens = agent.tokensIn || 0
+														const outputTokens = agent.tokensOut || 0
+														const totalTokens = inputTokens + outputTokens
+														const savingsPercent =
+															totalTokens > 0
+																? Math.round((totalTokens / (contextTokens || 1)) * 100)
+																: 0
+
+														return (
+															<div
+																key={`savings-${index}`}
+																className="flex items-center justify-between gap-2 text-xs">
+																<span className="font-medium">{agent.agentName}:</span>
+																<div className="flex items-center gap-2">
+																	<span className="text-green-600 dark:text-green-400">
+																		-{savingsPercent}% tokens
+																	</span>
+																	<span className="text-vscode-descriptionForeground">
+																		({totalTokens} saved)
+																	</span>
+																</div>
+															</div>
+														)
+													})}
+													<div className="border-t border-vscode-panel-border/50 pt-2 mt-1">
+														<div className="flex items-center justify-between text-xs font-medium">
+															<span>{t("chat:task.totalSavings")}:</span>
+															<span className="text-green-600 dark:text-green-400">
+																-
+																{subAgentTokenUsage.reduce((total, agent) => {
+																	const tokens =
+																		(agent.tokensIn || 0) + (agent.tokensOut || 0)
+																	const savingsPercent =
+																		tokens > 0
+																			? Math.round(
+																					(tokens / (contextTokens || 1)) *
+																						100,
+																				)
+																			: 0
+																	return total + savingsPercent
+																}, 0)}
+																% tokens
+															</span>
+														</div>
+													</div>
+												</div>
+											</td>
+										</tr>
+									)}
 								</tbody>
 							</table>
 						</div>

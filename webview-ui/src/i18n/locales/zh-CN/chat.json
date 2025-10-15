@@ -13,6 +13,8 @@
 		"contextWindow": "上下文长度",
 		"subAgents": "子代理",
 		"subAgentTokens": "子代理 Token 用量",
+		"subAgentSavings": "上下文节省",
+		"totalSavings": "总节省",
 		"closeAndStart": "关闭任务并开始新任务",
 		"export": "导出任务历史",
 		"delete": "删除任务（Shift + 点击跳过确认）",
@@ -390,6 +392,7 @@
 	"editMessage": {
 		"placeholder": "编辑消息..."
 	},
+	"collapseMessage": "折叠消息",
 	"slashCommands": {
 		"tooltip": "管理斜杠命令",
 		"title": "斜杠命令",

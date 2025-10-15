@@ -14,6 +14,8 @@
 		"contextWindow": "Context Length",
 		"subAgents": "Sub-Agents",
 		"subAgentTokens": "Sub-Agent Token Usage",
+		"subAgentSavings": "Context Savings",
+		"totalSavings": "Total Savings",
 		"closeAndStart": "Close task and start a new one",
 		"export": "Export task history",
 		"share": "Share task",
@@ -97,6 +99,7 @@
 	"editMessage": {
 		"placeholder": "Edit your message..."
 	},
+	"collapseMessage": "Collapse message",
 	"scrollToBottom": "Scroll to bottom of chat",
 	"about": "Generate, refactor, and debug code with AI assistance. Check out our <DocsLink>documentation</DocsLink> to learn more.",
 	"onboarding": "Your task list in this workspace is empty.",

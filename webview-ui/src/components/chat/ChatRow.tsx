@@ -47,8 +47,8 @@ import { ChatTextArea } from "./ChatTextArea"
 import { MAX_IMAGES_PER_MESSAGE } from "./ChatView"
 import { useSelectedModel } from "../ui/hooks/useSelectedModel"
 import {
-	ChevronRight,
 	ChevronDown,
+	ChevronRight,
 	Eye,
 	FileDiff,
 	ListTree,

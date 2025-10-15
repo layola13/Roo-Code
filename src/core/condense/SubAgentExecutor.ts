@@ -124,7 +124,11 @@ ${messageContext}`
 			}
 
 			// Execute the API request
-			const stream = this.apiHandler.createMessage(systemPrompt, requestMessages)
+			// Pass mode metadata so getApiMetrics() can identify this as a subagent call
+			const stream = this.apiHandler.createMessage(systemPrompt, requestMessages, {
+				mode: `condense-${agentName.toLowerCase().replace(/\s+/g, "-")}`,
+				taskId: "subagent-compression",
+			})
 
 			let output = ""
 			let inputTokens = 0
