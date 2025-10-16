@@ -16,5 +16,8 @@ Example: Requesting to list all files in the current directory
 <list_files>
 <path>.</path>
 <recursive>false</recursive>
-</list_files>`
+</list_files>
+
+**⚠️ Context Management Reminder:**
+Recursive file listings in large directories can add significant context. If context usage is approaching 75-85% of the window limit, consider using the \`use_subagent\` tool to compress existing context first.`
 }

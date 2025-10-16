@@ -3,11 +3,51 @@
 **文档编号**: 34-TodoList
 **创建日期**: 2025-10-16
 **更新日期**: 2025-10-16
-**状态**: ✅ 核心功能已完成
+**状态**: ✅ 核心功能已完成 + 🎉 主动压缩提示词已优化
 **关联文档**:
 
 - [34-subagent-improvement-plan.md](./34-subagent-improvement-plan.md) - 改进方案(已更正)
 - [44-subagent-tool-based-invocation.md](./44-subagent-tool-based-invocation.md) - 正确实现说明
+
+---
+
+## 🎉 最新改进 (2025-10-16)
+
+### Phase 2.8: 优化主动压缩提示词 ✅
+
+**目标**: 让LLM更早、更主动地触发上下文压缩
+
+**已完成内容**:
+
+1. ✅ **优化 AUTO-TRIGGER CONDITIONS**
+
+    - 添加三级优先级系统（🔴 CRITICAL / 🟡 HIGH / 🟢 RECOMMENDED）
+    - 明确 75-85% 上下文阈值触发建议
+    - 强调主动压缩的重要性（在系统强制压缩前就调用）
+
+2. ✅ **改进 COMBINATION STRATEGIES**
+
+    - Strategy 1: 主动上下文压缩（推荐用于长任务，75-85%触发）
+    - Strategy 2: 全面上下文压缩（用户请求摘要时）
+    - Strategy 3: 专注技术分析（代码审查）
+    - Strategy 4: 渐进式内存管理（多会话任务）
+
+3. ✅ **增强提示词清晰度**
+    - 添加视觉标记（🔴🟡🟢图标）
+    - 明确何时应该主动调用的具体场景
+    - 强调预防性压缩优于被动压缩的好处
+
+**改进效果**:
+
+- LLM现在能够更清楚地理解何时应该主动调用压缩
+- 从原来的"Context > 8000 tokens"简单条件升级为详细的优先级系统
+- 明确建议在75-85%上下文使用率时触发，而不是等到90-100%
+
+**测试结果**: ✅ 所有9个单元测试通过
+
+**文件修改**:
+
+- `src/core/prompts/tools/use-subagent.ts` - 优化工具描述提示词
 
 ---
 
@@ -62,30 +102,33 @@
     - **状态**: 已完成
     - **功能**: 类型定义、参数注册、始终可用配置、工具描述映射
 
-- [ ] **Task 2.4**: 修改 WebviewMessage.ts 添加子代理调用类型字段
+- [x] **Task 2.4**: ✅ 修改 WebviewMessage.ts 添加子代理调用类型字段
 
-    - **文件**: `src/shared/WebviewMessage.ts` 或相关类型文件
-    - **操作**: 新增 `SubAgentInvocation` 接口
-    - **字段**: `triggerType: 'tool_call' | 'auto_compress'`
+    - **文件**: `src/shared/ExtensionMessage.ts`
+    - **状态**: 已完成
+    - **内容**: 新增 `SubAgentInvocation` 接口，包含 `triggerType: 'tool_call' | 'auto_compress'`
 
-- [ ] **Task 2.5**: 在 Task.ts 中记录子代理调用历史
+- [x] **Task 2.5**: ✅ 在 Task.ts 中记录子代理调用历史
 
     - **文件**: `src/core/task/Task.ts`
-    - **操作**:
-        - 添加 `subAgentInvocations` 属性
-        - 添加 `recordSubAgentInvocation()` 方法
+    - **状态**: 已完成
+    - **内容**:
+        - 添加 `subAgentInvocations` 属性 (Line 283)
+        - 添加 `recordSubAgentInvocation()` 方法 (Line 3657-3674)
         - 添加 `getSubAgentInvocations()` 方法
 
-- [ ] **Task 2.6**: 集成到消息处理流程
+- [x] **Task 2.6**: ✅ 在主动调用时记录
 
-    - **文件**: `src/core/assistant-message/index.ts` 或 `Task.ts`
-    - **操作**: 在 `presentAssistantMessage` 中添加意图检测和调用逻辑
-    - **功能**: 检测到意图时自动执行子代理并返回结果
+    - **文件**: `src/core/tools/useSubagentTool.ts`
+    - **状态**: 已完成
+    - **内容**: 工具执行成功后调用 `task.recordSubAgentInvocation()`，设置 `triggerType: "tool_call"` (Line 114-122)
+    - **测试**: 包含9个单元测试验证记录功能
 
-- [ ] **Task 2.7**: 修改被动压缩记录类型
-    - **文件**: `Task.ts` 的 `attemptApiRequest` 方法
-    - **操作**: 在 `truncateConversationIfNeeded` 后记录为 `auto_compress`
-    - **目的**: 区分被动触发和主动调用
+- [x] **Task 2.7**: ✅ 修改被动压缩记录类型
+    - **文件**: `src/core/task/Task.ts`
+    - **状态**: 已完成
+    - **位置**: 在3处被动压缩点记录 (Line 1240, 2776, 2929)
+    - **内容**: 设置 `triggerType: "auto_compress"` 区分被动触发
 
 ---
 
@@ -118,26 +161,26 @@
 
 ### Phase 4: 测试覆盖
 
-- [ ] **Task 4.1**: 创建 SubAgentExecutor 单元测试文件
+- [x] **Task 4.1**: ✅ 创建 useSubagentTool 单元测试文件
+
+    - **文件**: `src/core/tools/__tests__/useSubagentTool.test.ts`
+    - **状态**: 已完成，9个测试全部通过
+    - **测试内容**:
+        - ✅ 测试工具执行基本功能
+        - ✅ 测试参数验证
+        - ✅ 测试错误处理
+        - ✅ 测试主动调用记录功能（triggerType: "tool_call"）
+        - ✅ 测试Token和成本记录
+
+- [ ] **Task 4.2**: SubAgentExecutor 单元测试（可选）
 
     - **文件**: `src/core/condense/__tests__/SubAgentExecutor.spec.ts`
-    - **测试内容**:
-        - 测试 `executeCompression()` 并行执行
-        - 测试单个子代理执行
-        - 测试自定义提示词覆盖
-        - 测试错误处理
+    - **说明**: SubAgentExecutor已有现有测试覆盖
+    - **建议**: 如需补充，可添加更多边界情况测试
 
-- [ ] **Task 4.2**: 编写子代理意图检测的单元测试
-
-    - **文件**: `src/core/task/__tests__/subagent-intent-detection.spec.ts`
-    - **测试内容**:
-        - 测试各种调用表达式的检测
-        - 测试大小写不敏感
-        - 测试 false positive 情况
-        - 测试多个子代理同时提及
-
-- [ ] **Task 4.3**: 编写 TaskHeader 可视化的单元测试
+- [ ] **Task 4.3**: TaskHeader 可视化单元测试（待UI实现后）
     - **文件**: `webview-ui/src/components/chat/__tests__/TaskHeader-subagent.spec.tsx`
+    - **前置条件**: 需要先完成 Phase 3 的UI实现
     - **测试内容**:
         - 测试历史列表渲染
         - 测试图标和标签区分
@@ -201,19 +244,25 @@
 ## 📊 进度统计
 
 - **总任务数**: 19 (原计划)
-- **核心功能**: ✅ 已完成 (use_subagent工具)
-- **文本检测相关**: ❌ 已废弃 (错误方案)
-- **UI和测试**: 🔄 待完善
+- **Phase 1 (代码分析)**: ✅ 部分完成 (1/2)
+- **Phase 2 (核心功能)**: ✅ 已完成 (7/7) - 包括调用记录机制
+- **Phase 3 (UI可视化)**: 🔄 待实现 (0/3)
+- **Phase 4 (测试覆盖)**: ✅ 核心完成 (1/3) - useSubagentTool测试已完成
+- **Phase 5 (验收测试)**: 🔄 待执行 (0/5)
+- **Phase 6 (手动验证)**: 🔄 待执行 (0/3)
+
+**核心改进已完成**: ✅ use_subagent工具 + 调用记录机制
 
 ---
 
 ## 🎯 关键里程碑
 
 1. ✅ **核心功能实现** - use_subagent工具完整实现
-2. ✅ **文档更正** - 纠正错误的文本检测方案
-3. 🔄 **UI可视化** - 显示子代理调用历史(可选)
-4. 🔄 **测试完善** - 工具调用相关测试(可选)
-5. ✅ **类型检查** - 所有类型定义正确
+2. ✅ **调用记录机制** - 主动调用(tool_call)和被动压缩(auto_compress)记录
+3. ✅ **单元测试** - 9个测试全部通过，包括记录功能验证
+4. ✅ **文档更正** - 纠正错误的文本检测方案
+5. 🔄 **UI可视化** - 显示子代理调用历史(可选)
+6. ✅ **类型检查** - 所有类型定义正确
 
 ---
 

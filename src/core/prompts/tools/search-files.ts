@@ -19,5 +19,8 @@ Example: Requesting to search for all .ts files in the current directory
 <path>.</path>
 <regex>.*</regex>
 <file_pattern>*.ts</file_pattern>
-</search_files>`
+</search_files>
+
+**⚠️ Context Management Reminder:**
+Search results can add significant context, especially with broad patterns. If context usage is approaching 75-85% of the window limit, consider using the \`use_subagent\` tool to compress existing context first. This maintains conversation quality and prevents context overflow.`
 }

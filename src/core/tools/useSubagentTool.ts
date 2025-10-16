@@ -113,6 +113,17 @@ export async function useSubagentTool(
 				`</subagent_result>`,
 			].join("\n")
 
+			// Record the subagent invocation with tool_call trigger type
+			await cline.recordSubAgentInvocation({
+				agentName,
+				timestamp: Date.now(),
+				triggerType: "tool_call",
+				tokensIn: subagentResult.tokensIn,
+				tokensOut: subagentResult.tokensOut,
+				cost: subagentResult.cost,
+				success: true,
+			})
+
 			await pushToolResult(resultText)
 		} else if (subagentResult && !subagentResult.success) {
 			await pushToolResult(`Subagent execution failed: ${subagentResult.error || "Unknown error"}`)

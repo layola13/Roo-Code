@@ -20,5 +20,8 @@ Examples:
 2. List definitions from all files in a directory:
 <list_code_definition_names>
 <path>src/</path>
-</list_code_definition_names>`
+</list_code_definition_names>
+
+**⚠️ Context Management Reminder:**
+Listing code definitions from large directories can add significant context. If context usage is approaching 75-85% of the window limit, consider using the \`use_subagent\` tool to compress existing context first.`
 }

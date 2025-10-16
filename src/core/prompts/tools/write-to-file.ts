@@ -36,5 +36,8 @@ Example: Requesting to write to frontend-config.json
 }
 </content>
 <line_count>14</line_count>
-</write_to_file>`
+</write_to_file>
+
+**⚠️ Context Management Reminder:**
+Writing large files adds their complete content to the conversation context. If you're about to write multiple large files or the context is approaching 75-85% usage, consider using the \`use_subagent\` tool to compress existing context first. This maintains conversation quality and prevents context overflow.`
 }

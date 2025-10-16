@@ -9,10 +9,34 @@ export function getUseSubagentDescription(args: ToolArgs): string {
 Description: Delegate specialized analysis to isolated subagents for context management and structured insights. Subagents run in separate contexts with focused prompts optimized for specific analysis types.
 
 **AUTO-TRIGGER CONDITIONS:**
-- Context > 8000 tokens OR conversation > 15 messages
-- User explicitly requests summary/analysis ("summarize", "recap", "what have we discussed")
-- Before complex multi-factor decisions requiring full context review
-- When you need structured extraction from lengthy conversations
+
+🔴 **CRITICAL - Proactive Compression (High Priority)**:
+- **Context reaches 75-85% of context window** (e.g., 90k/120k tokens, 21k/28k messages)
+- **IMMEDIATELY before large operations**: reading >5 files, parsing big codebases, analyzing long logs
+- **Before context exceeds safe threshold** to prevent forced system truncation
+- **When conversation history grows large** (>15-20 messages with substantial content)
+- **Proactively compress BEFORE hitting limits**, not after - this is the key to quality!
+
+🟡 **HIGH PRIORITY - Context Management**:
+- **Complex multi-step tasks** with >20 messages exchanged (check conversation length regularly)
+- **Before making important decisions** that require full context review
+- **After completing a major phase** of work (design → implementation → testing transitions)
+- **When working memory feels cluttered** with older information that could be summarized
+
+🟢 **RECOMMENDED - Analysis & Summarization**:
+- **User explicitly requests** summary/analysis ("summarize", "recap", "what have we discussed")
+- **Need structured extraction** from lengthy technical discussions
+- **Preparing status updates** or completion reports
+- **Reviewing what's been accomplished** so far in the task
+
+**💡 PROACTIVE STRATEGY - THE GOLDEN RULE**:
+Don't wait for the system to force compression at 90-100%! **Monitor your context usage actively** and call compression subagents when context reaches 75-85% threshold to:
+- ✅ Maintain conversation quality (avoid degradation)
+- ✅ Preserve important context (decisions, requirements, constraints)
+- ✅ Avoid emergency truncation (which loses information)
+- ✅ Keep responses coherent and contextually aware
+
+**⚠️ CRITICAL REMINDER**: The system will automatically compress at ~80-90% threshold, but by then quality may already suffer. **YOU should proactively trigger compression at 75-85%** to maintain optimal performance!
 
 **AVAILABLE SUBAGENTS:**
 
@@ -74,19 +98,90 @@ Description: Delegate specialized analysis to isolated subagents for context man
 
 **COMBINATION STRATEGIES:**
 
-Strategy 1 - Full Context Compression:
+Strategy 1 - 🔴 Proactive Context Compression (CRITICAL - USE THIS FIRST):
+**When**: Context reaches 75-85% of limit (CHECK THIS REGULARLY!)
+**Trigger**: IMMEDIATELY when you notice context approaching threshold
+1. Call condense-memory-extractor → preserve critical decisions and requirements
+2. Call condense-context-analyzer → understand conversation flow
+3. Synthesize results → maintain compressed context for next ~20-30 messages
+4. Continue working with cleaner context, avoiding forced truncation
+**Benefit**: Prevents quality degradation from emergency compression at 90-100%
+**Priority**: HIGHEST - This should be your default strategy for long tasks
+
+Strategy 2 - Full Context Compression (for user-requested summaries):
+**When**: User explicitly asks "what have we done?" or requests recap
+**Trigger**: User keywords like "summarize", "recap", "review progress"
 1. Call condense-context-analyzer → get conversation structure
 2. Call condense-memory-extractor → extract critical decisions
-3. Synthesize both results → provide compressed context to user
+3. Call condense-code-summarizer (if applicable) → summarize code changes
+4. Synthesize all results → provide comprehensive summary
 
-Strategy 2 - Focused Technical Analysis:
+Strategy 3 - Focused Technical Analysis:
+**When**: Need to review specific code changes or technical decisions
+**Trigger**: Before providing code review feedback or refactoring recommendations
 1. Call condense-code-summarizer with context="last 5 file changes"
 2. Use summary to inform current code review or refactoring decision
 
-Strategy 3 - Progressive Memory Management:
+Strategy 4 - Progressive Memory Management (for multi-session tasks):
+**When**: Working on complex projects spanning multiple conversations
+**Trigger**: Every ~20 messages in long tasks (set mental checkpoint)
 - Every ~20 messages: call condense-memory-extractor
 - Store extracted memories in your working context
-- Discard older full messages, keep only memories + recent 10 messages
+- Keep only critical decisions + recent 10 messages in active memory
+- Prevents context overflow while maintaining task continuity
+
+Strategy 5 - 🔴 Before Large Codebase Analysis (PROACTIVE):
+**When**: About to parse or analyze large amounts of code
+**Trigger**: BEFORE reading multiple files (>5 files) or deep exploration
+- Before reading multiple files (>5 files)
+- Before deep codebase exploration (e.g., understanding a large module)
+- Before architectural analysis spanning many components
+**Action**: Call condense-memory-extractor FIRST to preserve current context, THEN proceed with analysis
+**Why**: Large file reads add significant tokens - compress first to make room
+
+Strategy 6 - After Major Code Improvements:
+**When**: Completed significant refactoring or feature implementation
+**Trigger**: After modifying >3 files, implementing complete feature, or resolving complex bugs
+- After modifying >3 files
+- After implementing a complete feature
+- After resolving complex bugs
+**Action**: Call condense-code-summarizer to compress implementation details, keep key decisions
+**Why**: Implementation details are verbose - compress them while preserving outcomes
+
+Strategy 7 - 🔴 Before Adding Terminal Context (PROACTIVE):
+**When**: About to add large terminal output to context
+**Trigger**: BEFORE adding long command output (>100 lines), extensive logs, or build/test output
+- Before adding long command output (>100 lines)
+- Before analyzing extensive logs
+- Before processing build/test output
+**Action**: Call condense-memory-extractor FIRST to make room for new terminal data
+**Why**: Terminal output is token-heavy - compress current context before adding it
+
+Strategy 8 - After Terminal Command Issues:
+**When**: After debugging or fixing terminal command problems
+**Trigger**: After multiple command execution attempts, troubleshooting, or resolving errors
+- After multiple command execution attempts
+- After troubleshooting environment issues
+- After resolving path/permission problems
+**Action**: Call condense-context-analyzer to compress debugging history, keep solution
+**Why**: Debugging conversations are repetitive - compress them to keep only the solution
+
+Strategy 9 - Before Parsing Complex Terminal Output:
+**When**: Need to analyze lengthy terminal results
+**Trigger**: BEFORE parsing test results (>50 lines), error traces, or compilation output
+- Before parsing test results (>50 lines)
+- Before analyzing error stack traces
+- Before processing compilation output
+**Action**: Call condense-code-summarizer if related to code, or condense-memory-extractor for general analysis
+
+Strategy 10 - Starting New Task Phase:
+**When**: Transitioning between major task phases
+**Trigger**: Moving from planning → implementation, implementation → testing, or starting new subtask
+- Moving from planning → implementation
+- Switching from implementation → testing
+- Starting new subtask or feature
+**Action**: Call condense-memory-extractor + condense-context-analyzer to preserve phase results, clear working memory
+**Why**: Phase transitions are natural compression points - clean up before starting fresh
 
 **ERROR HANDLING:**
 If subagent fails:

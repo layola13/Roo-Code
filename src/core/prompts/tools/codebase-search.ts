@@ -19,5 +19,7 @@ Example:
 <query>User login and password hashing</query>
 <path>src/auth</path>
 </codebase_search>
-`
+
+**⚠️ Context Management Reminder:**
+Codebase search can return large amounts of code context. If context usage is approaching 75-85% of the window limit, consider using the \`use_subagent\` tool to compress existing context first. This maintains conversation quality and prevents context overflow.`
 }

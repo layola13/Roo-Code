@@ -21,5 +21,8 @@ Example: Requesting to execute ls in a specific directory if directed
 <execute_command>
 <command>ls -la</command>
 <cwd>/home/user/projects</cwd>
-</execute_command>`
+</execute_command>
+
+**⚠️ Context Management Reminder:**
+Before executing commands that may produce large output (e.g., test results, build logs, file listings), consider using the \`use_subagent\` tool to compress existing context first. This prevents terminal output from overflowing the context window and maintains conversation quality.`
 }

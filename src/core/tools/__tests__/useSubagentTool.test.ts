@@ -40,6 +40,7 @@ describe("useSubagentTool", () => {
 			api: {
 				createMessage: vi.fn().mockImplementation(() => createMockStream()),
 			},
+			recordSubAgentInvocation: vi.fn().mockResolvedValue(undefined),
 		} as any
 
 		mockAskApproval = vi.fn().mockResolvedValue(true)
@@ -200,10 +201,8 @@ describe("useSubagentTool", () => {
 		const mockError = new Error("API failure")
 		// Create a failing async generator
 		const createFailingStream = () => {
-			const failingStream = async function* (): AsyncGenerator<never, void, undefined> {
+			const failingStream = async function* () {
 				throw mockError
-
-				yield // This line is unreachable but satisfies the linter
 			}
 			return failingStream()
 		}
@@ -264,5 +263,39 @@ describe("useSubagentTool", () => {
 		expect(mockPushToolResult).toHaveBeenCalled()
 		const resultArg = mockPushToolResult.mock.calls[0][0]
 		expect(resultArg).toContain("Success")
+	})
+
+	it("should record subagent invocation with tool_call trigger type", async () => {
+		const toolUse: UseSubagentToolUse = {
+			type: "tool_use",
+			name: "use_subagent",
+			params: {
+				agent_name: "condense-context-analyzer",
+				task: "Analyze conversation flow",
+			},
+			partial: false,
+		}
+
+		await useSubagentTool(
+			mockTask as Task,
+			toolUse,
+			mockAskApproval,
+			mockHandleError,
+			mockPushToolResult,
+			mockRemoveClosingTag,
+		)
+
+		// Verify recordSubAgentInvocation was called with correct parameters
+		expect(mockTask.recordSubAgentInvocation).toHaveBeenCalledWith(
+			expect.objectContaining({
+				agentName: "condense-context-analyzer",
+				triggerType: "tool_call",
+				tokensIn: expect.any(Number),
+				tokensOut: expect.any(Number),
+				cost: expect.any(Number),
+				success: true,
+				timestamp: expect.any(Number),
+			}),
+		)
 	})
 })

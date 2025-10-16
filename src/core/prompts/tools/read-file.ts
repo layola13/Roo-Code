@@ -81,5 +81,8 @@ ${
 `
 		: ""
 }
-${isMultipleReadsEnabled ? `- When you need to read more than ${maxConcurrentReads} files, prioritize the most critical files first, then use subsequent read_file requests for additional files` : ""}`
+${isMultipleReadsEnabled ? `- When you need to read more than ${maxConcurrentReads} files, prioritize the most critical files first, then use subsequent read_file requests for additional files` : ""}
+
+**⚠️ Context Management Reminder:**
+Before reading multiple files (especially >5 files) or large files, consider using the \`use_subagent\` tool to compress existing context first. This prevents context window overflow and maintains conversation quality. See the \`use_subagent\` tool description for proactive compression strategies.`
 }
