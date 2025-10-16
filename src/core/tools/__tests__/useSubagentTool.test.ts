@@ -199,9 +199,11 @@ describe("useSubagentTool", () => {
 
 	it("should handle execution errors gracefully", async () => {
 		const mockError = new Error("API failure")
-		// Create a failing async generator
+		// Create a failing async generator that yields before throwing
 		const createFailingStream = () => {
-			const failingStream = async function* () {
+			async function* failingStream() {
+				// Yield at least once to satisfy generator requirement
+				yield { type: "text" as const, text: "Starting..." }
 				throw mockError
 			}
 			return failingStream()
