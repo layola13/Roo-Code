@@ -123,6 +123,7 @@ import { MessageQueueService } from "../message-queue/MessageQueueService"
 import { AutoApprovalHandler } from "./AutoApprovalHandler"
 import { TaskAdapter, TaskAdapterConfig } from "../wasm/adapters/TaskAdapter"
 import { ToolsAdapter, ToolsAdapterConfig } from "../wasm/adapters/ToolsAdapter"
+import { ConversationAdapter, ConversationAdapterConfig } from "../wasm/adapters/ConversationAdapter"
 import { HostInterface } from "../wasm/host/HostInterface"
 
 const MAX_EXPONENTIAL_BACKOFF_SECONDS = 600 // 10 minutes
@@ -265,6 +266,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	private hostInterface?: HostInterface
 	private taskAdapter?: TaskAdapter
 	private toolsAdapter?: ToolsAdapter
+	private conversationAdapter?: ConversationAdapter
 
 	// Judge Service
 	private judgeService?: JudgeService
@@ -504,6 +506,17 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 				// Create ToolsAdapter instance (只需要2个参数)
 				this.toolsAdapter = new ToolsAdapter(this.hostInterface, toolsAdapterConfig)
+
+				// Configure ConversationAdapter
+				const conversationAdapterConfig: ConversationAdapterConfig = {
+					enableWasm: true,
+					enableFallback: enableWasmFallback,
+					persistencePath: wasmPersistencePath || `${this.globalStoragePath}/wasm-conversations`,
+					maxRetries: wasmMaxRetries,
+				}
+
+				// Create ConversationAdapter instance
+				this.conversationAdapter = new ConversationAdapter(this.hostInterface, conversationAdapterConfig)
 
 				console.log(`[Task] WASM integration enabled for task ${this.taskId}`)
 			} catch (error) {
@@ -1819,6 +1832,18 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				// Continue with other disposal - don't let WASM errors block cleanup
 			}
 			this.toolsAdapter = undefined
+		}
+
+		// Dispose ConversationAdapter (if enabled)
+		if (this.conversationAdapter) {
+			try {
+				this.conversationAdapter.dispose()
+				console.log(`[Task] WASM conversation disposed: ${this.taskId}`)
+			} catch (error) {
+				console.error(`[Task] Failed to dispose WASM conversation:`, error)
+				// Continue with other disposal - don't let WASM errors block cleanup
+			}
+			this.conversationAdapter = undefined
 		}
 
 		// Clear HostInterface reference (no dispose method needed)
@@ -3639,6 +3664,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	 */
 	public get wasmToolsAdapter(): ToolsAdapter | undefined {
 		return this.toolsAdapter
+	}
+
+	/**
+	 * Get the ConversationAdapter instance for WASM conversation management
+	 * Returns undefined if WASM is not enabled
+	 */
+	public get wasmConversationAdapter(): ConversationAdapter | undefined {
+		return this.conversationAdapter
 	}
 
 	/**
