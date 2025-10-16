@@ -184,6 +184,16 @@ export const toolProgressStatusSchema = z.object({
 export type ToolProgressStatus = z.infer<typeof toolProgressStatusSchema>
 
 /**
+ * SubAgentStatus
+ *
+ * Execution status for individual subagents
+ */
+
+export const subAgentStatusSchema = z.enum(["pending", "running", "completed", "failed"])
+
+export type SubAgentStatus = z.infer<typeof subAgentStatusSchema>
+
+/**
  * SubAgentTokenUsage
  *
  * Token usage tracking for individual subagents in the compression system
@@ -194,6 +204,7 @@ export const subAgentTokenUsageSchema = z.object({
 	tokensIn: z.number(),
 	tokensOut: z.number(),
 	cost: z.number(),
+	status: subAgentStatusSchema.optional(),
 })
 
 export type SubAgentTokenUsage = z.infer<typeof subAgentTokenUsageSchema>

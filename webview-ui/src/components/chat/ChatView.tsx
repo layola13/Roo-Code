@@ -123,6 +123,11 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		soundVolume,
 		cloudIsAuthenticated,
 		messageQueue = [],
+		// Sub-agent configuration
+		subAgentCompressionEnabled,
+		useContextAnalyzer,
+		useMemoryExtractor,
+		useCodeSummarizer,
 	} = useExtensionState()
 
 	const messagesRef = useRef(messages)
@@ -1807,6 +1812,10 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 						handleCondenseContext={handleCondenseContext}
 						todos={latestTodos}
 						subAgentTokenUsage={apiMetrics.subAgentTokenUsage}
+						subAgentCompressionEnabled={subAgentCompressionEnabled}
+						useContextAnalyzer={useContextAnalyzer}
+						useMemoryExtractor={useMemoryExtractor}
+						useCodeSummarizer={useCodeSummarizer}
 					/>
 
 					{hasSystemPromptOverride && (

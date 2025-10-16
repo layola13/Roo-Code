@@ -40,6 +40,7 @@ import {
 	isResumableAsk,
 	QueuedMessage,
 } from "@roo-code/types"
+import type { SubAgentInvocation } from "../../shared/ExtensionMessage"
 import { ConversationMemory } from "../memory/ConversationMemory"
 import { VectorMemoryStore, VectorMemoryStoreConfig } from "../memory/VectorMemoryStore"
 import { TelemetryService } from "@roo-code/telemetry"
@@ -117,6 +118,7 @@ import {
 } from "../checkpoints"
 import { processUserContentMentions } from "../mentions/processUserContentMentions"
 import { getMessagesSinceLastSummary, summarizeConversation } from "../condense"
+import { SubAgentExecutor, SubAgentConfig, SubAgentResult } from "../condense/SubAgentExecutor"
 import { Gpt5Metadata, ClineMessageWithMetadata } from "./types"
 import { MessageQueueService } from "../message-queue/MessageQueueService"
 
@@ -276,6 +278,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	consecutiveMistakeLimit: number
 	consecutiveMistakeCountForApplyDiff: Map<string, number> = new Map()
 	toolUsage: ToolUsage = {}
+
+	// SubAgent Invocations
+	private subAgentInvocations: SubAgentInvocation[] = []
 
 	// Checkpoints
 	enableCheckpoints: boolean
@@ -1150,6 +1155,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		// Get subagent compression configuration
 		const useSubAgentCompression = state?.useSubAgentCompression ?? false
+		// Get custom subagent prompts from state
+		const contextAnalyzerPrompt = state?.contextAnalyzerPrompt
+		const memoryExtractorPrompt = state?.memoryExtractorPrompt
+		const codeSummarizerPrompt = state?.codeSummarizerPrompt
+
 		const modelInfo = this.api.getModel().info
 		const contextWindow = modelInfo.contextWindow
 		const maxTokens = getModelMaxOutputTokens({
@@ -1203,6 +1213,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						useMemoryExtractor: true,
 						useCodeSummarizer: true,
 						verboseLogging: false,
+						// Pass custom prompts to subagents
+						contextAnalyzerPrompt,
+						memoryExtractorPrompt,
+						codeSummarizerPrompt,
 					}
 				: undefined,
 		)
@@ -1219,6 +1233,21 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			return
 		}
 		await this.overwriteApiConversationHistory(messages)
+
+		// Record subagent invocations if any occurred during condensing
+		if (subAgentTokenUsage && subAgentTokenUsage.length > 0) {
+			for (const usage of subAgentTokenUsage) {
+				await this.recordSubAgentInvocation({
+					agentName: usage.agentName,
+					timestamp: Date.now(),
+					triggerType: "auto_compress",
+					tokensIn: usage.tokensIn,
+					tokensOut: usage.tokensOut,
+					cost: usage.cost,
+					success: true,
+				})
+			}
+		}
 
 		// Set flag to skip previous_response_id on the next API call after manual condense
 		this.skipPrevResponseIdOnce = true
@@ -2467,6 +2496,74 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					presentAssistantMessage(this)
 				}
 
+				// 🔥 子代理主动调用检测逻辑（流式传输完成后执行）
+				// 在所有文本块都完成后，检测是否包含子代理调用意图
+				console.log("[SubAgent Detection] Stream completed, checking for subagent intent...")
+
+				// 合并所有文本块的内容
+				const allTextContent = this.assistantMessageContent
+					.filter((block) => block.type === "text")
+					.map((block) => block.content)
+					.join("\n\n")
+
+				if (allTextContent) {
+					console.log("[SubAgent Detection] Combined text length:", allTextContent.length)
+					console.log("[SubAgent Detection] Combined text preview:", allTextContent.substring(0, 300))
+
+					const detectedAgent = this.detectSubAgentIntent(allTextContent)
+
+					console.log("[SubAgent Detection] Detection result:", detectedAgent || "null (no match)")
+
+					if (detectedAgent) {
+						console.log(`[SubAgent Detection] ✓ Detected intent for: ${detectedAgent}`)
+
+						// 通知用户检测到子代理调用意图
+						await this.say(
+							"text",
+							`\n\n🤖 **Detected subagent invocation intent: ${detectedAgent}**\n*Executing...*\n`,
+						)
+
+						// 执行子代理
+						console.log(`[SubAgent Execution] Starting execution for: ${detectedAgent}`)
+						const result = await this.executeSubAgentByIntent(detectedAgent)
+						console.log(`[SubAgent Execution] Result:`, result ? `success=${result.success}` : "null")
+
+						if (result && result.success) {
+							console.log(
+								`[SubAgent Execution] ✓ Success - tokensIn=${result.tokensIn}, tokensOut=${result.tokensOut}, cost=${result.cost}`,
+							)
+
+							// 将子代理结果添加到用户消息内容中
+							this.userMessageContent.push({
+								type: "text",
+								text: `\n[SubAgent ${detectedAgent} Result]\n${result.output || "(No output returned)"}`,
+							})
+
+							// 通知用户执行成功
+							await this.say(
+								"text",
+								`\n✅ **SubAgent ${detectedAgent} execution completed successfully**\n` +
+									`📊 *Tokens: ↑${result.tokensIn} ↓${result.tokensOut} | Cost: $${result.cost.toFixed(4)}*\n`,
+							)
+						} else {
+							// 执行失败
+							const errorMsg = result?.error || "Unknown error"
+							console.log(`[SubAgent Execution] ✗ Failed:`, errorMsg)
+
+							this.userMessageContent.push({
+								type: "text",
+								text: `\n[SubAgent ${detectedAgent} Error]\n${errorMsg}`,
+							})
+
+							await this.say("text", `\n❌ **SubAgent ${detectedAgent} execution failed: ${errorMsg}**\n`)
+						}
+					} else {
+						console.log("[SubAgent Detection] No subagent intent detected in assistant message")
+					}
+				} else {
+					console.log("[SubAgent Detection] No text content found in assistant message")
+				}
+
 				// Note: updateApiReqMsg() is now called from within drainStreamInBackgroundToFindAllUsage
 				// to ensure usage data is captured even when the stream is interrupted. The background task
 				// uses local variables to accumulate usage data before atomically updating the shared state.
@@ -2694,6 +2791,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		// Get subagent compression configuration
 		const useSubAgentCompression = state?.useSubAgentCompression ?? false
+		// Get custom subagent prompts from state
+		const contextAnalyzerPrompt = state?.contextAnalyzerPrompt
+		const memoryExtractorPrompt = state?.memoryExtractorPrompt
+		const codeSummarizerPrompt = state?.codeSummarizerPrompt
 
 		// Log the context window error for debugging
 		console.warn(
@@ -2725,12 +2826,31 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						useMemoryExtractor: true,
 						useCodeSummarizer: true,
 						verboseLogging: false,
+						// Pass custom prompts to subagents
+						contextAnalyzerPrompt,
+						memoryExtractorPrompt,
+						codeSummarizerPrompt,
 					}
 				: undefined,
 		})
 
 		if (truncateResult.messages !== this.apiConversationHistory) {
 			await this.overwriteApiConversationHistory(truncateResult.messages)
+		}
+
+		// Record subagent invocations if any occurred during error handling
+		if (truncateResult.subAgentTokenUsage && truncateResult.subAgentTokenUsage.length > 0) {
+			for (const usage of truncateResult.subAgentTokenUsage) {
+				await this.recordSubAgentInvocation({
+					agentName: usage.agentName,
+					timestamp: Date.now(),
+					triggerType: "auto_compress",
+					tokensIn: usage.tokensIn,
+					tokensOut: usage.tokensOut,
+					cost: usage.cost,
+					success: true,
+				})
+			}
 		}
 
 		if (truncateResult.summary) {
@@ -2831,6 +2951,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			const currentProfileId = this.getCurrentProfileId(state)
 			// Get subagent compression configuration
 			const useSubAgentCompression = state?.useSubAgentCompression ?? false
+			// Get custom subagent prompts from state
+			const contextAnalyzerPrompt = state?.contextAnalyzerPrompt
+			const memoryExtractorPrompt = state?.memoryExtractorPrompt
+			const codeSummarizerPrompt = state?.codeSummarizerPrompt
 
 			const truncateResult = await truncateConversationIfNeeded({
 				messages: this.apiConversationHistory,
@@ -2856,12 +2980,32 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 							useMemoryExtractor: true,
 							useCodeSummarizer: true,
 							verboseLogging: false,
+							// Pass custom prompts to subagents
+							contextAnalyzerPrompt,
+							memoryExtractorPrompt,
+							codeSummarizerPrompt,
 						}
 					: undefined,
 			})
 			if (truncateResult.messages !== this.apiConversationHistory) {
 				await this.overwriteApiConversationHistory(truncateResult.messages)
 			}
+
+			// Record subagent invocations if any occurred during threshold-based compression
+			if (truncateResult.subAgentTokenUsage && truncateResult.subAgentTokenUsage.length > 0) {
+				for (const usage of truncateResult.subAgentTokenUsage) {
+					await this.recordSubAgentInvocation({
+						agentName: usage.agentName,
+						timestamp: Date.now(),
+						triggerType: "auto_compress",
+						tokensIn: usage.tokensIn,
+						tokensOut: usage.tokensOut,
+						cost: usage.cost,
+						success: true,
+					})
+				}
+			}
+
 			if (truncateResult.error) {
 				await this.say("condense_context_error", truncateResult.error)
 			} else if (truncateResult.summary) {
@@ -3572,6 +3716,191 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	public get cwd() {
 		return this.workspacePath
+	}
+
+	/**
+	 * 获取子代理调用历史
+	 * @returns 子代理调用记录数组
+	 */
+	public getSubAgentInvocations(): SubAgentInvocation[] {
+		return this.subAgentInvocations
+	}
+
+	/**
+	 * 记录子代理调用
+	 * @param invocation 子代理调用记录
+	 * @internal 此方法主要供内部使用，但暴露为public以便测试
+	 */
+	public async recordSubAgentInvocation(invocation: SubAgentInvocation): Promise<void> {
+		this.subAgentInvocations.push(invocation)
+
+		// 同步到 webview，让UI能够实时显示
+		await this.providerRef.deref()?.postStateToWebview()
+
+		// TODO: 可选 - 持久化到磁盘
+		// await this.saveSubAgentHistory()
+	}
+
+	/**
+	 * 检测大模型输出中的子代理调用意图
+	 * @param text 大模型输出的文本
+	 * @returns 子代理名称或 null
+	 */
+	public detectSubAgentIntent(text: string): string | null {
+		console.log("[SubAgent detectSubAgentIntent] ===== Starting detection =====")
+		console.log("[SubAgent detectSubAgentIntent] Input text length:", text.length)
+		console.log("[SubAgent detectSubAgentIntent] Input text preview:", text.substring(0, 300))
+
+		const subagents = ["condense-context-analyzer", "condense-memory-extractor", "condense-code-summarizer"]
+
+		for (const agent of subagents) {
+			console.log(`[SubAgent detectSubAgentIntent] Testing agent: ${agent}`)
+
+			// 更灵活的匹配策略（按优先级从高到低）：
+			//
+			// Pattern 1 (高置信度): 明确的调用意图表达
+			// - "I need condense-context-analyzer"
+			// - "Let me call condense-memory-extractor"
+			// - "I'll invoke the condense-code-summarizer"
+			// - "Using condense-context-analyzer to analyze"
+			const explicitPattern = new RegExp(
+				`(?:I(?:'ll|\\s+will|\\s+need|\\s+want)|let(?:'s|\\s+me)?|i'm\\s+going\\s+to|going\\s+to)\\s+` +
+					`(?:call|invoke|use|run|execute)\\s+(?:the\\s+)?${agent}`,
+				"i",
+			)
+
+			// Pattern 2 (中置信度): 带动作词的表达
+			// - "call condense-context-analyzer"
+			// - "invoke the condense-memory-extractor"
+			// - "using condense-code-summarizer"
+			const actionPattern = new RegExp(
+				`(?:call(?:ing)?|invok(?:e|ing)|us(?:e|ing)|need|want|run(?:ning)?|execut(?:e|ing))\\s+` +
+					`(?:the\\s+)?${agent}`,
+				"i",
+			)
+
+			// Pattern 3 (中置信度): 子代理名称后跟关键词
+			// - "condense-context-analyzer subagent"
+			// - "condense-memory-extractor to analyze"
+			// - "condense-code-summarizer for compression"
+			const contextPattern = new RegExp(`${agent}\\s+(?:subagent|agent|to|for|will|should|can)`, "i")
+
+			const explicitMatch = explicitPattern.test(text)
+			const actionMatch = actionPattern.test(text)
+			const contextMatch = contextPattern.test(text)
+
+			console.log(`[SubAgent detectSubAgentIntent]   explicitPattern match: ${explicitMatch}`)
+			console.log(`[SubAgent detectSubAgentIntent]   actionPattern match: ${actionMatch}`)
+			console.log(`[SubAgent detectSubAgentIntent]   contextPattern match: ${contextMatch}`)
+
+			// 按优先级测试模式
+			if (explicitMatch || actionMatch || contextMatch) {
+				console.log(`[SubAgent detectSubAgentIntent]   ✓ Pattern matched for ${agent}!`)
+
+				// 额外验证：排除明显的描述性文本（降低误报）
+				const lowerText = text.toLowerCase()
+				const agentLower = agent.toLowerCase()
+
+				// 排除描述性表达模式
+				const descriptionPatterns = [
+					`the ${agentLower} is`,
+					`${agentLower} is a`,
+					`what is ${agentLower}`,
+					`about ${agentLower}`,
+					`${agentLower} (which`,
+					`${agentLower} - `,
+				]
+
+				const isDescription = descriptionPatterns.some((pattern) => lowerText.includes(pattern))
+
+				console.log(`[SubAgent detectSubAgentIntent]   isDescription: ${isDescription}`)
+
+				if (!isDescription) {
+					console.log(`[SubAgent detectSubAgentIntent] ===== Detection SUCCESS: ${agent} =====`)
+					return agent
+				} else {
+					console.log(`[SubAgent detectSubAgentIntent]   ✗ Filtered out as description`)
+				}
+			}
+		}
+
+		console.log("[SubAgent detectSubAgentIntent] ===== Detection FAILED: no match =====")
+		return null
+	}
+
+	/**
+	 * 根据检测到的意图执行单个子代理（主动调用）
+	 * @param agentName 子代理名称
+	 * @returns 子代理执行结果或 null
+	 */
+	public async executeSubAgentByIntent(agentName: string): Promise<SubAgentResult | null> {
+		try {
+			// 1. 获取最近的对话消息（最后10条）
+			const recentMessages = this.apiConversationHistory.slice(-10)
+
+			// 2. 获取状态以获取自定义提示词
+			const state = await this.providerRef.deref()?.getState()
+			const contextAnalyzerPrompt = state?.contextAnalyzerPrompt
+			const memoryExtractorPrompt = state?.memoryExtractorPrompt
+			const codeSummarizerPrompt = state?.codeSummarizerPrompt
+
+			// 3. 创建配置（只启用指定的子代理）
+			const config: SubAgentConfig = {
+				enabled: true,
+				useContextAnalyzer: agentName === "condense-context-analyzer",
+				useMemoryExtractor: agentName === "condense-memory-extractor",
+				useCodeSummarizer: agentName === "condense-code-summarizer",
+				verboseLogging: true,
+				// 传递自定义提示词
+				contextAnalyzerPrompt,
+				memoryExtractorPrompt,
+				codeSummarizerPrompt,
+			}
+
+			// 4. 创建执行器并执行
+			const executor = new SubAgentExecutor(this.api, config)
+			const result = await executor.executeCompression(recentMessages)
+
+			// 5. 提取对应子代理的结果
+			let agentResult: SubAgentResult | null = null
+			if (agentName === "condense-context-analyzer" && result.analyzerResult) {
+				agentResult = result.analyzerResult
+			} else if (agentName === "condense-memory-extractor" && result.extractorResult) {
+				agentResult = result.extractorResult
+			} else if (agentName === "condense-code-summarizer" && result.summarizerResult) {
+				agentResult = result.summarizerResult
+			}
+
+			// 6. 记录调用历史（标记为主动调用 'tool_call'）
+			if (agentResult && agentResult.success) {
+				await this.recordSubAgentInvocation({
+					agentName,
+					timestamp: Date.now(),
+					triggerType: "tool_call", // 主动调用
+					tokensIn: agentResult.tokensIn,
+					tokensOut: agentResult.tokensOut,
+					cost: agentResult.cost,
+					success: agentResult.success,
+				})
+			}
+
+			return agentResult
+		} catch (error) {
+			console.error(`[Task] Failed to execute subagent ${agentName}:`, error)
+
+			// 记录失败的调用
+			await this.recordSubAgentInvocation({
+				agentName,
+				timestamp: Date.now(),
+				triggerType: "tool_call",
+				tokensIn: 0,
+				tokensOut: 0,
+				cost: 0,
+				success: false,
+			})
+
+			return null
+		}
 	}
 
 	/**

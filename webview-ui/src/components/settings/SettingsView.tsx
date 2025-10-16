@@ -393,7 +393,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			vscode.postMessage({ type: "includeTaskHistoryInEnhance", bool: includeTaskHistoryInEnhance ?? true })
 			vscode.postMessage({ type: "setReasoningBlockCollapsed", bool: reasoningBlockCollapsed ?? true })
 			vscode.postMessage({ type: "vectorMemoryEnabled", bool: vectorMemoryEnabled ?? false })
-			vscode.postMessage({ type: "useSubAgentCompression", bool: subAgentCompressionEnabled ?? false })
+			vscode.postMessage({ type: "useSubAgentCompression", bool: subAgentCompressionEnabled ?? true })
 			vscode.postMessage({ type: "useContextAnalyzer", bool: useContextAnalyzer ?? true })
 			vscode.postMessage({ type: "useMemoryExtractor", bool: useMemoryExtractor ?? true })
 			vscode.postMessage({ type: "useCodeSummarizer", bool: useCodeSummarizer ?? true })

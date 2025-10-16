@@ -1986,8 +1986,9 @@ export class ClineProvider
 			openRouterImageGenerationSelectedModel,
 			openRouterUseMiddleOutTransform,
 			featureRoomoteControlEnabled,
-			useSubAgentCompression: useSubAgentCompression ?? false,
-			subAgentCompressionEnabled: useSubAgentCompression ?? false,
+			useSubAgentCompression: useSubAgentCompression ?? true,
+			subAgentCompressionEnabled: useSubAgentCompression ?? true,
+			subAgentInvocations: this.getCurrentTask()?.getSubAgentInvocations() || [],
 			useContextAnalyzer: useContextAnalyzer ?? true,
 			useMemoryExtractor: useMemoryExtractor ?? true,
 			useCodeSummarizer: useCodeSummarizer ?? true,
@@ -2227,8 +2228,8 @@ export class ClineProvider
 					return false
 				}
 			})(),
-			useSubAgentCompression: stateValues.useSubAgentCompression ?? false,
-			subAgentCompressionEnabled: stateValues.useSubAgentCompression ?? false,
+			useSubAgentCompression: stateValues.useSubAgentCompression ?? true,
+			subAgentCompressionEnabled: stateValues.useSubAgentCompression ?? true,
 			useContextAnalyzer: stateValues.useContextAnalyzer ?? true,
 			useMemoryExtractor: stateValues.useMemoryExtractor ?? true,
 			useCodeSummarizer: stateValues.useCodeSummarizer ?? true,

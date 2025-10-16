@@ -111,21 +111,33 @@ export const ContextCondenseRow = ({
 								{t("chat:contextCondense.subAgentDetails")}
 							</h4>
 							<div className="space-y-2">
-								{subAgentTokenUsage.map((agent, index) => (
-									<div
-										key={index}
-										className="flex items-center justify-between p-2 bg-vscode-input-background rounded text-xs">
-										<div className="flex items-center gap-2">
-											<span className="codicon codicon-check text-vscode-charts-green" />
-											<span className="font-medium">{agent.agentName}</span>
+								{subAgentTokenUsage.map((agent, index) => {
+									// 根据 status 判断是否成功执行
+									const isSuccess = agent.tokensOut > 0 && agent.cost > 0
+									const statusIcon = isSuccess ? "check" : "circle-slash"
+									const statusColor = isSuccess
+										? "text-vscode-charts-green"
+										: "text-vscode-descriptionForeground opacity-50"
+
+									return (
+										<div
+											key={index}
+											className="flex items-center justify-between p-2 bg-vscode-input-background rounded text-xs">
+											<div className="flex items-center gap-2">
+												<span className={`codicon codicon-${statusIcon} ${statusColor}`} />
+												<span className="font-medium">{agent.agentName}</span>
+												{isSuccess && (
+													<span className="text-vscode-charts-green text-xs">✓</span>
+												)}
+											</div>
+											<div className="flex items-center gap-3 text-vscode-descriptionForeground">
+												<span>↑ {agent.tokensIn.toLocaleString()}</span>
+												<span>↓ {agent.tokensOut.toLocaleString()}</span>
+												<span className="font-mono">${agent.cost.toFixed(4)}</span>
+											</div>
 										</div>
-										<div className="flex items-center gap-3 text-vscode-descriptionForeground">
-											<span>↑ {agent.tokensIn.toLocaleString()}</span>
-											<span>↓ {agent.tokensOut.toLocaleString()}</span>
-											<span className="font-mono">${agent.cost.toFixed(4)}</span>
-										</div>
-									</div>
-								))}
+									)
+								})}
 							</div>
 						</div>
 					)}

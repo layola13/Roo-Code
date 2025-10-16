@@ -16,6 +16,7 @@
 		"subAgentTokens": "Sub-Agent Token Usage",
 		"subAgentSavings": "Context Savings",
 		"totalSavings": "Total Savings",
+		"subAgentConfig": "Sub-Agent Configuration",
 		"closeAndStart": "Close task and start a new one",
 		"export": "Export task history",
 		"share": "Share task",

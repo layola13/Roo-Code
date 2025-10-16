@@ -22,6 +22,18 @@ import { McpServer } from "./mcp"
 import { Mode } from "./modes"
 import { ModelRecord, RouterModels } from "./api"
 
+// SubAgent Invocation interface
+export interface SubAgentInvocation {
+	agentName: string
+	timestamp: number
+	triggerType: "tool_call" | "auto_compress"
+	tokensIn: number
+	tokensOut: number
+	cost: number
+	success: boolean
+	error?: string
+}
+
 // Command interface for frontend/backend communication
 export interface Command {
 	name: string
@@ -356,6 +368,7 @@ export type ExtensionState = Pick<
 	vectorMemoryEnabled: boolean
 	useSubAgentCompression: boolean
 	subAgentCompressionEnabled: boolean
+	subAgentInvocations?: SubAgentInvocation[]
 	marketplaceItems?: MarketplaceItem[]
 	marketplaceInstalledMetadata?: { project: Record<string, any>; global: Record<string, any> }
 	profileThresholds: Record<string, number>

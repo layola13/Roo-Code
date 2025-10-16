@@ -30,6 +30,7 @@ import { newTaskTool } from "../tools/newTaskTool"
 import { updateTodoListTool } from "../tools/updateTodoListTool"
 import { runSlashCommandTool } from "../tools/runSlashCommandTool"
 import { generateImageTool } from "../tools/generateImageTool"
+import { useSubagentTool } from "../tools/useSubagentTool"
 
 import { formatResponse } from "../prompts/responses"
 import { validateToolUse } from "../tools/validateToolUse"
@@ -151,6 +152,7 @@ export async function presentAssistantMessage(cline: Task) {
 			}
 
 			await cline.say("text", content, undefined, block.partial)
+
 			break
 		}
 		case "tool_use":
@@ -227,6 +229,8 @@ export async function presentAssistantMessage(cline: Task) {
 						return `[${block.name} for '${block.params.command}'${block.params.args ? ` with args: ${block.params.args}` : ""}]`
 					case "generate_image":
 						return `[${block.name} for '${block.params.path}']`
+					case "use_subagent":
+						return `[${block.name}${block.params.agent_name ? ` for '${block.params.agent_name}'` : ""}${block.params.task ? `: ${block.params.task}` : ""}]`
 				}
 			}
 
@@ -557,6 +561,16 @@ export async function presentAssistantMessage(cline: Task) {
 					break
 				case "generate_image":
 					await generateImageTool(cline, block, askApproval, handleError, pushToolResult, removeClosingTag)
+					break
+				case "use_subagent":
+					await useSubagentTool(
+						cline,
+						block as any,
+						askApproval,
+						handleError,
+						pushToolResult,
+						removeClosingTag,
+					)
 					break
 			}
 

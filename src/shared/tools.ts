@@ -67,6 +67,8 @@ export const toolParamNames = [
 	"todos",
 	"prompt",
 	"image",
+	"agent_name",
+	"context",
 ] as const
 
 export type ToolParamName = (typeof toolParamNames)[number]
@@ -176,6 +178,11 @@ export interface GenerateImageToolUse extends ToolUse {
 	params: Partial<Pick<Record<ToolParamName, string>, "prompt" | "path" | "image">>
 }
 
+export interface UseSubagentToolUse extends ToolUse {
+	name: "use_subagent"
+	params: Partial<Pick<Record<ToolParamName, string>, "agent_name" | "task" | "context">>
+}
+
 // Define tool group configuration
 export type ToolGroupConfig = {
 	tools: readonly string[]
@@ -204,6 +211,7 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
 	update_todo_list: "update todo list",
 	run_slash_command: "run slash command",
 	generate_image: "generate images",
+	use_subagent: "use subagents",
 } as const
 
 // Define available tool groups.
@@ -244,6 +252,7 @@ export const ALWAYS_AVAILABLE_TOOLS: ToolName[] = [
 	"new_task",
 	"update_todo_list",
 	"run_slash_command",
+	"use_subagent",
 ] as const
 
 export type DiffResult =

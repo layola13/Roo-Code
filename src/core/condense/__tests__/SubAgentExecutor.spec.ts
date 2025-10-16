@@ -343,17 +343,18 @@ describe("SubAgentExecutor", () => {
 		})
 
 		it("should track token usage for each subagent separately", async () => {
-			let callCount = 0
+			// Track call count to assign different tokens to each subagent call
+			// Since parallel execution doesn't guarantee order, we'll use fixed values
+			// and just verify each subagent gets its own token tracking
 			const mockApiHandler = {
 				createMessage: vi.fn().mockImplementation(() => ({
 					async *[Symbol.asyncIterator]() {
-						callCount++
 						yield { type: "text" as const, text: "Output" }
 						yield {
 							type: "usage" as const,
-							inputTokens: callCount * 100,
-							outputTokens: callCount * 50,
-							totalCost: callCount * 0.01,
+							inputTokens: 100,
+							outputTokens: 50,
+							totalCost: 0.01,
 						}
 					},
 				})),
@@ -373,10 +374,173 @@ describe("SubAgentExecutor", () => {
 			const executor = new SubAgentExecutor(mockApiHandler, config)
 			const result = await executor.executeCompression(testMessages)
 
+			// Verify both subagents were called
+			expect(mockApiHandler.createMessage).toHaveBeenCalledTimes(2)
+
+			// Verify both subagents succeeded and tracked their token usage
+			expect(result.analyzerResult.success).toBe(true)
 			expect(result.analyzerResult.tokensIn).toBe(100)
 			expect(result.analyzerResult.tokensOut).toBe(50)
-			expect(result.extractorResult.tokensIn).toBe(200)
-			expect(result.extractorResult.tokensOut).toBe(100)
+			expect(result.analyzerResult.cost).toBe(0.01)
+
+			expect(result.extractorResult.success).toBe(true)
+			expect(result.extractorResult.tokensIn).toBe(100)
+			expect(result.extractorResult.tokensOut).toBe(50)
+			expect(result.extractorResult.cost).toBe(0.01)
+
+			// Verify total cost is sum of both
+			expect(result.totalCost).toBe(0.02)
+		})
+
+		it("should use custom prompts when provided", async () => {
+			const { mockApiHandler } = createMockApiHandler("Custom prompt output")
+			const customContextPrompt = "Custom context analyzer prompt"
+			const customMemoryPrompt = "Custom memory extractor prompt"
+			const customCodePrompt = "Custom code summarizer prompt"
+
+			const config: SubAgentConfig = {
+				enabled: true,
+				useContextAnalyzer: true,
+				useMemoryExtractor: true,
+				useCodeSummarizer: true,
+				contextAnalyzerPrompt: customContextPrompt,
+				memoryExtractorPrompt: customMemoryPrompt,
+				codeSummarizerPrompt: customCodePrompt,
+			}
+
+			const executor = new SubAgentExecutor(mockApiHandler, config)
+			await executor.executeCompression(testMessages)
+
+			// Verify that createMessage was called 3 times with custom prompts
+			expect(mockApiHandler.createMessage).toHaveBeenCalledTimes(3)
+
+			// Check that custom prompts were used in API calls
+			const calls = (mockApiHandler.createMessage as any).mock.calls
+			expect(calls[0][0]).toContain(customContextPrompt)
+			expect(calls[1][0]).toContain(customMemoryPrompt)
+			expect(calls[2][0]).toContain(customCodePrompt)
+		})
+
+		it("should fall back to default prompts when custom prompts not provided", async () => {
+			const { mockApiHandler } = createMockApiHandler("Default prompt output")
+
+			const config: SubAgentConfig = {
+				enabled: true,
+				useContextAnalyzer: true,
+				// No custom prompts provided
+			}
+
+			const executor = new SubAgentExecutor(mockApiHandler, config)
+			await executor.executeCompression(testMessages)
+
+			expect(mockApiHandler.createMessage).toHaveBeenCalledTimes(1)
+			expect((mockApiHandler.createMessage as any).mock.calls[0][0]).toBeTruthy()
+		})
+
+		it("should execute multiple subagents in parallel", async () => {
+			const executionOrder: number[] = []
+			let callCount = 0
+
+			const mockApiHandler = {
+				createMessage: vi.fn().mockImplementation(() => ({
+					async *[Symbol.asyncIterator]() {
+						const currentCall = ++callCount
+						executionOrder.push(currentCall)
+
+						// Simulate async work with different delays
+						await new Promise((resolve) => setTimeout(resolve, Math.random() * 10))
+
+						yield { type: "text" as const, text: `Output ${currentCall}` }
+						yield {
+							type: "usage" as const,
+							inputTokens: 100,
+							outputTokens: 50,
+							totalCost: 0.01,
+						}
+					},
+				})),
+				getModel: vi.fn().mockReturnValue({
+					id: "test-model",
+					info: { maxTokens: 100000 },
+				}),
+				countTokens: vi.fn().mockResolvedValue(1000),
+			} as unknown as ApiHandler
+
+			const config: SubAgentConfig = {
+				enabled: true,
+				useContextAnalyzer: true,
+				useMemoryExtractor: true,
+				useCodeSummarizer: true,
+			}
+
+			const startTime = Date.now()
+			const executor = new SubAgentExecutor(mockApiHandler, config)
+			const result = await executor.executeCompression(testMessages)
+			const executionTime = Date.now() - startTime
+
+			// All three subagents should have been called
+			expect(mockApiHandler.createMessage).toHaveBeenCalledTimes(3)
+
+			// All should have succeeded
+			expect(result.success).toBe(true)
+			expect(result.analyzerResult.success).toBe(true)
+			expect(result.extractorResult.success).toBe(true)
+			expect(result.summarizerResult.success).toBe(true)
+
+			// Execution should be reasonably fast (parallel execution)
+			// Note: This is a loose check due to test environment variability
+			expect(executionTime).toBeLessThan(100)
+		})
+
+		it("should handle partial failures in parallel execution", async () => {
+			let callCount = 0
+
+			const mockApiHandler = {
+				createMessage: vi.fn().mockImplementation(() => {
+					callCount++
+					if (callCount === 2) {
+						// Second call (Memory Extractor) fails
+						throw new Error("Memory extractor failed")
+					}
+					return {
+						async *[Symbol.asyncIterator]() {
+							yield { type: "text" as const, text: `Output ${callCount}` }
+							yield {
+								type: "usage" as const,
+								inputTokens: 100,
+								outputTokens: 50,
+								totalCost: 0.01,
+							}
+						},
+					}
+				}),
+				getModel: vi.fn().mockReturnValue({
+					id: "test-model",
+					info: { maxTokens: 100000 },
+				}),
+				countTokens: vi.fn().mockResolvedValue(1000),
+			} as unknown as ApiHandler
+
+			const config: SubAgentConfig = {
+				enabled: true,
+				useContextAnalyzer: true,
+				useMemoryExtractor: true,
+				useCodeSummarizer: true,
+			}
+
+			const executor = new SubAgentExecutor(mockApiHandler, config)
+			const result = await executor.executeCompression(testMessages)
+
+			// Overall should still succeed if at least one subagent succeeds
+			expect(result.success).toBe(true)
+
+			// Context Analyzer and Code Summarizer should succeed
+			expect(result.analyzerResult.success).toBe(true)
+			expect(result.summarizerResult.success).toBe(true)
+
+			// Memory Extractor should have failed
+			expect(result.extractorResult.success).toBe(false)
+			expect(result.extractorResult.error).toContain("Memory extractor failed")
 		})
 	})
 

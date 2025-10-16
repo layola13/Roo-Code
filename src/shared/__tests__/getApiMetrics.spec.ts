@@ -326,4 +326,181 @@ describe("getApiMetrics", () => {
 			console.error = originalConsoleError
 		})
 	})
+
+	describe("Sub-agent token usage aggregation", () => {
+		it("should aggregate sub-agent token usage from condense_context messages", () => {
+			const messages: ClineMessage[] = [
+				{
+					type: "say",
+					say: "condense_context",
+					contextCondense: {
+						cost: 0.002,
+						newContextTokens: 500,
+						prevContextTokens: 1000,
+						summary: "Context was condensed",
+						subAgentTokenUsage: [
+							{ agentName: "Context Analyzer", tokensIn: 100, tokensOut: 50, cost: 0.001 },
+							{ agentName: "Memory Extractor", tokensIn: 150, tokensOut: 75, cost: 0.0015 },
+						],
+					},
+					ts: 1000,
+				},
+			]
+
+			const result = getApiMetrics(messages)
+
+			expect(result.subAgentTokenUsage).toBeDefined()
+			expect(result.subAgentTokenUsage).toHaveLength(2)
+			expect(result.subAgentTokenUsage?.[0]).toEqual({
+				agentName: "Context Analyzer",
+				tokensIn: 100,
+				tokensOut: 50,
+				cost: 0.001,
+			})
+			expect(result.subAgentTokenUsage?.[1]).toEqual({
+				agentName: "Memory Extractor",
+				tokensIn: 150,
+				tokensOut: 75,
+				cost: 0.0015,
+			})
+		})
+
+		it("should accumulate sub-agent token usage across multiple condense operations", () => {
+			const messages: ClineMessage[] = [
+				{
+					type: "say",
+					say: "condense_context",
+					contextCondense: {
+						cost: 0.002,
+						newContextTokens: 500,
+						prevContextTokens: 1000,
+						summary: "First condense",
+						subAgentTokenUsage: [
+							{ agentName: "Context Analyzer", tokensIn: 100, tokensOut: 50, cost: 0.001 },
+							{ agentName: "Memory Extractor", tokensIn: 150, tokensOut: 75, cost: 0.0015 },
+						],
+					},
+					ts: 1000,
+				},
+				{
+					type: "say",
+					say: "condense_context",
+					contextCondense: {
+						cost: 0.003,
+						newContextTokens: 400,
+						prevContextTokens: 800,
+						summary: "Second condense",
+						subAgentTokenUsage: [
+							{ agentName: "Context Analyzer", tokensIn: 120, tokensOut: 60, cost: 0.0012 },
+							{ agentName: "Code Summarizer", tokensIn: 200, tokensOut: 100, cost: 0.002 },
+						],
+					},
+					ts: 2000,
+				},
+			]
+
+			const result = getApiMetrics(messages)
+
+			expect(result.subAgentTokenUsage).toBeDefined()
+			expect(result.subAgentTokenUsage).toHaveLength(3)
+
+			// Context Analyzer should be accumulated
+			const contextAnalyzer = result.subAgentTokenUsage?.find((a) => a.agentName === "Context Analyzer")
+			expect(contextAnalyzer?.agentName).toBe("Context Analyzer")
+			expect(contextAnalyzer?.tokensIn).toBe(220) // 100 + 120
+			expect(contextAnalyzer?.tokensOut).toBe(110) // 50 + 60
+			expect(contextAnalyzer?.cost).toBeCloseTo(0.0022, 5) // 0.001 + 0.0012, handle floating point precision
+
+			// Memory Extractor only in first operation
+			const memoryExtractor = result.subAgentTokenUsage?.find((a) => a.agentName === "Memory Extractor")
+			expect(memoryExtractor).toEqual({
+				agentName: "Memory Extractor",
+				tokensIn: 150,
+				tokensOut: 75,
+				cost: 0.0015,
+			})
+
+			// Code Summarizer only in second operation
+			const codeSummarizer = result.subAgentTokenUsage?.find((a) => a.agentName === "Code Summarizer")
+			expect(codeSummarizer).toEqual({
+				agentName: "Code Summarizer",
+				tokensIn: 200,
+				tokensOut: 100,
+				cost: 0.002,
+			})
+		})
+
+		it("should handle condense_context messages without subAgentTokenUsage", () => {
+			const messages: ClineMessage[] = [
+				{
+					type: "say",
+					say: "condense_context",
+					contextCondense: {
+						cost: 0.002,
+						newContextTokens: 500,
+						prevContextTokens: 1000,
+						summary: "Context was condensed",
+						// No subAgentTokenUsage
+					},
+					ts: 1000,
+				},
+			]
+
+			const result = getApiMetrics(messages)
+
+			expect(result.subAgentTokenUsage).toEqual([])
+			expect(result.totalCost).toBe(0.002)
+		})
+
+		it("should handle empty subAgentTokenUsage array", () => {
+			const messages: ClineMessage[] = [
+				{
+					type: "say",
+					say: "condense_context",
+					contextCondense: {
+						cost: 0.002,
+						newContextTokens: 500,
+						prevContextTokens: 1000,
+						summary: "Context was condensed",
+						subAgentTokenUsage: [],
+					},
+					ts: 1000,
+				},
+			]
+
+			const result = getApiMetrics(messages)
+
+			expect(result.subAgentTokenUsage).toEqual([])
+		})
+
+		it("should include total cost from both API requests and sub-agents", () => {
+			const messages: ClineMessage[] = [
+				createApiReqStartedMessage(
+					'{"tokensIn":100,"tokensOut":200,"cacheWrites":5,"cacheReads":10,"cost":0.005}',
+					1000,
+				),
+				{
+					type: "say",
+					say: "condense_context",
+					contextCondense: {
+						cost: 0.003,
+						newContextTokens: 500,
+						prevContextTokens: 1000,
+						summary: "Context was condensed",
+						subAgentTokenUsage: [
+							{ agentName: "Context Analyzer", tokensIn: 100, tokensOut: 50, cost: 0.001 },
+							{ agentName: "Memory Extractor", tokensIn: 150, tokensOut: 75, cost: 0.002 },
+						],
+					},
+					ts: 2000,
+				},
+			]
+
+			const result = getApiMetrics(messages)
+
+			// Total cost should include API request cost + condense cost (not sub-agent costs separately as they're included in condense cost)
+			expect(result.totalCost).toBe(0.008) // 0.005 + 0.003
+			expect(result.subAgentTokenUsage).toHaveLength(2)
+		})
+	})
 })

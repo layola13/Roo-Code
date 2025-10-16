@@ -272,8 +272,8 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		autoCondenseContext: true,
 		autoCondenseContextPercent: 100,
 		vectorMemoryEnabled: false,
-		subAgentCompressionEnabled: false,
-		useSubAgentCompression: false,
+		subAgentCompressionEnabled: true,
+		useSubAgentCompression: true,
 		// Sub-agent configuration: individual enable flags (default all enabled when compression is enabled)
 		useContextAnalyzer: true,
 		useMemoryExtractor: true,

@@ -41,6 +41,11 @@ export interface TaskHeaderProps {
 		tokensOut: number
 		cost: number
 	}>
+	// Sub-agent configuration debug info
+	subAgentCompressionEnabled?: boolean
+	useContextAnalyzer?: boolean
+	useMemoryExtractor?: boolean
+	useCodeSummarizer?: boolean
 }
 
 const TaskHeader = ({
@@ -55,9 +60,13 @@ const TaskHeader = ({
 	handleCondenseContext,
 	todos,
 	subAgentTokenUsage,
+	subAgentCompressionEnabled,
+	useContextAnalyzer,
+	useMemoryExtractor,
+	useCodeSummarizer,
 }: TaskHeaderProps) => {
 	const { t } = useTranslation()
-	const { apiConfiguration, currentTaskItem, clineMessages } = useExtensionState()
+	const { apiConfiguration, currentTaskItem, clineMessages, subAgentInvocations } = useExtensionState()
 	const { id: modelId, info: model } = useSelectedModel(apiConfiguration)
 	const [isTaskExpanded, setIsTaskExpanded] = useState(false)
 	const [showLongRunningTaskMessage, setShowLongRunningTaskMessage] = useState(false)
@@ -316,94 +325,285 @@ const TaskHeader = ({
 									{/* Size display */}
 									{!!currentTaskItem?.size && currentTaskItem.size > 0 && (
 										<tr>
-											<th className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-2  h-[20px]">
+											<th className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-2 h-[20px]">
 												{t("chat:task.size")}
 											</th>
 											<td className="align-top">{prettyBytes(currentTaskItem.size)}</td>
 										</tr>
 									)}
 
-									{/* Sub-agent token usage display */}
-									{subAgentTokenUsage && subAgentTokenUsage.length > 0 && (
-										<tr>
-											<th className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-3 h-[24px]">
-												{t("chat:task.subAgents")}
-											</th>
-											<td className="align-top">
-												<div className="flex flex-col gap-1">
-													{subAgentTokenUsage.map((agent, index) => (
-														<div key={index} className="flex items-center gap-2 text-xs">
-															<span className="font-medium">{agent.agentName}:</span>
-															<span>↑ {formatLargeNumber(agent.tokensIn)}</span>
-															<span>↓ {formatLargeNumber(agent.tokensOut)}</span>
-															<span>${agent.cost.toFixed(4)}</span>
-														</div>
-													))}
+									{/* Sub-agent compression visualization */}
+									<tr>
+										<th className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-3 h-[24px]">
+											{t("chat:task.subAgents")}
+										</th>
+										<td className="align-top">
+											<div className="flex flex-col gap-2">
+												{/* Configuration status */}
+												<div className="flex items-center gap-2 text-xs">
+													<span
+														className={`codicon ${subAgentCompressionEnabled ? "codicon-check text-vscode-charts-green" : "codicon-circle-slash text-vscode-descriptionForeground opacity-60"}`}
+													/>
+													<span className="font-medium">
+														{subAgentCompressionEnabled ? "启用" : "未启用"}
+													</span>
+													{subAgentCompressionEnabled && (
+														<span className="text-vscode-descriptionForeground">
+															(
+															{
+																[
+																	useContextAnalyzer,
+																	useMemoryExtractor,
+																	useCodeSummarizer,
+																].filter(Boolean).length
+															}
+															/3 子代理激活)
+														</span>
+													)}
 												</div>
-											</td>
-										</tr>
-									)}
 
-									{/* Sub-agent context savings visualization */}
-									{subAgentTokenUsage && subAgentTokenUsage.length > 0 && (
-										<tr>
-											<th
-												className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-3 h-[24px]"
-												data-testid="sub-agent-savings-label">
-												{t("chat:task.subAgentSavings")}
-											</th>
-											<td className="align-top">
-												<div className="flex flex-col gap-2">
-													{subAgentTokenUsage.map((agent, index) => {
-														const inputTokens = agent.tokensIn || 0
-														const outputTokens = agent.tokensOut || 0
-														const totalTokens = inputTokens + outputTokens
-														const savingsPercent =
-															totalTokens > 0
-																? Math.round((totalTokens / (contextTokens || 1)) * 100)
-																: 0
+												{/* Sub-agent token usage and status */}
+												{subAgentTokenUsage && subAgentTokenUsage.length > 0 ? (
+													<div className="flex flex-col gap-1 border-t border-vscode-panel-border/30 pt-2">
+														{subAgentTokenUsage.map((agent, index) => {
+															const isSuccess = agent.tokensOut > 0 && agent.cost > 0
+															const statusIcon = isSuccess ? "check" : "circle-slash"
+															const statusColor = isSuccess
+																? "text-vscode-charts-green"
+																: "text-vscode-descriptionForeground opacity-50"
 
-														return (
-															<div
-																key={`savings-${index}`}
-																className="flex items-center justify-between gap-2 text-xs">
-																<span className="font-medium">{agent.agentName}:</span>
-																<div className="flex items-center gap-2">
-																	<span className="text-green-600 dark:text-green-400">
-																		-{savingsPercent}% tokens
+															return (
+																<div
+																	key={index}
+																	className="flex items-center gap-2 text-xs">
+																	<span
+																		className={`codicon codicon-${statusIcon} ${statusColor}`}
+																	/>
+																	<span className="font-medium min-w-[120px]">
+																		{agent.agentName}:
 																	</span>
+																	<span>↑ {formatLargeNumber(agent.tokensIn)}</span>
+																	<span>↓ {formatLargeNumber(agent.tokensOut)}</span>
 																	<span className="text-vscode-descriptionForeground">
-																		({totalTokens} saved)
+																		${agent.cost.toFixed(4)}
 																	</span>
 																</div>
-															</div>
-														)
-													})}
-													<div className="border-t border-vscode-panel-border/50 pt-2 mt-1">
-														<div className="flex items-center justify-between text-xs font-medium">
-															<span>{t("chat:task.totalSavings")}:</span>
-															<span className="text-green-600 dark:text-green-400">
-																-
-																{subAgentTokenUsage.reduce((total, agent) => {
-																	const tokens =
-																		(agent.tokensIn || 0) + (agent.tokensOut || 0)
-																	const savingsPercent =
-																		tokens > 0
-																			? Math.round(
-																					(tokens / (contextTokens || 1)) *
-																						100,
-																				)
-																			: 0
-																	return total + savingsPercent
-																}, 0)}
-																% tokens
+															)
+														})}
+
+														{/* Total cost */}
+														<div className="flex items-center gap-2 text-xs border-t border-vscode-panel-border/30 pt-1 mt-1 font-medium">
+															<span className="codicon codicon-symbol-misc text-vscode-charts-blue" />
+															<span className="min-w-[120px]">总计:</span>
+															<span>
+																↑{" "}
+																{formatLargeNumber(
+																	subAgentTokenUsage.reduce(
+																		(sum, a) => sum + (a.tokensIn || 0),
+																		0,
+																	),
+																)}
+															</span>
+															<span>
+																↓{" "}
+																{formatLargeNumber(
+																	subAgentTokenUsage.reduce(
+																		(sum, a) => sum + (a.tokensOut || 0),
+																		0,
+																	),
+																)}
+															</span>
+															<span className="text-vscode-descriptionForeground">
+																$
+																{subAgentTokenUsage
+																	.reduce((sum, a) => sum + (a.cost || 0), 0)
+																	.toFixed(4)}
 															</span>
 														</div>
 													</div>
-												</div>
-											</td>
-										</tr>
-									)}
+												) : subAgentCompressionEnabled ? (
+													<div className="flex items-center gap-2 text-xs text-vscode-descriptionForeground opacity-60 border-t border-vscode-panel-border/30 pt-2">
+														<span className="codicon codicon-info" />
+														<span>尚未触发压缩。点击上方压缩按钮可触发。</span>
+													</div>
+												) : (
+													<div className="flex items-center gap-2 text-xs text-vscode-descriptionForeground opacity-60 border-t border-vscode-panel-border/30 pt-2">
+														<span className="codicon codicon-info" />
+														<span>在设置中启用子代理压缩功能</span>
+													</div>
+												)}
+
+												{/* Historical invocations */}
+												{subAgentInvocations && subAgentInvocations.length > 0 && (
+													<div className="flex flex-col gap-2 border-t border-vscode-panel-border/30 pt-2 mt-2">
+														{/* Statistics Summary */}
+														<div className="flex flex-col gap-1.5">
+															<div className="flex items-center gap-2 text-xs font-medium text-vscode-descriptionForeground">
+																<span className="codicon codicon-graph" />
+																<span>调用统计</span>
+															</div>
+															<div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs pl-5">
+																<div className="flex items-center gap-1.5">
+																	<span className="text-vscode-descriptionForeground opacity-80">
+																		总次数:
+																	</span>
+																	<span className="font-medium">
+																		{subAgentInvocations.length}
+																	</span>
+																</div>
+																<div className="flex items-center gap-1.5">
+																	<span className="text-vscode-descriptionForeground opacity-80">
+																		成功率:
+																	</span>
+																	<span className="font-medium text-vscode-charts-green">
+																		{(
+																			(subAgentInvocations.filter(
+																				(inv) => inv.success,
+																			).length /
+																				subAgentInvocations.length) *
+																			100
+																		).toFixed(0)}
+																		%
+																	</span>
+																</div>
+																<div className="flex items-center gap-1.5">
+																	<span className="text-vscode-descriptionForeground opacity-80">
+																		工具调用:
+																	</span>
+																	<span className="font-medium">
+																		{
+																			subAgentInvocations.filter(
+																				(inv) =>
+																					inv.triggerType === "tool_call",
+																			).length
+																		}
+																	</span>
+																</div>
+																<div className="flex items-center gap-1.5">
+																	<span className="text-vscode-descriptionForeground opacity-80">
+																		自动压缩:
+																	</span>
+																	<span className="font-medium">
+																		{
+																			subAgentInvocations.filter(
+																				(inv) =>
+																					inv.triggerType === "auto_compress",
+																			).length
+																		}
+																	</span>
+																</div>
+																<div className="flex items-center gap-1.5">
+																	<span className="text-vscode-descriptionForeground opacity-80">
+																		总Token:
+																	</span>
+																	<span className="font-medium text-xs">
+																		↑{" "}
+																		{formatLargeNumber(
+																			subAgentInvocations.reduce(
+																				(sum, inv) => sum + inv.tokensIn,
+																				0,
+																			),
+																		)}{" "}
+																		↓{" "}
+																		{formatLargeNumber(
+																			subAgentInvocations.reduce(
+																				(sum, inv) => sum + inv.tokensOut,
+																				0,
+																			),
+																		)}
+																	</span>
+																</div>
+																<div className="flex items-center gap-1.5">
+																	<span className="text-vscode-descriptionForeground opacity-80">
+																		总成本:
+																	</span>
+																	<span className="font-medium">
+																		$
+																		{subAgentInvocations
+																			.reduce((sum, inv) => sum + inv.cost, 0)
+																			.toFixed(4)}
+																	</span>
+																</div>
+															</div>
+														</div>
+
+														{/* Historical calls list */}
+														<div className="flex flex-col gap-1">
+															<div className="flex items-center gap-2 text-xs font-medium text-vscode-descriptionForeground border-t border-vscode-panel-border/20 pt-2">
+																<span className="codicon codicon-history" />
+																<span>调用历史</span>
+															</div>
+															<div className="flex flex-col gap-0.5 max-h-40 overflow-y-auto">
+																{subAgentInvocations.map((invocation, index) => {
+																	const isSuccess = invocation.success
+																	const statusIcon = isSuccess ? "check" : "error"
+																	const statusColor = isSuccess
+																		? "text-vscode-charts-green"
+																		: "text-vscode-charts-red"
+																	const triggerTypeText =
+																		invocation.triggerType === "tool_call"
+																			? "工具调用"
+																			: "自动压缩"
+																	const triggerIcon =
+																		invocation.triggerType === "tool_call"
+																			? "symbol-method"
+																			: "zap"
+																	const timeStr = new Date(
+																		invocation.timestamp,
+																	).toLocaleTimeString("zh-CN", {
+																		hour: "2-digit",
+																		minute: "2-digit",
+																		second: "2-digit",
+																	})
+
+																	return (
+																		<div
+																			key={index}
+																			className="flex items-center gap-2 text-xs py-1 px-2 rounded hover:bg-vscode-list-hoverBackground">
+																			<span
+																				className={`codicon codicon-${statusIcon} ${statusColor}`}
+																			/>
+																			<span className="font-medium min-w-[100px]">
+																				{invocation.agentName}
+																			</span>
+																			<span
+																				className={`codicon codicon-${triggerIcon} text-vscode-descriptionForeground opacity-70`}
+																			/>
+																			<span className="text-vscode-descriptionForeground min-w-[60px]">
+																				{triggerTypeText}
+																			</span>
+																			<span className="text-vscode-descriptionForeground opacity-70">
+																				{timeStr}
+																			</span>
+																			<span>
+																				↑{" "}
+																				{formatLargeNumber(invocation.tokensIn)}
+																			</span>
+																			<span>
+																				↓{" "}
+																				{formatLargeNumber(
+																					invocation.tokensOut,
+																				)}
+																			</span>
+																			<span className="text-vscode-descriptionForeground">
+																				${invocation.cost.toFixed(4)}
+																			</span>
+																			{invocation.error && (
+																				<StandardTooltip
+																					content={invocation.error}>
+																					<span className="codicon codicon-warning text-vscode-charts-orange" />
+																				</StandardTooltip>
+																			)}
+																		</div>
+																	)
+																})}
+															</div>
+														</div>
+													</div>
+												)}
+											</div>
+										</td>
+									</tr>
 								</tbody>
 							</table>
 						</div>

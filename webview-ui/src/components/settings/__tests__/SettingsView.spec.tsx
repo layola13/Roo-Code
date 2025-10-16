@@ -636,4 +636,62 @@ describe("SettingsView - Duplicate Commands", () => {
 			}),
 		)
 	})
+
+	describe("SettingsView - SubAgent Default Configuration", () => {
+		beforeEach(() => {
+			vi.clearAllMocks()
+		})
+
+		it("should initialize subagent compression with default value of true", () => {
+			const { activateTab } = renderSettingsView()
+
+			// Activate the context management tab
+			activateTab("contextManagement")
+
+			// Verify the subagent compression main toggle sends true by default on save
+			const saveButtons = screen.getAllByTestId("save-button")
+			fireEvent.click(saveButtons[0])
+
+			// The main toggle should default to true (fixed bug)
+			expect(vscode.postMessage).toHaveBeenCalledWith(
+				expect.objectContaining({
+					type: "useSubAgentCompression",
+					bool: true,
+				}),
+			)
+		})
+
+		it("should initialize individual subagents with default value of true", () => {
+			const { activateTab } = renderSettingsView()
+
+			// Activate the context management tab
+			activateTab("contextManagement")
+
+			// Click Save to trigger all postMessage calls
+			const saveButtons = screen.getAllByTestId("save-button")
+			fireEvent.click(saveButtons[0])
+
+			// Verify all three subagents default to true
+			expect(vscode.postMessage).toHaveBeenCalledWith(
+				expect.objectContaining({
+					type: "useContextAnalyzer",
+					bool: true,
+				}),
+			)
+
+			expect(vscode.postMessage).toHaveBeenCalledWith(
+				expect.objectContaining({
+					type: "useMemoryExtractor",
+					bool: true,
+				}),
+			)
+
+			expect(vscode.postMessage).toHaveBeenCalledWith(
+				expect.objectContaining({
+					type: "useCodeSummarizer",
+					bool: true,
+				}),
+			)
+		})
+	})
 })

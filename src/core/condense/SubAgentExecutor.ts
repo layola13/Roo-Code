@@ -192,39 +192,42 @@ ${messageContext}`
 
 	/**
 	 * Execute all configured subagents and return combined results
+	 * Executes subagents in parallel for improved performance
 	 */
 	async executeCompression(messages: ApiMessage[]): Promise<SubAgentCompressionResult> {
-		const results: SubAgentResult[] = []
 		let totalCost = 0
 
 		if (this.config.verboseLogging) {
-			console.log("[SubAgentExecutor] Starting compression with config:", this.config)
+			console.log("[SubAgentExecutor] Starting parallel compression with config:", this.config)
 		}
 
 		try {
+			// Prepare all subagent execution promises
+			const executionPromises: Promise<SubAgentResult>[] = []
+
 			// Execute Context Analyzer
 			if (this.config.useContextAnalyzer) {
 				const prompt = this.config.contextAnalyzerPrompt || DEFAULT_PROMPTS.contextAnalyzer
-				const result = await this.executeSubAgent("Context Analyzer", prompt, messages)
-				results.push(result)
-				totalCost += result.cost
+				executionPromises.push(this.executeSubAgent("Context Analyzer", prompt, messages))
 			}
 
 			// Execute Memory Extractor
 			if (this.config.useMemoryExtractor) {
 				const prompt = this.config.memoryExtractorPrompt || DEFAULT_PROMPTS.memoryExtractor
-				const result = await this.executeSubAgent("Memory Extractor", prompt, messages)
-				results.push(result)
-				totalCost += result.cost
+				executionPromises.push(this.executeSubAgent("Memory Extractor", prompt, messages))
 			}
 
 			// Execute Code Summarizer
 			if (this.config.useCodeSummarizer) {
 				const prompt = this.config.codeSummarizerPrompt || DEFAULT_PROMPTS.codeSummarizer
-				const result = await this.executeSubAgent("Code Summarizer", prompt, messages)
-				results.push(result)
-				totalCost += result.cost
+				executionPromises.push(this.executeSubAgent("Code Summarizer", prompt, messages))
 			}
+
+			// Execute all subagents in parallel and wait for all to complete
+			const results = await Promise.all(executionPromises)
+
+			// Calculate total cost
+			totalCost = results.reduce((sum, result) => sum + result.cost, 0)
 
 			// Create default results for each subagent
 			const analyzerResult: SubAgentResult =

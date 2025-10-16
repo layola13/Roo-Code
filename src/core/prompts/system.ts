@@ -27,6 +27,7 @@ import {
 	getModesSection,
 	addCustomInstructions,
 	markdownFormattingSection,
+	getSubagentsSection,
 } from "./sections"
 
 // Helper function to get prompt component, filtering out empty objects
@@ -111,6 +112,8 @@ ${getToolDescriptionsForMode(
 )}
 
 ${getToolUseGuidelinesSection(codeIndexManager)}
+
+${getSubagentsSection()}
 
 ${mcpServersSection}
 

@@ -11,7 +11,16 @@ import TaskHeader, { TaskHeaderProps } from "../TaskHeader"
 // Mock i18n
 vi.mock("react-i18next", () => ({
 	useTranslation: () => ({
-		t: (key: string) => key, // Simple mock that returns the key
+		t: (key: string, options?: any) => {
+			// Handle number formatting keys
+			if (key === "number_format.thousand_suffix") return "K"
+			if (key === "number_format.million_suffix") return "M"
+			// Handle other keys with interpolation
+			if (options && typeof options === "object") {
+				return key.replace(/\{\{(\w+)\}\}/g, (_, k) => options[k] || "")
+			}
+			return key
+		},
 	}),
 	// Mock initReactI18next to prevent initialization errors in tests
 	initReactI18next: {
@@ -24,6 +33,21 @@ vi.mock("react-i18next", () => ({
 vi.mock("@/utils/vscode", () => ({
 	vscode: {
 		postMessage: vi.fn(),
+	},
+}))
+
+// Mock i18next for formatLargeNumber
+vi.mock("i18next", () => ({
+	default: {
+		t: (key: string) => {
+			if (key === "common:number_format.thousand_suffix") return "K"
+			if (key === "common:number_format.million_suffix") return "M"
+			if (key === "common:number_format.billion_suffix") return "B"
+			return key
+		},
+		language: "en",
+		use: vi.fn().mockReturnThis(),
+		init: vi.fn().mockResolvedValue(undefined),
 	},
 }))
 
@@ -355,6 +379,208 @@ describe("TaskHeader", () => {
 
 			// The upsell should appear because the last relevant message (skipping resume messages) is not completion_result
 			expect(screen.getByTestId("dismissible-upsell")).toBeInTheDocument()
+		})
+	})
+
+	describe("SubAgent status indicators", () => {
+		it("should display subagent information when provided", () => {
+			const subAgentTokenUsage = [
+				{
+					agentName: "Context Analyzer",
+					tokensIn: 1000,
+					tokensOut: 500,
+					cost: 0.015,
+				},
+				{
+					agentName: "Memory Extractor",
+					tokensIn: 1000,
+					tokensOut: 500,
+					cost: 0.015,
+				},
+			]
+
+			renderTaskHeader({ subAgentTokenUsage })
+
+			// Click to expand the task header
+			const taskHeader = screen.getByText("Test task")
+			fireEvent.click(taskHeader)
+
+			// Should display subagent section
+			expect(screen.getByText("chat:task.subAgents")).toBeInTheDocument()
+
+			// Should display subagent names - use getAllByText since they appear in multiple places
+			const contextAnalyzerElements = screen.getAllByText(/Context Analyzer/)
+			expect(contextAnalyzerElements.length).toBeGreaterThan(0)
+			const memoryExtractorElements = screen.getAllByText(/Memory Extractor/)
+			expect(memoryExtractorElements.length).toBeGreaterThan(0)
+		})
+
+		it("should show success status icon for active subagents", () => {
+			const subAgentTokenUsage = [
+				{
+					agentName: "Context Analyzer",
+					tokensIn: 1000,
+					tokensOut: 500,
+					cost: 0.015,
+				},
+			]
+
+			renderTaskHeader({ subAgentTokenUsage })
+
+			// Click to expand
+			const taskHeader = screen.getByText("Test task")
+			fireEvent.click(taskHeader)
+
+			// Check for success icon (codicon-check)
+			const successIcons = document.querySelectorAll(".codicon-check")
+			expect(successIcons.length).toBeGreaterThan(0)
+		})
+
+		it("should show inactive status icon for subagents without output", () => {
+			const subAgentTokenUsage = [
+				{
+					agentName: "Inactive Agent",
+					tokensIn: 100,
+					tokensOut: 0,
+					cost: 0,
+				},
+			]
+
+			renderTaskHeader({ subAgentTokenUsage })
+
+			// Click to expand
+			const taskHeader = screen.getByText("Test task")
+			fireEvent.click(taskHeader)
+
+			// Check for inactive icon (codicon-circle-slash)
+			const inactiveIcons = document.querySelectorAll(".codicon-circle-slash")
+			expect(inactiveIcons.length).toBeGreaterThan(0)
+		})
+
+		it("should display token usage for each subagent", () => {
+			const subAgentTokenUsage = [
+				{
+					agentName: "Context Analyzer",
+					tokensIn: 1500,
+					tokensOut: 750,
+					cost: 0.0225,
+				},
+			]
+
+			renderTaskHeader({ subAgentTokenUsage })
+
+			// Click to expand
+			const taskHeader = screen.getByText("Test task")
+			fireEvent.click(taskHeader)
+
+			// Should display subagent section
+			expect(screen.getByText("chat:task.subAgents")).toBeInTheDocument()
+
+			// Should display cost (appears in multiple places now: Tokens section and Sub-Agents section)
+			const costElements = screen.getAllByText("$0.0225")
+			expect(costElements.length).toBeGreaterThan(0)
+
+			// Should display Context Analyzer (appears in multiple places)
+			const contextAnalyzerElements = screen.getAllByText(/Context Analyzer/)
+			expect(contextAnalyzerElements.length).toBeGreaterThan(0)
+		})
+
+		it("should always display subagent section", () => {
+			renderTaskHeader({ subAgentTokenUsage: [] })
+
+			// Click to expand
+			const taskHeader = screen.getByText("Test task")
+			fireEvent.click(taskHeader)
+
+			// Should always show subagent section (even when empty)
+			expect(screen.getByText("chat:task.subAgents")).toBeInTheDocument()
+		})
+
+		it("should display configuration status when subAgentCompressionEnabled is true", () => {
+			renderTaskHeader({
+				subAgentCompressionEnabled: true,
+				useContextAnalyzer: true,
+				useMemoryExtractor: true,
+				useCodeSummarizer: false,
+			})
+
+			// Click to expand
+			const taskHeader = screen.getByText("Test task")
+			fireEvent.click(taskHeader)
+
+			// Should display enabled status
+			expect(screen.getByText("启用")).toBeInTheDocument()
+			// Should show 2/3 agents activated
+			expect(screen.getByText("(2/3 子代理激活)")).toBeInTheDocument()
+		})
+
+		it("should display disabled status when subAgentCompressionEnabled is false", () => {
+			renderTaskHeader({
+				subAgentCompressionEnabled: false,
+			})
+
+			// Click to expand
+			const taskHeader = screen.getByText("Test task")
+			fireEvent.click(taskHeader)
+
+			// Should display disabled status
+			expect(screen.getByText("未启用")).toBeInTheDocument()
+			// Should show settings prompt
+			expect(screen.getByText("在设置中启用子代理压缩功能")).toBeInTheDocument()
+		})
+
+		it("should display prompt message when compression enabled but not yet triggered", () => {
+			renderTaskHeader({
+				subAgentCompressionEnabled: true,
+				useContextAnalyzer: true,
+				useMemoryExtractor: true,
+				useCodeSummarizer: true,
+				subAgentTokenUsage: undefined,
+			})
+
+			// Click to expand
+			const taskHeader = screen.getByText("Test task")
+			fireEvent.click(taskHeader)
+
+			// Should show compression not triggered message
+			expect(screen.getByText("尚未触发压缩。点击上方压缩按钮可触发。")).toBeInTheDocument()
+		})
+
+		it("should display total tokens and cost for all subagents", () => {
+			const subAgentTokenUsage = [
+				{
+					agentName: "Context Analyzer",
+					tokensIn: 1000,
+					tokensOut: 500,
+					cost: 0.015,
+				},
+				{
+					agentName: "Memory Extractor",
+					tokensIn: 800,
+					tokensOut: 400,
+					cost: 0.012,
+				},
+			]
+
+			renderTaskHeader({ subAgentTokenUsage })
+
+			// Click to expand
+			const taskHeader = screen.getByText("Test task")
+			fireEvent.click(taskHeader)
+
+			// Should display total row with icon
+			const totalIcons = document.querySelectorAll(".codicon-symbol-misc")
+			expect(totalIcons.length).toBeGreaterThan(0)
+
+			// Should display total label
+			expect(screen.getByText("总计:")).toBeInTheDocument()
+
+			// Total tokens: 1800 in, 900 out
+			expect(screen.getByText("↑ 1.8K")).toBeInTheDocument()
+			expect(screen.getByText("↓ 900")).toBeInTheDocument()
+
+			// Total cost: 0.027
+			expect(screen.getByText("$0.0270")).toBeInTheDocument()
 		})
 	})
 })
