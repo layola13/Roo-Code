@@ -122,6 +122,7 @@ import { MessageQueueService } from "../message-queue/MessageQueueService"
 
 import { AutoApprovalHandler } from "./AutoApprovalHandler"
 import { TaskAdapter, TaskAdapterConfig } from "../wasm/adapters/TaskAdapter"
+import { ToolsAdapter, ToolsAdapterConfig } from "../wasm/adapters/ToolsAdapter"
 import { HostInterface } from "../wasm/host/HostInterface"
 
 const MAX_EXPONENTIAL_BACKOFF_SECONDS = 600 // 10 minutes
@@ -263,6 +264,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	// WASM Integration
 	private hostInterface?: HostInterface
 	private taskAdapter?: TaskAdapter
+	private toolsAdapter?: ToolsAdapter
 
 	// Judge Service
 	private judgeService?: JudgeService
@@ -491,12 +493,25 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					this.parentTaskId,
 				)
 
+				// Configure ToolsAdapter
+				const toolsAdapterConfig: ToolsAdapterConfig = {
+					enableWasm: true,
+					enableFallback: enableWasmFallback,
+					persistencePath: wasmPersistencePath || `${this.globalStoragePath}/wasm-tools`,
+					maxRetries: wasmMaxRetries,
+					repetitionLimit: this.consecutiveMistakeLimit,
+				}
+
+				// Create ToolsAdapter instance (只需要2个参数)
+				this.toolsAdapter = new ToolsAdapter(this.hostInterface, toolsAdapterConfig)
+
 				console.log(`[Task] WASM integration enabled for task ${this.taskId}`)
 			} catch (error) {
 				console.error(`[Task] Failed to initialize WASM integration:`, error)
 				// Continue without WASM - fallback to pure TypeScript mode
 				this.hostInterface = undefined
 				this.taskAdapter = undefined
+				this.toolsAdapter = undefined
 			}
 		}
 
@@ -1792,6 +1807,18 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				// Continue with other disposal - don't let WASM errors block cleanup
 			}
 			this.taskAdapter = undefined
+		}
+
+		// Dispose ToolsAdapter (if enabled)
+		if (this.toolsAdapter) {
+			try {
+				this.toolsAdapter.dispose()
+				console.log(`[Task] WASM tools disposed: ${this.taskId}`)
+			} catch (error) {
+				console.error(`[Task] Failed to dispose WASM tools:`, error)
+				// Continue with other disposal - don't let WASM errors block cleanup
+			}
+			this.toolsAdapter = undefined
 		}
 
 		// Clear HostInterface reference (no dispose method needed)
@@ -3604,6 +3631,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	public get cwd() {
 		return this.workspacePath
+	}
+
+	/**
+	 * Get the ToolsAdapter instance for WASM tool operations
+	 * Returns undefined if WASM is not enabled
+	 */
+	public get wasmToolsAdapter(): ToolsAdapter | undefined {
+		return this.toolsAdapter
 	}
 
 	/**
