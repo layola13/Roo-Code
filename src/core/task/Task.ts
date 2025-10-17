@@ -170,6 +170,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	readonly workspacePath: string
 
 	/**
+	 * Task type: true for new tasks, false for tasks restored from history
+	 * Used to determine whether to clear persistent data during disposal
+	 */
+	private readonly isNewTask: boolean
+
+	/**
 	 * The mode associated with this task. Persisted across sessions
 	 * to maintain user context when reopening tasks from history.
 	 *
@@ -403,10 +409,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// For history items, use the stored mode; for new tasks, we'll set it
 		// after getting state.
 		if (historyItem) {
+			this.isNewTask = false // Restored from history
 			this._taskMode = historyItem.mode || defaultModeSlug
 			this.taskModeReady = Promise.resolve()
 			TelemetryService.instance.captureTaskRestarted(this.taskId)
 		} else {
+			this.isNewTask = true // New task
 			// For new tasks, don't set the mode yet - wait for async initialization.
 			this._taskMode = undefined
 			this.taskModeReady = this.initializeTaskMode(provider)
@@ -1749,6 +1757,55 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		} catch (error) {
 			console.error(`Error saving messages during abort for task ${this.taskId}.${this.instanceId}:`, error)
 		}
+	}
+
+	/**
+	 * Clear only temporary streaming state while preserving persistent data
+	 * Used when switching between resumed tasks to avoid data loss
+	 */
+	public clearTemporaryState(): void {
+		console.log(`[Task#clearTemporaryState] Clearing temporary state for task ${this.taskId}.${this.instanceId}`)
+
+		// Clear streaming-related temporary state
+		this.isStreaming = false
+		this.isWaitingForFirstChunk = false
+		this.didFinishAbortingStream = false
+		this.didCompleteReadingStream = false
+		this.currentStreamingContentIndex = 0
+		this.currentStreamingDidCheckpoint = false
+
+		// Clear message content buffers
+		this.assistantMessageContent = []
+		this.userMessageContent = []
+		this.userMessageContentReady = false
+		this.presentAssistantMessageLocked = false
+		this.presentAssistantMessageHasPendingUpdates = false
+
+		// Clear tool-related temporary flags
+		this.didRejectTool = false
+		this.didAlreadyUseTool = false
+
+		// Clear ask-related temporary state
+		this.askResponse = undefined
+		this.askResponseText = undefined
+		this.askResponseImages = undefined
+
+		// Clear status-related temporary state
+		this.idleAsk = undefined
+		this.resumableAsk = undefined
+		this.interactiveAsk = undefined
+
+		// Reset assistant message parser
+		if (this.assistantMessageParser) {
+			this.assistantMessageParser.reset()
+		}
+
+		// IMPORTANT: Do NOT clear the following persistent state:
+		// - this.clineMessages (chat history - must preserve)
+		// - this.apiConversationHistory (API conversation - must preserve)
+		// - this.todoList (task todos - must preserve)
+		// - this.toolUsage (tool usage statistics - must preserve)
+		// - Task metadata (taskId, instanceId, taskMode, etc.)
 	}
 
 	public dispose(): void {

@@ -445,12 +445,35 @@ export class ClineProvider
 			task.emit(RooCodeEventName.TaskUnfocused)
 
 			try {
-				// Abort the running task and set isAbandoned to true so
-				// all running promises will exit as well.
-				await task.abortTask(true)
+				// 根据任务类型选择不同的清理策略
+				// @ts-ignore - isNewTask is a readonly property
+				const isNewTask = task.isNewTask
+
+				if (isNewTask) {
+					// 新任务：完全清空所有状态（包括聊天记录）
+					this.log(
+						`[ClineProvider#removeClineFromStack] New task detected - performing full cleanup for ${task.taskId}.${task.instanceId}`,
+					)
+					await task.abortTask(true)
+				} else {
+					// 恢复的任务：只清理临时状态，保留聊天记录
+					this.log(
+						`[ClineProvider#removeClineFromStack] Resumed task detected - preserving chat history for ${task.taskId}.${task.instanceId}`,
+					)
+
+					// 清理临时状态
+					task.clearTemporaryState()
+
+					// 设置 abandoned 标志以停止任何运行中的 promises
+					task.abandoned = true
+					task.abort = true
+
+					// 调用 dispose() 清理资源（但不清空聊天记录）
+					task.dispose()
+				}
 			} catch (e) {
 				this.log(
-					`[ClineProvider#removeClineFromStack] abortTask() failed ${task.taskId}.${task.instanceId}: ${e.message}`,
+					`[ClineProvider#removeClineFromStack] Task cleanup failed ${task.taskId}.${task.instanceId}: ${e.message}`,
 				)
 			}
 
