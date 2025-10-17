@@ -89,6 +89,7 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			clineMessages,
 			commands,
 			cloudUserInfo,
+			condensingApiConfigId,
 		} = useExtensionState()
 
 		// Find the ID and display text for the currently selected API configuration.
@@ -99,6 +100,12 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 				displayName: currentApiConfigName || "", // Use the name directly for display.
 			}
 		}, [listApiConfigMeta, currentApiConfigName])
+
+		// Find the condensing API config info
+		const condensingApiConfig = useMemo(() => {
+			if (!condensingApiConfigId || !listApiConfigMeta) return null
+			return listApiConfigMeta.find((config) => config.id === condensingApiConfigId)
+		}, [condensingApiConfigId, listApiConfigMeta])
 
 		const [gitCommits, setGitCommits] = useState<any[]>([])
 		const [showDropdown, setShowDropdown] = useState(false)
@@ -907,6 +914,11 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			vscode.postMessage({ type: "loadApiConfigurationById", text: value })
 		}, [])
 
+		// Helper function to handle condensing API config change
+		const handleCondensingApiConfigChange = useCallback((value: string) => {
+			vscode.postMessage({ type: "condensingApiConfigId", text: value })
+		}, [])
+
 		return (
 			<div
 				className={cn(
@@ -1233,6 +1245,17 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 							togglePinnedApiConfig={togglePinnedApiConfig}
 						/>
 						<AutoApproveDropdown triggerClassName="min-w-[28px] text-ellipsis overflow-hidden flex-shrink" />
+						<ApiConfigSelector
+							value={condensingApiConfigId || ""}
+							displayName={condensingApiConfig?.name || "使用主线配置"}
+							disabled={false}
+							title="上下文压缩API配置"
+							onChange={handleCondensingApiConfigChange}
+							triggerClassName="min-w-[28px] text-ellipsis overflow-hidden flex-shrink border-l border-vscode-widget-border pl-2"
+							listApiConfigMeta={listApiConfigMeta || []}
+							pinnedApiConfigs={pinnedApiConfigs}
+							togglePinnedApiConfig={togglePinnedApiConfig}
+						/>
 					</div>
 					<div
 						className={cn(

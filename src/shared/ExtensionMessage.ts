@@ -291,6 +291,7 @@ export type ExtensionState = Pick<
 	| "customSupportPrompts"
 	| "enhancementApiConfigId"
 	| "condensingApiConfigId"
+	| "subagentApiConfigId"
 	| "customCondensingPrompt"
 	| "codebaseIndexConfig"
 	| "codebaseIndexModels"

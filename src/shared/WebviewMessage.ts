@@ -100,6 +100,7 @@ export interface WebviewMessage {
 		| "qdrantUrl"
 		| "qdrantCollectionName"
 		| "condensingApiConfigId"
+		| "subagentApiConfigId"
 		| "updateCondensingPrompt"
 		| "playSound"
 		| "playTts"

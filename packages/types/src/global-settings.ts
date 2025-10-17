@@ -49,6 +49,7 @@ export const globalSettingsSchema = z.object({
 
 	condensingApiConfigId: z.string().optional(),
 	customCondensingPrompt: z.string().optional(),
+	subagentApiConfigId: z.string().optional(),
 
 	autoApprovalEnabled: z.boolean().optional(),
 	alwaysAllowReadOnly: z.boolean().optional(),

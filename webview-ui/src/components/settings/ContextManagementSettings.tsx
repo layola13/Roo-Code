@@ -12,6 +12,7 @@ import { SectionHeader } from "./SectionHeader"
 import { Section } from "./Section"
 import { vscode } from "@/utils/vscode"
 import { DEFAULT_SUBAGENT_PROMPTS } from "@roo/subagent-prompts"
+import { useExtensionState } from "@/context/ExtensionStateContext"
 
 type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	autoCondenseContext: boolean
@@ -98,6 +99,7 @@ export const ContextManagementSettings = ({
 	...props
 }: ContextManagementSettingsProps) => {
 	const { t } = useAppTranslation()
+	const { subagentApiConfigId, setSubagentApiConfigId } = useExtensionState()
 	const [selectedThresholdProfile, setSelectedThresholdProfile] = React.useState<string>("default")
 
 	// 🔍 DEBUG: Log current state and defaults
@@ -594,6 +596,54 @@ export const ContextManagementSettings = ({
 							</div>
 							<div className="text-vscode-descriptionForeground text-sm">
 								{t("settings:contextManagement.subAgentConfig.description")}
+							</div>
+
+							{/* Subagent API Configuration Selector */}
+							<div className="flex flex-col gap-2">
+								<label className="block text-sm font-medium">
+									{t("settings:contextManagement.subAgentConfig.apiConfiguration.label") ||
+										"Subagent API Configuration"}
+								</label>
+								<Select
+									value={subagentApiConfigId || "-"}
+									onValueChange={(value) => {
+										const newConfigId = value === "-" ? "" : value
+										setSubagentApiConfigId(newConfigId)
+										vscode.postMessage({
+											type: "subagentApiConfigId",
+											text: newConfigId,
+										})
+									}}
+									data-testid="subagent-api-config-select">
+									<SelectTrigger className="w-full">
+										<SelectValue
+											placeholder={
+												t(
+													"settings:contextManagement.subAgentConfig.apiConfiguration.useCurrentConfig",
+												) || "Use current API configuration"
+											}
+										/>
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="-">
+											{t(
+												"settings:contextManagement.subAgentConfig.apiConfiguration.useCurrentConfig",
+											) || "Use current API configuration"}
+										</SelectItem>
+										{(listApiConfigMeta || []).map((config) => (
+											<SelectItem
+												key={config.id}
+												value={config.id}
+												data-testid={`subagent-${config.id}-option`}>
+												{config.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<div className="text-vscode-descriptionForeground text-xs">
+									{t("settings:contextManagement.subAgentConfig.apiConfiguration.description") ||
+										"Select which API configuration to use for subagent compression tasks. Leave as default to use the same configuration as main chat."}
+								</div>
 							</div>
 
 							{/* Context Analyzer */}

@@ -13,6 +13,8 @@ export const ContextCondenseRow = ({
 	newContextTokens,
 	summary,
 	subAgentTokenUsage,
+	apiConfigName,
+	durationMs,
 }: ContextCondense) => {
 	const { t } = useTranslation()
 	const [isExpanded, setIsExpanded] = useState(false)
@@ -44,7 +46,7 @@ export const ContextCondenseRow = ({
 						style={{ color: "var(--vscode-charts-green)", fontSize: 16, marginBottom: "-1.5px" }}
 					/>
 				</div>
-				<div className="flex items-center gap-2 flex-grow">
+				<div className="flex items-center gap-2 flex-grow flex-wrap">
 					<span className="codicon codicon-compress text-blue-400" />
 					<span className="font-bold text-vscode-foreground">{t("chat:contextCondense.title")}</span>
 					<span className="text-vscode-descriptionForeground text-sm">
@@ -62,6 +64,12 @@ export const ContextCondenseRow = ({
 					<VSCodeBadge className={displayCost > 0 ? "opacity-100" : "opacity-0"}>
 						${displayCost.toFixed(2)}
 					</VSCodeBadge>
+					{/* API Configuration Name */}
+					{apiConfigName && (
+						<span className="text-vscode-descriptionForeground text-xs italic">
+							{t("chat:contextCondense.compressedBy", { apiConfig: apiConfigName })}
+						</span>
+					)}
 				</div>
 				<span className={`codicon codicon-chevron-${isExpanded ? "up" : "down"}`}></span>
 			</div>
@@ -100,6 +108,22 @@ export const ContextCondenseRow = ({
 									{compressionRatio.toFixed(1)}%
 								</span>
 							</div>
+							{/* Duration */}
+							{durationMs !== undefined && durationMs > 0 && (
+								<div>
+									<span className="text-vscode-descriptionForeground">耗时:</span>
+									<span className="ml-2 font-mono">
+										{durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(2)}s`}
+									</span>
+								</div>
+							)}
+							{/* Cost */}
+							{displayCost > 0 && (
+								<div>
+									<span className="text-vscode-descriptionForeground">成本:</span>
+									<span className="ml-2 font-mono">${displayCost.toFixed(4)}</span>
+								</div>
+							)}
 						</div>
 					</div>
 

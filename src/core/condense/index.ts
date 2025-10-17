@@ -94,6 +94,7 @@ export type SummarizeResponse = {
 		tokensOut: number
 		cost: number
 	}> // Token usage for each subagent (if subagent compression was used)
+	durationMs?: number // Compression duration in milliseconds
 }
 
 /**
@@ -211,6 +212,9 @@ export async function summarizeConversation(
 	vectorMemoryStore?: VectorMemoryStore,
 	subAgentConfig?: SubAgentConfig,
 ): Promise<SummarizeResponse> {
+	// Record start time for duration tracking
+	const startTime = Date.now()
+
 	TelemetryService.instance.captureContextCondensed(
 		taskId,
 		isAutomaticTrigger ?? false,
@@ -286,12 +290,16 @@ export async function summarizeConversation(
 				console.warn("SubAgent compression did not reduce context, falling back to standard compression")
 				// Fall through to standard compression
 			} else {
+				// Calculate duration
+				const durationMs = Date.now() - startTime
+
 				// Return successful subagent compression result
 				return {
 					messages: newMessages,
 					summary: combinedSummary.trim(),
 					cost: totalCost,
 					newContextTokens,
+					durationMs,
 					subAgentTokenUsage: [
 						{
 							agentName: "Context Analyzer",
@@ -496,9 +504,13 @@ export async function summarizeConversation(
 	const newContextTokens = outputTokens + (await apiHandler.countTokens(contextBlocks))
 	if (newContextTokens >= prevContextTokens) {
 		const error = t("common:errors.condense_context_grew")
-		return { ...response, cost, error }
+		return { ...response, cost, error, durationMs: Date.now() - startTime }
 	}
-	return { messages: newMessages, summary, cost, newContextTokens }
+
+	// Calculate duration
+	const durationMs = Date.now() - startTime
+
+	return { messages: newMessages, summary, cost, newContextTokens, durationMs }
 }
 
 /* Returns the list of all messages since the last summary message, including the summary. Returns all messages if there is no summary. */

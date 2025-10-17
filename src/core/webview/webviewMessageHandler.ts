@@ -1692,6 +1692,10 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("condensingApiConfigId", message.text)
 			await provider.postStateToWebview()
 			break
+		case "subagentApiConfigId":
+			await updateGlobalState("subagentApiConfigId", message.text)
+			await provider.postStateToWebview()
+			break
 		case "updateCondensingPrompt":
 			// Store the condensing prompt in customSupportPrompts["CONDENSE"] instead of customCondensingPrompt
 			const currentSupportPrompts = getGlobalState("customSupportPrompts") ?? {}

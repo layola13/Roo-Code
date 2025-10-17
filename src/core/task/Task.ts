@@ -1211,6 +1211,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			newContextTokens = 0,
 			error,
 			subAgentTokenUsage,
+			durationMs,
 		} = await summarizeConversation(
 			this.apiConversationHistory,
 			this.api, // Main API handler (fallback)
@@ -1269,12 +1270,19 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// Set flag to skip previous_response_id on the next API call after manual condense
 		this.skipPrevResponseIdOnce = true
 
+		// Get API configuration name for display
+		const apiConfigName = condensingApiHandler
+			? listApiConfigMeta?.find((config: any) => config.id === condensingApiConfigId)?.name
+			: undefined
+
 		const contextCondense: ContextCondense = {
 			summary,
 			cost,
 			newContextTokens,
 			prevContextTokens,
 			subAgentTokenUsage,
+			apiConfigName,
+			durationMs,
 		}
 		await this.say(
 			"condense_context",
@@ -2852,8 +2860,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 
 		if (truncateResult.summary) {
-			const { summary, cost, prevContextTokens, newContextTokens = 0 } = truncateResult
-			const contextCondense: ContextCondense = { summary, cost, newContextTokens, prevContextTokens }
+			const { summary, cost, prevContextTokens, newContextTokens = 0, durationMs } = truncateResult
+			const contextCondense: ContextCondense = { summary, cost, newContextTokens, prevContextTokens, durationMs }
 			await this.say(
 				"condense_context",
 				undefined /* text */,
@@ -3011,8 +3019,19 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				// send previous_response_id so the request reflects the fresh condensed context.
 				this.skipPrevResponseIdOnce = true
 
-				const { summary, cost, prevContextTokens, newContextTokens = 0 } = truncateResult
-				const contextCondense: ContextCondense = { summary, cost, newContextTokens, prevContextTokens }
+				const { summary, cost, prevContextTokens, newContextTokens = 0, durationMs } = truncateResult
+				// Get API configuration name for display
+				const apiConfigName = condensingApiHandler
+					? listApiConfigMeta?.find((config: any) => config.id === condensingApiConfigId)?.name
+					: undefined
+				const contextCondense: ContextCondense = {
+					summary,
+					cost,
+					newContextTokens,
+					prevContextTokens,
+					apiConfigName,
+					durationMs,
+				}
 				await this.say(
 					"condense_context",
 					undefined /* text */,

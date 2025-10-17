@@ -52,6 +52,8 @@ export interface ExtensionStateContextType extends ExtensionState {
 	setFollowupAutoApproveTimeoutMs: (value: number) => void // Setter for the timeout
 	condensingApiConfigId?: string
 	setCondensingApiConfigId: (value: string) => void
+	subagentApiConfigId?: string
+	setSubagentApiConfigId: (value: string) => void
 	customCondensingPrompt?: string
 	setCustomCondensingPrompt: (value: string) => void
 	marketplaceItems?: any[]
@@ -248,6 +250,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		experiments: experimentDefault,
 		enhancementApiConfigId: "",
 		condensingApiConfigId: "", // Default empty string for condensing API config ID
+		subagentApiConfigId: "", // Default empty string for subagent API config ID
 		customCondensingPrompt: "", // Default empty string for custom condensing prompt
 		hasOpenedModeSelector: false, // Default to false (not opened yet)
 		autoApprovalEnabled: false,
@@ -586,6 +589,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		setAutoCondenseContextPercent: (value) =>
 			setState((prevState) => ({ ...prevState, autoCondenseContextPercent: value })),
 		setCondensingApiConfigId: (value) => setState((prevState) => ({ ...prevState, condensingApiConfigId: value })),
+		setSubagentApiConfigId: (value) => setState((prevState) => ({ ...prevState, subagentApiConfigId: value })),
 		setCustomCondensingPrompt: (value) =>
 			setState((prevState) => ({ ...prevState, customCondensingPrompt: value })),
 		setProfileThresholds: (value) => setState((prevState) => ({ ...prevState, profileThresholds: value })),

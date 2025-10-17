@@ -219,6 +219,8 @@ export const contextCondenseSchema = z.object({
 	newContextTokens: z.number(),
 	summary: z.string(),
 	subAgentTokenUsage: z.array(subAgentTokenUsageSchema).optional(),
+	apiConfigName: z.string().optional(), // API configuration name used for compression
+	durationMs: z.number().optional(), // Compression duration in milliseconds
 })
 
 export type ContextCondense = z.infer<typeof contextCondenseSchema>
