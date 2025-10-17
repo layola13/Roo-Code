@@ -1425,7 +1425,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 		}
 
-		// 🔴 CRITICAL FIX: Clear all state to prevent memory leaks and context pollution
 		// `conversationHistory` (for API) and `clineMessages` (for webview)
 		// need to be in sync.
 		// If the extension process were killed, then on restart the
@@ -1434,21 +1433,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// messages from previous session).
 		this.clineMessages = []
 		this.apiConversationHistory = []
-
-		// Clear streaming state to prevent residual content from previous tasks
-		this.assistantMessageContent = []
-		this.userMessageContent = []
-		this.userMessageContentReady = false
-
-		// Clear subagent invocations from previous tasks
-		this.subAgentInvocations = []
-
-		// Reset streaming flags
-		this.didCompleteReadingStream = false
-		this.didRejectTool = false
-		this.didAlreadyUseTool = false
-		this.currentStreamingContentIndex = 0
-		this.currentStreamingDidCheckpoint = false
 
 		// The todo list is already set in the constructor if initialTodos were provided
 		// No need to add any messages - the todoList property is already set
@@ -1785,34 +1769,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				clearTimeout(this.saveDebounceTimer)
 				this.saveDebounceTimer = undefined
 			}
-
-			// Clear pending save flag immediately
-			this.pendingSave = false
 		} catch (error) {
 			console.error("Error handling pending saves during disposal:", error)
-		}
-
-		// 🔴 CRITICAL FIX: Clear large data structures to free memory
-		// These arrays can contain Base64 image data and must be cleared to prevent memory leaks
-		try {
-			// Clear message arrays (can contain large Base64 images)
-			this.clineMessages = []
-			this.apiConversationHistory = []
-
-			// Clear streaming state
-			this.assistantMessageContent = []
-			this.userMessageContent = []
-
-			// Clear tool state
-			this.consecutiveMistakeCountForApplyDiff.clear()
-
-			// Clear subagent invocation history
-			this.subAgentInvocations = []
-
-			// Clear todo list
-			this.todoList = undefined
-		} catch (error) {
-			console.error("Error clearing data structures:", error)
 		}
 
 		// Dispose message queue and remove event listeners.
@@ -1852,6 +1810,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		// Release any terminals associated with this task.
 		try {
+			// Release any terminals associated with this task.
 			TerminalRegistry.releaseTerminalsForTask(this.taskId)
 		} catch (error) {
 			console.error("Error releasing terminals:", error)
@@ -1876,15 +1835,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 		} catch (error) {
 			console.error("Error disposing RooIgnoreController:", error)
-		}
-
-		// Clear circular references
-		try {
-			this.rooProtectedController = undefined
-			this.checkpointService = undefined
-			this.terminalProcess = undefined
-		} catch (error) {
-			console.error("Error clearing circular references:", error)
+			// This is the critical one for the leak fix.
 		}
 
 		try {
@@ -1911,8 +1862,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		} catch (error) {
 			console.error("Error reverting diff changes:", error)
 		}
-
-		console.log(`[Task#dispose] completed disposal for task ${this.taskId}.${this.instanceId}`)
 	}
 
 	// Subtasks

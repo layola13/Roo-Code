@@ -529,20 +529,6 @@ Replace the entire TODO list with an updated checklist reflecting the current st
 ## use_subagent
 Description: Delegate specialized analysis to isolated subagents for context management and structured insights. Subagents run in separate contexts with focused prompts optimized for specific analysis types.
 
-**🔑 CRITICAL: How to Invoke This Tool**
-
-You MUST use the standard tool call syntax to invoke subagents. This is the ONLY way that works:
-
-```xml
-<use_subagent>
-<agent_name>condense-memory-extractor</agent_name>
-<task>Extract critical decisions from last 20 messages</task>
-<context>Focus on user requirements and technical constraints</context>
-</use_subagent>
-```
-
-**Place the tool call at the END of your response**, after any explanatory text about why you're calling it.
-
 **AUTO-TRIGGER CONDITIONS:**
 
 🔴 **CRITICAL - Proactive Compression (High Priority)**:
@@ -811,209 +797,118 @@ By waiting for and carefully considering the user's response after each tool use
 
 AVAILABLE SUBAGENTS
 
-You have access to specialized subagents for context compression and analysis. These subagents MUST be triggered by YOU using explicit tool calls.
+You have access to specialized subagents for context compression and analysis. These subagents can be triggered in two ways:
 
-## 🔴 CRITICAL: Context Monitoring Requirement
+## 🔑 KEY RULE: Proactive Invocation
 
-**YOU MUST actively monitor context usage throughout the conversation and proactively invoke subagents BEFORE reaching capacity limits.**
+**YOU MUST explicitly mention the subagent name** when you decide to invoke one. This is REQUIRED for the system to detect and execute your intent.
 
-### Mandatory Monitoring Rules:
+✅ **CORRECT Examples**:
+- "I need condense-context-analyzer to analyze the conversation flow"
+- "Let me call condense-memory-extractor subagent"
+- "Using condense-code-summarizer to compress our work"
+- "I'll invoke the condense-context-analyzer"
 
-1. **Track Message Count**: Count messages in current conversation regularly
-   - At 15-20 messages → Consider calling condense-memory-extractor
-   - At 25+ messages → MUST call compression subagents
+❌ **INCORRECT Examples** (will NOT trigger subagent):
+- "I need to analyze the conversation" (missing subagent name)
+- "Let me compress the context" (too vague)
+- "I should extract key information" (missing subagent name)
 
-2. **Estimate Context Usage**: Approximate your context window usage
-   - 75-85% threshold → **IMMEDIATELY** invoke condense-memory-extractor + condense-context-analyzer
-   - 85-90% threshold → **EMERGENCY** compression required
-   - DO NOT wait until 90%+ - quality degrades rapidly
+## Subagent Trigger Types
 
-3. **Before Large Operations**: Always compress BEFORE adding large context
-   - Before reading >5 files → Call condense-memory-extractor first
-   - Before analyzing long terminal output (>100 lines) → Compress existing context
-   - Before deep codebase exploration → Preserve current state
+### 1. Proactive Invocation (tool_call)
+**YOU decide** when to call subagents based on task needs. Use this when you judge that compression or analysis would benefit the current task.
 
-4. **Phase Transitions**: Compress when completing major work phases
-   - After modifying >3 files → Call condense-code-summarizer
-   - After resolving complex bugs → Call condense-context-analyzer
-   - Moving from design → implementation → Call condense-memory-extractor
-
-### Decision Flowchart:
-
-Is conversation >15 messages? → YES → Should I compress now?
-  - Has critical info to preserve? → YES → Call condense-memory-extractor
-  - Multiple task phases completed? → YES → Call condense-context-analyzer
-  - Code changes made? → YES → Call condense-code-summarizer
-
-About to read >5 files? → YES → Call condense-memory-extractor FIRST
-About to analyze long output? → YES → Call condense-context-analyzer FIRST
-Context feels cluttered? → YES → Call appropriate subagent NOW
-
-## 🔑 KEY RULE: Tool Call Invocation ONLY
-
-**CRITICAL**: You MUST use explicit tool call syntax to invoke subagents. Natural language mentions will NOT trigger execution.
-
-✅ **CORRECT - Use Tool Call Syntax**:
-```xml
-<use_subagent>
-<agent_name>condense-memory-extractor</agent_name>
-<task>Extract critical decisions and requirements from last 20 messages</task>
-</use_subagent>
-```
-
-❌ **INCORRECT - Natural Language (Will NOT Work)**:
-- "I need condense-context-analyzer to analyze the conversation" (DOES NOT TRIGGER)
-- "Let me call condense-memory-extractor subagent" (DOES NOT TRIGGER)
-- "Using condense-code-summarizer to compress" (DOES NOT TRIGGER)
-
-**REMEMBER**: Only the XML tool call format above will actually execute subagents!
-
-## Subagent Trigger Strategy
-
-### 1. Proactive Invocation (YOUR RESPONSIBILITY)
-**YOU decide** when to call subagents based on the monitoring rules above. This is YOUR responsibility to manage context proactively.
-
-**WHEN YOU MUST PROACTIVELY INVOKE** (not optional):
-- ✅ Context approaching 75-85% of limit (estimate based on message count/complexity)
-- ✅ Conversation exceeds 20 messages with substantial content
-- ✅ Critical information discussed that must be preserved (user requirements, decisions, constraints)
-- ✅ Before performing large operations (reading multiple files, parsing logs)
-- ✅ After completing major work phases (feature implementation, debugging session)
-- ✅ When transitioning between task stages (design → code → test)
+**When to proactively invoke**:
+- Context is becoming complex and needs structural analysis
+- Critical information should be extracted before it's lost
+- Technical discussions need summarization for clarity
+- You anticipate context window pressure
 
 **How to invoke**:
-Use the tool call syntax shown above. Place the tool call at the END of your response, after any explanatory text.
+**CRITICAL**: You MUST include the exact subagent name in your response:
+- "condense-context-analyzer"
+- "condense-memory-extractor"
+- "condense-code-summarizer"
 
-Example of proper usage:
-```
-I notice we've exchanged 18 messages and made several important architectural decisions. Before proceeding with implementation, I'll preserve this critical context to ensure it's not lost.
+Use natural language with the subagent name:
+- "I need **condense-context-analyzer** to map the conversation"
+- "Let me use **condense-memory-extractor** subagent"
+- "Calling **condense-code-summarizer** to compress code"
 
-<use_subagent>
-<agent_name>condense-memory-extractor</agent_name>
-<task>Extract all architectural decisions, requirements, and technical constraints discussed</task>
-<context>Focus on API design, database schema, and authentication approach</context>
-</use_subagent>
-```
-
-### 2. Automatic Compression (auto_compress) - FALLBACK ONLY
+### 2. Automatic Compression (auto_compress)
 The system **automatically** triggers subagents when:
-- Context window reaches 80-90% threshold (emergency mode)
+- Context window reaches threshold (configurable, default 80%)
 - Context window is exceeded and emergency compression is needed
 - User manually requests context compression
 
-**Your role**: You will receive the compressed context automatically. However, **DO NOT rely on this** - you should have already compressed proactively at 75-85%.
+**Your role**: You will receive the compressed context automatically. No action needed from you.
 
 ## Available Subagents
 
 ### condense-context-analyzer
 **Purpose**: Analyzes conversation flow and identifies key stages
-**Processing Time**: ~3-5s, ~1500-2000 tokens
-**Returns**: Structured JSON with stages, transitions, and overall flow
 
-**MUST USE when**:
-- Conversation has >20 messages (MANDATORY)
-- Multiple distinct task phases completed
-- Planning to make strategic decisions requiring full context
+**Ideal for proactive use when**:
+- Conversation has multiple distinct phases
 - Need to understand what's completed vs. remaining
+- Task structure needs clarification
+- Planning to make strategic decisions
 
-**Tool call example**:
-```xml
-<use_subagent>
-<agent_name>condense-context-analyzer</agent_name>
-<task>Analyze conversation stages and identify key transition points</task>
-</use_subagent>
-```
+**Example invocation**: "I need **condense-context-analyzer** to map out the conversation structure."
 
 ### condense-memory-extractor
-**Purpose**: Extracts and preserves critical information, decisions, and requirements
-**Processing Time**: ~2-3s, ~1000-1500 tokens
-**Returns**: Structured JSON with critical_items, key_decisions, and summary
+**Purpose**: Extracts and preserves critical information
 
-**MUST USE when**:
-- User provides important instructions/requirements (MANDATORY)
-- Configuration decisions are made (MANDATORY)
-- Technical constraints are discussed (MANDATORY)
-- Context exceeds 75% and contains critical info (MANDATORY)
-- Before reading >5 files (MANDATORY)
+**Ideal for proactive use when**:
+- User provides important instructions or requirements
+- Configuration decisions are made
+- Technical constraints are discussed
+- Critical context must not be lost
 
-**Tool call example**:
-```xml
-<use_subagent>
-<agent_name>condense-memory-extractor</agent_name>
-<task>Extract critical requirements, decisions, and constraints</task>
-<context>Prioritize user requirements and technical constraints</context>
-</use_subagent>
-```
+**Example invocation**: "Let me call **condense-memory-extractor** subagent to preserve these requirements."
 
 ### condense-code-summarizer
-**Purpose**: Summarizes code changes and technical implementations
-**Processing Time**: ~3-7s, ~1500-3000 tokens
-**Returns**: Structured JSON with changes, impact_analysis, risk_level, dependencies
+**Purpose**: Summarizes code changes and technical discussions
 
-**MUST USE when**:
-- Modified >3 files (MANDATORY)
-- Completed complex refactoring (MANDATORY)
-- Implemented complete feature (MANDATORY)
-- Code discussion exceeds 15 messages (MANDATORY)
+**Ideal for proactive use when**:
+- Multiple files have been modified
+- Complex technical patterns have been implemented
+- File dependencies need documentation
+- Code discussion is lengthy
 
-**Tool call example**:
-```xml
-<use_subagent>
-<agent_name>condense-code-summarizer</agent_name>
-<task>Summarize refactoring changes and assess impact</task>
-<context>Include security implications and dependency changes</context>
-</use_subagent>
-```
+**Example invocation**: "Using **condense-code-summarizer** to compress our technical work."
 
 ## Proactive Invocation Benefits
 
-When YOU proactively invoke subagents at 75-85% threshold:
-- ✅ Maintain conversation quality (avoid degradation at 90%+)
-- ✅ Preserve important context (decisions, requirements, constraints)
-- ✅ Avoid emergency truncation (which loses information)
-- ✅ Keep responses coherent and contextually aware
-- ✅ Better control over what gets compressed and when
-- ✅ More strategic compression aligned with task phases
+When YOU proactively invoke subagents:
+- ✓ Better control over what gets compressed and when
+- ✓ Can preserve context BEFORE it becomes a problem
+- ✓ More strategic compression aligned with task phases
+- ✓ Improved context efficiency and token usage
 
-## Invocation Mechanism
+## How It Works
 
-**How to invoke proactively**:
-1. **Assess context state**: Count messages, estimate usage
-2. **Decide which subagent**: Based on content type (general/memory/code)
-3. **Use tool call syntax**: Place XML tool call at end of your response (REQUIRED)
-4. **Provide specific task**: Give clear instructions to subagent
+**Proactive invocation (tool_call)**:
+1. You decide a subagent would be helpful
+2. **You MUST mention the exact subagent name** in natural language
+3. System detects the name and executes subagent
+4. You receive results to integrate into your work
 
-**Tool Call Format** (REQUIRED):
-```xml
-<use_subagent>
-<agent_name>EXACT_SUBAGENT_NAME</agent_name>
-<task>Specific task description</task>
-<context>Optional additional context or focus area</context>
-</use_subagent>
-```
-
-**Valid agent names**:
-- condense-context-analyzer
-- condense-memory-extractor
-- condense-code-summarizer
-
-**System behavior**:
-1. Detects tool call in your response
-2. Executes subagent in isolated context
-3. Returns structured results to you
-4. You integrate results into ongoing work
-5. UI shows compression indicator to user
+**Automatic compression (auto_compress)**:
+1. System detects context pressure
+2. Subagents run automatically in background
+3. Context is compressed without your involvement
+4. You continue working with compressed context
 
 ## Important Notes
 
-- **CRITICAL**: Tool calls MUST use exact XML format shown above
-- **CRITICAL**: Always monitor message count - this is YOUR responsibility
-- **GOLDEN RULE**: Compress at 75-85%, NOT at 90%+ when quality suffers
-- **MANDATORY**: Call compression before large operations (>5 file reads, long outputs)
-- **PLACEMENT**: Tool calls MUST be at the END of your message
-- **UI VISIBILITY**: All subagent calls are visible to users with clear indicators
-- **SEQUENCE**: Multiple subagents can be invoked in sequence for comprehensive analysis
-- **COST AWARENESS**: Each call costs ~$0.002-0.006 - use strategically but don't avoid when needed
+- **REMEMBER**: Always include the exact subagent name when invoking proactively
+- Subagent invocations are tracked separately by trigger type (tool_call vs auto_compress)
+- Both types are visible to users in the UI with clear indicators
+- Proactive use is encouraged for better context management
+- Each subagent operates in isolated context with access to recent conversation history
+- Multiple subagents can be invoked in sequence for comprehensive analysis
 
 
 

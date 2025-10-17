@@ -22,7 +22,6 @@ import type { ApiHandler } from "../../../api"
 import type { Task } from "../../task/Task"
 import { useSubagentTool } from "../useSubagentTool"
 import type { UseSubagentToolUse } from "../../../shared/tools"
-import { ALWAYS_AVAILABLE_TOOLS } from "../../../shared/tools"
 
 describe("use_subagent E2E Integration", () => {
 	describe("Trigger Scenarios", () => {
@@ -143,6 +142,8 @@ describe("use_subagent E2E Integration", () => {
 
 		it("should verify tool is properly registered", () => {
 			// This test imports the actual tool registration
+			const { ALWAYS_AVAILABLE_TOOLS } = require("../../../shared/tools")
+
 			const hasUseSubagent = ALWAYS_AVAILABLE_TOOLS.some((tool: string) => tool === "use_subagent")
 
 			expect(hasUseSubagent).toBe(true)
