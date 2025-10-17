@@ -52,33 +52,7 @@ jobs:
             rust-wasm/*/target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build Rust WASM modules
-        run: |
-          echo "Building Task Engine..."
-          cd rust-wasm/task-engine && wasm-pack build --target web --out-dir ../../wasm-dist/task-engine && cd ../..
-          
-          echo "Building API Integration..."
-          cd rust-wasm/api-integration && wasm-pack build --target web --out-dir ../../wasm-dist/api-integration && cd ../..
-          
-          echo "Building Tools System..."
-          cd rust-wasm/tools && wasm-pack build --target web --out-dir ../../wasm-dist/tools && cd ../..
-          
-          echo "Building Conversation System..."
-          cd rust-wasm/conversation && wasm-pack build --target web --out-dir ../../wasm-dist/conversation && cd ../..
-          
-          echo "Building Memory System..."
-          cd rust-wasm/memory && wasm-pack build --target web --out-dir ../../wasm-dist/memory && cd ../..
-          
-          echo "✅ All WASM modules built successfully"
-
-      - name: Verify WASM files
-        run: |
-          echo "Verifying WASM build artifacts..."
-          ls -lh wasm-dist/*/
-          echo "WASM files:"
-          find wasm-dist -name "*.wasm" -exec ls -lh {} \;
-
-      - name: Run type checking
+      - name: Run type checking (WASM will be built automatically in prebuild)
         run: pnpm check-types
 
       - name: Build project

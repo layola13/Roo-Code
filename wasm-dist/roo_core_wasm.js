@@ -27,98 +27,30 @@ export {
 // API Integration exports
 export { init as initApiIntegration, getApiIntegrationVersion } from "./api-integration/roo_api_integration.js"
 
-/**
- * Placeholder exports for Conversation module
- * These will be replaced when conversation WASM is compiled
- */
-export function create_conversation_manager() {
-	throw new Error("Conversation WASM module not yet compiled. Using TypeScript fallback.")
-}
+// Conversation exports
+export {
+	init as initConversation,
+	create_conversation_manager,
+	add_message,
+	get_messages,
+	get_stats,
+	find_message_by_timestamp,
+	clear_messages,
+	get_messages_since_last_summary,
+	truncate_conversation,
+	calculate_messages_to_keep,
+} from "./conversation/roo_conversation.js"
 
-export function add_message(manager, message) {
-	throw new Error("Conversation WASM module not yet compiled. Using TypeScript fallback.")
-}
-
-export function get_messages(manager) {
-	throw new Error("Conversation WASM module not yet compiled. Using TypeScript fallback.")
-}
-
-export function get_stats(manager) {
-	throw new Error("Conversation WASM module not yet compiled. Using TypeScript fallback.")
-}
-
-/**
- * Placeholder Memory Manager class
- * This will be replaced when memory WASM is compiled
- */
-export class MemoryManager {
-	constructor(taskId, config) {
-		throw new Error("Memory WASM module not yet compiled. Using TypeScript fallback.")
-	}
-
-	extractMemories(messages, timestamp) {
-		throw new Error("Memory WASM module not yet compiled. Using TypeScript fallback.")
-	}
-
-	getAllMemories() {
-		throw new Error("Memory WASM module not yet compiled. Using TypeScript fallback.")
-	}
-
-	getCriticalMemories() {
-		throw new Error("Memory WASM module not yet compiled. Using TypeScript fallback.")
-	}
-
-	getMemoriesByPriority(priority) {
-		throw new Error("Memory WASM module not yet compiled. Using TypeScript fallback.")
-	}
-
-	getMemoriesByType(type) {
-		throw new Error("Memory WASM module not yet compiled. Using TypeScript fallback.")
-	}
-
-	generateMemorySummary(timestamp) {
-		throw new Error("Memory WASM module not yet compiled. Using TypeScript fallback.")
-	}
-
-	applyMemoryAging(currentTime) {
-		throw new Error("Memory WASM module not yet compiled. Using TypeScript fallback.")
-	}
-
-	pruneLowPriorityMemories(maxCount, currentTime) {
-		throw new Error("Memory WASM module not yet compiled. Using TypeScript fallback.")
-	}
-
-	getMemoryStats(currentTime) {
-		throw new Error("Memory WASM module not yet compiled. Using TypeScript fallback.")
-	}
-
-	serialize() {
-		throw new Error("Memory WASM module not yet compiled. Using TypeScript fallback.")
-	}
-
-	static deserialize(data) {
-		throw new Error("Memory WASM module not yet compiled. Using TypeScript fallback.")
-	}
-}
-
-/**
- * Memory enums
- */
-export const MemoryPriority = {
-	Low: "low",
-	Medium: "medium",
-	High: "high",
-	Critical: "critical",
-}
-
-export const MemoryType = {
-	UserInstruction: "user_instruction",
-	TechnicalDecision: "technical_decision",
-	Configuration: "configuration",
-	ImportantError: "important_error",
-	ProjectContext: "project_context",
-	WorkflowPattern: "workflow_pattern",
-}
+// Memory exports
+export {
+	MemoryManager,
+	MemoryPriority,
+	MemoryType,
+	calculateTextSimilarity,
+	parseMemoryPriority,
+	parseMemoryType,
+	init as initMemory,
+} from "./memory/roo_memory.js"
 
 /**
  * Initialize all WASM modules
@@ -127,6 +59,7 @@ export async function initAll() {
 	await initTaskEngine()
 	await initTools()
 	await initApiIntegration()
-	console.log("[WASM] All available modules initialized")
-	console.warn("[WASM] Conversation and Memory modules not yet compiled - using TypeScript fallback")
+	await initConversation()
+	await initMemory()
+	console.log("[WASM] All 5 modules initialized successfully")
 }
