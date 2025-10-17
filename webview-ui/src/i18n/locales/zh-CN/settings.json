@@ -33,6 +33,7 @@
 		"ui": "UI",
 		"experimental": "实验性",
 		"language": "语言",
+		"wasmRuntime": "WASM 运行时",
 		"about": "关于 Roo Code"
 	},
 	"slashCommands": {
@@ -920,8 +921,36 @@
 	},
 	"ui": {
 		"collapseThinking": {
-			"label": "默认折叠“思考”消息",
-			"description": "启用后，“思考”块将默认折叠，直到您与其交互"
+			"label": "默认折叠\"思考\"消息",
+			"description": "启用后，\"思考\"块将默认折叠，直到您与其交互"
 		}
+	},
+	"wasmRuntime": {
+		"description": "配置 WebAssembly 运行时行为以提升性能。基于 WASM 的模块为任务、工具、对话和内存操作提供更快的处理速度。",
+		"currentMode": "当前模式",
+		"modes": {
+			"wasm-with-fallback": "WASM + 降级（推荐）",
+			"wasm-only": "仅 WASM",
+			"typescript": "仅 TypeScript"
+		},
+		"enableWasm": {
+			"label": "启用 WASM 运行时",
+			"description": "使用 WebAssembly 模块提升性能。禁用后，所有操作将使用 TypeScript 实现。"
+		},
+		"enableFallback": {
+			"label": "启用自动降级",
+			"description": "当 WASM 操作失败时自动切换到 TypeScript 实现。推荐开启以确保稳定性。"
+		},
+		"maxRetries": {
+			"label": "最大重试次数",
+			"description": "触发降级到 TypeScript 前允许的最大连续 WASM 错误次数。数值越高提供更强的容错能力，但可能延迟降级。"
+		},
+		"performanceNotes": {
+			"title": "性能说明",
+			"wasm": "WASM 模块通常为 CPU 密集型操作提供 2-5 倍的性能提升。",
+			"fallback": "降级模式通过在 WASM 遇到问题时使用 TypeScript 来确保可靠性。",
+			"typescript": "仅 TypeScript 模式可用于调试或兼容性测试。"
+		},
+		"learnMore": "了解更多关于 WASM 运行时"
 	}
 }

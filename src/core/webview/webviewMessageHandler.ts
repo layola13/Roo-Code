@@ -3114,5 +3114,31 @@ export const webviewMessageHandler = async (
 			})
 			break
 		}
+		case "wasmRuntimeEnabled": {
+			const { WasmConfigManager } = await import("../wasm/config")
+			await WasmConfigManager.getInstance().updateConfig({
+				enableWasm: message.bool ?? true,
+			})
+			await provider.postStateToWebview()
+			break
+		}
+		case "wasmFallbackEnabled": {
+			const { WasmConfigManager } = await import("../wasm/config")
+			await WasmConfigManager.getInstance().updateConfig({
+				enableFallback: message.bool ?? true,
+			})
+			await provider.postStateToWebview()
+			break
+		}
+		case "wasmMaxRetries": {
+			const { WasmConfigManager } = await import("../wasm/config")
+			if (typeof message.value === "number" && message.value >= 0 && message.value <= 10) {
+				await WasmConfigManager.getInstance().updateConfig({
+					maxRetries: message.value,
+				})
+				await provider.postStateToWebview()
+			}
+			break
+		}
 	}
 }

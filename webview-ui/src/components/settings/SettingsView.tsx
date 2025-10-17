@@ -25,6 +25,7 @@ import {
 	LucideIcon,
 	SquareSlash,
 	Glasses,
+	Cpu,
 } from "lucide-react"
 
 import type { ProviderSettings, ExperimentId, TelemetrySetting } from "@roo-code/types"
@@ -68,6 +69,7 @@ import { Section } from "./Section"
 import PromptsSettings from "./PromptsSettings"
 import { SlashCommandsSettings } from "./SlashCommandsSettings"
 import { UISettings } from "./UISettings"
+import { WasmRuntimeSettings } from "./WasmRuntimeSettings"
 
 export const settingsTabsContainer = "flex flex-1 overflow-hidden [&.narrow_.tab-label]:hidden"
 export const settingsTabList =
@@ -91,6 +93,7 @@ const sectionNames = [
 	"terminal",
 	"prompts",
 	"ui",
+	"wasmRuntime",
 	"experimental",
 	"language",
 	"about",
@@ -196,6 +199,9 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		openRouterImageGenerationSelectedModel,
 		reasoningBlockCollapsed,
 		vectorMemoryEnabled,
+		wasmRuntimeEnabled,
+		wasmFallbackEnabled,
+		wasmMaxRetries,
 	} = cachedState
 
 	const apiConfiguration = useMemo(() => cachedState.apiConfiguration ?? {}, [cachedState.apiConfiguration])
@@ -386,6 +392,9 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			vscode.postMessage({ type: "includeTaskHistoryInEnhance", bool: includeTaskHistoryInEnhance ?? true })
 			vscode.postMessage({ type: "setReasoningBlockCollapsed", bool: reasoningBlockCollapsed ?? true })
 			vscode.postMessage({ type: "vectorMemoryEnabled", bool: vectorMemoryEnabled ?? false })
+			vscode.postMessage({ type: "wasmRuntimeEnabled", bool: wasmRuntimeEnabled ?? true })
+			vscode.postMessage({ type: "wasmFallbackEnabled", bool: wasmFallbackEnabled ?? true })
+			vscode.postMessage({ type: "wasmMaxRetries", value: wasmMaxRetries ?? 3 })
 			vscode.postMessage({ type: "upsertApiConfiguration", text: currentApiConfigName, apiConfiguration })
 			vscode.postMessage({ type: "telemetrySetting", text: telemetrySetting })
 			vscode.postMessage({ type: "profileThresholds", values: profileThresholds })
@@ -481,6 +490,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			{ id: "terminal", icon: SquareTerminal },
 			{ id: "prompts", icon: MessageSquare },
 			{ id: "ui", icon: Glasses },
+			{ id: "wasmRuntime", icon: Cpu },
 			{ id: "experimental", icon: FlaskConical },
 			{ id: "language", icon: Globe },
 			{ id: "about", icon: Info },
@@ -785,6 +795,16 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 					{activeTab === "ui" && (
 						<UISettings
 							reasoningBlockCollapsed={reasoningBlockCollapsed ?? true}
+							setCachedStateField={setCachedStateField}
+						/>
+					)}
+
+					{/* WASM Runtime Section */}
+					{activeTab === "wasmRuntime" && (
+						<WasmRuntimeSettings
+							wasmRuntimeEnabled={wasmRuntimeEnabled ?? true}
+							wasmFallbackEnabled={wasmFallbackEnabled ?? true}
+							wasmMaxRetries={wasmMaxRetries ?? 3}
 							setCachedStateField={setCachedStateField}
 						/>
 					)}

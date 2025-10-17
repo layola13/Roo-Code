@@ -45,5 +45,8 @@
 	"settings.codeIndex.embeddingBatchSize.description": "The batch size for embedding operations during code indexing. Adjust this based on your API provider's limits. Default is 60.",
 	"settings.vectorMemory.enabled.description": "Enable vector memory system for semantic search across conversation history. Requires a running Qdrant instance.",
 	"settings.vectorMemory.qdrantUrl.description": "URL of the Qdrant vector database server (e.g. 'http://localhost:6333' or 'https://your-qdrant-instance.com'). Used for storing and retrieving conversation memories.",
-	"settings.vectorMemory.qdrantApiKey.description": "Optional API key for authenticating with Qdrant server. Leave empty if authentication is not required."
+	"settings.vectorMemory.qdrantApiKey.description": "Optional API key for authenticating with Qdrant server. Leave empty if authentication is not required.",
+	"settings.wasm.enableWasm.description": "Enable WebAssembly (WASM) runtime for improved performance. When enabled, core logic runs in WASM; when disabled, falls back to TypeScript implementation.",
+	"settings.wasm.enableFallback.description": "Enable automatic fallback to TypeScript when WASM fails. When enabled, the system switches to TypeScript if WASM encounters errors; when disabled, WASM errors are thrown directly.",
+	"settings.wasm.maxRetries.description": "Maximum number of WASM errors before switching to fallback mode (0-10, default: 3). Only effective when fallback is enabled."
 }

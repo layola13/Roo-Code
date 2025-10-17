@@ -3,7 +3,7 @@
 	"displayName": "Roo-Cline",
 	"description": "Autonomous coding agent right in your IDE. Designed to work with the latest Claude Sonnet 4.0, GPT-4o, Gemini 2.0 and any OpenRouter models. Claude Code Generator",
 	"publisher": "RooVeterinaryInc",
-	"version": "3.28.28",
+	"version": "3.28.100",
 	"icon": "assets/icons/icon.png",
 	"galleryBanner": {
 		"color": "#617A91",
@@ -444,6 +444,23 @@
 					"type": "string",
 					"default": "",
 					"description": "%settings.vectorMemory.qdrantApiKey.description%"
+				},
+				"roo-cline.wasm.enableWasm": {
+					"type": "boolean",
+					"default": true,
+					"description": "%settings.wasm.enableWasm.description%"
+				},
+				"roo-cline.wasm.enableFallback": {
+					"type": "boolean",
+					"default": true,
+					"description": "%settings.wasm.enableFallback.description%"
+				},
+				"roo-cline.wasm.maxRetries": {
+					"type": "number",
+					"default": 3,
+					"minimum": 0,
+					"maximum": 10,
+					"description": "%settings.wasm.maxRetries.description%"
 				}
 			}
 		}

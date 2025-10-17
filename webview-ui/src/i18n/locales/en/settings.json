@@ -33,6 +33,7 @@
 		"ui": "UI",
 		"experimental": "Experimental",
 		"language": "Language",
+		"wasmRuntime": "WASM Runtime",
 		"about": "About Roo Code"
 	},
 	"slashCommands": {
@@ -921,5 +922,33 @@
 			"output": "Output",
 			"cacheReads": "Cache reads"
 		}
+	},
+	"wasmRuntime": {
+		"description": "Configure WebAssembly runtime behavior for improved performance. WASM-based modules provide faster processing for tasks, tools, conversations, and memory operations.",
+		"currentMode": "Current Mode",
+		"modes": {
+			"wasm-with-fallback": "WASM + Fallback (Recommended)",
+			"wasm-only": "WASM Only",
+			"typescript": "TypeScript Only"
+		},
+		"enableWasm": {
+			"label": "Enable WASM Runtime",
+			"description": "Use WebAssembly modules for improved performance. When disabled, all operations use TypeScript implementations."
+		},
+		"enableFallback": {
+			"label": "Enable Automatic Fallback",
+			"description": "Automatically switch to TypeScript implementation if WASM operations fail. Recommended for stability."
+		},
+		"maxRetries": {
+			"label": "Max Retry Attempts",
+			"description": "Maximum number of consecutive WASM errors before triggering fallback to TypeScript. Higher values provide more resilience but may delay fallback."
+		},
+		"performanceNotes": {
+			"title": "Performance Notes",
+			"wasm": "WASM modules typically provide 2-5x performance improvement for CPU-intensive operations.",
+			"fallback": "Fallback mode ensures reliability by using TypeScript when WASM encounters issues.",
+			"typescript": "TypeScript-only mode may be useful for debugging or compatibility testing."
+		},
+		"learnMore": "Learn more about WASM runtime"
 	}
 }

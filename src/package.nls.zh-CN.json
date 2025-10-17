@@ -45,5 +45,8 @@
 	"settings.codeIndex.embeddingBatchSize.description": "代码索引期间嵌入操作的批处理大小。根据 API 提供商的限制调整此设置。默认值为 60。",
 	"settings.vectorMemory.enabled.description": "启用向量记忆系统，用于跨对话历史的语义搜索。需要运行 Qdrant 实例。",
 	"settings.vectorMemory.qdrantUrl.description": "Qdrant 向量数据库服务器的 URL（例如 'http://localhost:6333' 或 'https://your-qdrant-instance.com'）。用于存储和检索对话记忆。",
-	"settings.vectorMemory.qdrantApiKey.description": "用于 Qdrant 服务器身份验证的可选 API 密钥。如果不需要身份验证，请留空。"
+	"settings.vectorMemory.qdrantApiKey.description": "用于 Qdrant 服务器身份验证的可选 API 密钥。如果不需要身份验证，请留空。",
+	"settings.wasm.enableWasm.description": "启用 WebAssembly (WASM) 运行时以提高性能。启用时，核心逻辑在 WASM 中运行；禁用时，回退到 TypeScript 实现。",
+	"settings.wasm.enableFallback.description": "当 WASM 失败时自动回退到 TypeScript。启用时，如果 WASM 遇到错误则切换到 TypeScript；禁用时，WASM 错误将直接抛出。",
+	"settings.wasm.maxRetries.description": "切换到回退模式前允许的最大 WASM 错误次数（0-10，默认：3）。仅在启用回退时有效。"
 }

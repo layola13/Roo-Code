@@ -362,6 +362,11 @@ export type ExtensionState = Pick<
 	remoteControlEnabled: boolean
 	taskSyncEnabled: boolean
 	featureRoomoteControlEnabled: boolean
+
+	// WASM Runtime Configuration
+	wasmRuntimeEnabled?: boolean
+	wasmFallbackEnabled?: boolean
+	wasmMaxRetries?: number
 }
 
 export interface ClineSayTool {

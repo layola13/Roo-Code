@@ -27,6 +27,9 @@ import { convertTextMateToHljs } from "@src/utils/textMateToHljs"
 
 export interface ExtensionStateContextType extends ExtensionState {
 	historyPreviewCollapsed?: boolean // Add the new state property
+	wasmRuntimeEnabled?: boolean // WASM runtime enabled state
+	wasmFallbackEnabled?: boolean // WASM fallback enabled state
+	wasmMaxRetries?: number // WASM max retries state
 	didHydrateState: boolean
 	showWelcome: boolean
 	theme: any
@@ -275,6 +278,9 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		maxDiagnosticMessages: 50,
 		openRouterImageApiKey: "",
 		openRouterImageGenerationSelectedModel: "",
+		wasmRuntimeEnabled: true, // Default WASM enabled
+		wasmFallbackEnabled: true, // Default fallback enabled
+		wasmMaxRetries: 3, // Default max retries
 	})
 
 	const [didHydrateState, setDidHydrateState] = useState(false)

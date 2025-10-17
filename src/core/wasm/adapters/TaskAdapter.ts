@@ -89,6 +89,10 @@ export class TaskAdapter {
 					this.hostInterface.log("warn", `[TaskAdapter] Using fallback mode for task: ${this.taskId}`)
 				}
 			}
+		} else {
+			// WASM未启用，直接使用Fallback模式
+			this.fallbackMode = true
+			this.hostInterface.log("info", `[TaskAdapter] WASM disabled, using fallback mode for task: ${this.taskId}`)
 		}
 	}
 
