@@ -1835,6 +1835,9 @@ export class ClineProvider
 			contextAnalyzerPrompt,
 			memoryExtractorPrompt,
 			codeSummarizerPrompt,
+			redisUrl,
+			qdrantUrl,
+			qdrantCollectionName,
 		} = await this.getState()
 
 		let cloudOrganizations: CloudOrganizationMembership[] = []
@@ -1995,6 +1998,9 @@ export class ClineProvider
 			contextAnalyzerPrompt,
 			memoryExtractorPrompt,
 			codeSummarizerPrompt,
+			redisUrl: redisUrl || "redis://localhost:6379",
+			qdrantUrl: qdrantUrl || "http://localhost:6333",
+			qdrantCollectionName: qdrantCollectionName || "roo_memory",
 		}
 	}
 
@@ -2236,6 +2242,9 @@ export class ClineProvider
 			contextAnalyzerPrompt: stateValues.contextAnalyzerPrompt || undefined,
 			memoryExtractorPrompt: stateValues.memoryExtractorPrompt || undefined,
 			codeSummarizerPrompt: stateValues.codeSummarizerPrompt || undefined,
+			redisUrl: stateValues.redisUrl || "redis://localhost:6379",
+			qdrantUrl: stateValues.qdrantUrl || "http://localhost:6333",
+			qdrantCollectionName: stateValues.qdrantCollectionName || "roo_memory",
 		}
 	}
 

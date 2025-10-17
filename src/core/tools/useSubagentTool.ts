@@ -61,7 +61,8 @@ export async function useSubagentTool(
 
 		// If custom task is provided, we could potentially override the system prompt
 		// For now, we'll execute with default prompts and include task/context in a system message
-		const executor = new SubAgentExecutor(cline.api, config)
+		// ✅ 核心修复：传递Task的vectorMemoryStore给SubAgentExecutor以启用记忆存储功能
+		const executor = new SubAgentExecutor(cline.api, config, cline.vectorMemoryStore)
 
 		// Add task/context as a system message if provided
 		let messagesWithTask = recentMessages

@@ -309,6 +309,17 @@ export class CodeIndexManager {
 	}
 
 	/**
+	 * 获取Qdrant配置，用于向量记忆系统复用代码索引的Qdrant实例
+	 * @returns Qdrant配置对象（包含url和apiKey），如果未初始化则返回空对象
+	 */
+	public getQdrantConfig(): { url?: string; apiKey?: string } {
+		if (!this._configManager) {
+			return {}
+		}
+		return this._configManager.qdrantConfig
+	}
+
+	/**
 	 * Private helper method to recreate services with current configuration.
 	 * Used by both initialize() and handleSettingsChange().
 	 */

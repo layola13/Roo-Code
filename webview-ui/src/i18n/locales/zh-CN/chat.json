@@ -10,6 +10,7 @@
 		"cache": "缓存",
 		"apiCost": "API 费用",
 		"size": "大小",
+		"storage": "存储状态",
 		"contextWindow": "上下文长度",
 		"subAgents": "子代理",
 		"subAgentTokens": "子代理 Token 用量",

@@ -486,4 +486,14 @@ export class VectorMemoryStore {
 			}
 		}
 	}
+
+	/**
+	 * Generate embedding for a text string
+	 * @param text Text to generate embedding for
+	 * @returns Embedding vector
+	 */
+	async generateEmbedding(text: string): Promise<number[]> {
+		const response = await this.embedder.createEmbeddings([text])
+		return response.embeddings[0]
+	}
 }

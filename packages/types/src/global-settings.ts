@@ -94,6 +94,11 @@ export const globalSettingsSchema = z.object({
 	memoryExtractorPrompt: z.string().optional(),
 	codeSummarizerPrompt: z.string().optional(),
 
+	// Storage configuration (Redis, Qdrant)
+	redisUrl: z.string().optional(),
+	qdrantUrl: z.string().optional(),
+	qdrantCollectionName: z.string().optional(),
+
 	/**
 	 * Whether to include diagnostic messages (errors, warnings) in tool outputs
 	 * @default true

@@ -10,6 +10,7 @@
 		"cache": "Cache",
 		"apiCost": "API Cost",
 		"size": "Size",
+		"storage": "Storage",
 		"condenseContext": "Intelligently condense context",
 		"contextWindow": "Context Length",
 		"subAgents": "Sub-Agents",

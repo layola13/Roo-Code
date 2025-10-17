@@ -307,6 +307,10 @@ export type ExtensionState = Pick<
 	| "contextAnalyzerPrompt"
 	| "memoryExtractorPrompt"
 	| "codeSummarizerPrompt"
+	// Storage configuration (Redis, Qdrant)
+	| "redisUrl"
+	| "qdrantUrl"
+	| "qdrantCollectionName"
 > & {
 	// Judge mode configuration
 	judgeConfig?: {

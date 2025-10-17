@@ -36,6 +36,9 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	contextAnalyzerPrompt?: string
 	memoryExtractorPrompt?: string
 	codeSummarizerPrompt?: string
+	redisUrl?: string
+	qdrantUrl?: string
+	qdrantCollectionName?: string
 	setCachedStateField: SetCachedStateField<
 		| "autoCondenseContext"
 		| "autoCondenseContextPercent"
@@ -58,6 +61,9 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 		| "contextAnalyzerPrompt"
 		| "memoryExtractorPrompt"
 		| "codeSummarizerPrompt"
+		| "redisUrl"
+		| "qdrantUrl"
+		| "qdrantCollectionName"
 	>
 }
 
@@ -85,6 +91,9 @@ export const ContextManagementSettings = ({
 	contextAnalyzerPrompt,
 	memoryExtractorPrompt,
 	codeSummarizerPrompt,
+	redisUrl,
+	qdrantUrl,
+	qdrantCollectionName,
 	className,
 	...props
 }: ContextManagementSettingsProps) => {
@@ -503,6 +512,63 @@ export const ContextManagementSettings = ({
 					</VSCodeCheckbox>
 					<div className="text-vscode-descriptionForeground text-sm">
 						{t("settings:contextManagement.vectorMemory.description")}
+					</div>
+				</div>
+			</Section>
+
+			{/* Storage Configuration Section */}
+			<Section className="pt-2">
+				<div className="flex flex-col gap-3">
+					<span className="font-medium text-base">{t("settings:contextManagement.storageConfig.title")}</span>
+					<div className="text-vscode-descriptionForeground text-sm mb-2">
+						{t("settings:contextManagement.storageConfig.description")}
+					</div>
+
+					{/* Redis Configuration */}
+					<div className="flex flex-col gap-2">
+						<label className="block text-sm font-medium">
+							{t("settings:contextManagement.storageConfig.redis.label")}
+						</label>
+						<Input
+							type="text"
+							className="w-full bg-vscode-input-background text-vscode-input-foreground border border-vscode-input-border px-2 py-1 rounded"
+							placeholder="redis://localhost:6379"
+							value={redisUrl || ""}
+							onChange={(e) => setCachedStateField("redisUrl", e.target.value)}
+							data-testid="redis-url-input"
+						/>
+						<div className="text-vscode-descriptionForeground text-xs">
+							{t("settings:contextManagement.storageConfig.redis.description")}
+						</div>
+					</div>
+
+					{/* Qdrant Configuration */}
+					<div className="flex flex-col gap-2">
+						<label className="block text-sm font-medium">
+							{t("settings:contextManagement.storageConfig.qdrant.label")}
+						</label>
+						<Input
+							type="text"
+							className="w-full bg-vscode-input-background text-vscode-input-foreground border border-vscode-input-border px-2 py-1 rounded mb-2"
+							placeholder="http://localhost:6333"
+							value={qdrantUrl || ""}
+							onChange={(e) => setCachedStateField("qdrantUrl", e.target.value)}
+							data-testid="qdrant-url-input"
+						/>
+						<label className="block text-xs font-medium">
+							{t("settings:contextManagement.storageConfig.qdrant.collectionLabel")}
+						</label>
+						<Input
+							type="text"
+							className="w-full bg-vscode-input-background text-vscode-input-foreground border border-vscode-input-border px-2 py-1 rounded"
+							placeholder="roo_memory"
+							value={qdrantCollectionName || ""}
+							onChange={(e) => setCachedStateField("qdrantCollectionName", e.target.value)}
+							data-testid="qdrant-collection-input"
+						/>
+						<div className="text-vscode-descriptionForeground text-xs">
+							{t("settings:contextManagement.storageConfig.qdrant.description")}
+						</div>
 					</div>
 				</div>
 			</Section>

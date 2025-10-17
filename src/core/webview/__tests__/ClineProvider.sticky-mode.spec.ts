@@ -73,6 +73,7 @@ vi.mock("../../task/Task", () => ({
 		setRootTask: vi.fn(),
 		emit: vi.fn(),
 		parentTask: options.parentTask,
+		getSubAgentInvocations: vi.fn().mockReturnValue([]),
 	})),
 }))
 
@@ -335,6 +336,7 @@ describe("ClineProvider - Sticky Mode", () => {
 				saveClineMessages: vi.fn(),
 				clineMessages: [],
 				apiConversationHistory: [],
+				getSubAgentInvocations: vi.fn().mockReturnValue([]),
 			}
 
 			// Add task to provider stack
@@ -782,6 +784,7 @@ describe("ClineProvider - Sticky Mode", () => {
 				saveClineMessages: vi.fn(),
 				clineMessages: [],
 				apiConversationHistory: [],
+				getSubAgentInvocations: vi.fn().mockReturnValue([]),
 			}
 
 			// Add task to provider stack
@@ -848,6 +851,7 @@ describe("ClineProvider - Sticky Mode", () => {
 				}),
 				clineMessages: [],
 				apiConversationHistory: [],
+				getSubAgentInvocations: vi.fn().mockReturnValue([]),
 			}
 
 			// Add task to provider stack
@@ -899,6 +903,7 @@ describe("ClineProvider - Sticky Mode", () => {
 				saveClineMessages: vi.fn(),
 				clineMessages: [],
 				apiConversationHistory: [],
+				getSubAgentInvocations: vi.fn().mockReturnValue([]),
 			}
 
 			// Add task to provider stack
@@ -933,6 +938,7 @@ describe("ClineProvider - Sticky Mode", () => {
 				saveClineMessages: vi.fn(),
 				clineMessages: [],
 				apiConversationHistory: [],
+				getSubAgentInvocations: vi.fn().mockReturnValue([]),
 			}
 
 			// Add task to provider stack
@@ -988,6 +994,7 @@ describe("ClineProvider - Sticky Mode", () => {
 				saveClineMessages: vi.fn(),
 				clineMessages: [],
 				apiConversationHistory: [],
+				getSubAgentInvocations: vi.fn().mockReturnValue([]),
 			}
 
 			// Add task to provider stack
@@ -1034,6 +1041,7 @@ describe("ClineProvider - Sticky Mode", () => {
 				saveClineMessages: vi.fn(),
 				clineMessages: [],
 				apiConversationHistory: [],
+				getSubAgentInvocations: vi.fn().mockReturnValue([]),
 			}
 
 			const task2 = {
@@ -1043,6 +1051,7 @@ describe("ClineProvider - Sticky Mode", () => {
 				saveClineMessages: vi.fn(),
 				clineMessages: [],
 				apiConversationHistory: [],
+				getSubAgentInvocations: vi.fn().mockReturnValue([]),
 			}
 
 			const task3 = {
@@ -1052,6 +1061,7 @@ describe("ClineProvider - Sticky Mode", () => {
 				saveClineMessages: vi.fn(),
 				clineMessages: [],
 				apiConversationHistory: [],
+				getSubAgentInvocations: vi.fn().mockReturnValue([]),
 			}
 
 			// Add tasks to provider stack
@@ -1193,6 +1203,7 @@ describe("ClineProvider - Sticky Mode", () => {
 				saveClineMessages: vi.fn(),
 				clineMessages: [],
 				apiConversationHistory: [],
+				getSubAgentInvocations: vi.fn().mockReturnValue([]),
 			}))
 
 			// Add all tasks to provider

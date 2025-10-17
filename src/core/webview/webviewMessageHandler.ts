@@ -616,6 +616,18 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("codeSummarizerPrompt", message.text)
 			await provider.postStateToWebview()
 			break
+		case "redisUrl":
+			await updateGlobalState("redisUrl", message.text)
+			await provider.postStateToWebview()
+			break
+		case "qdrantUrl":
+			await updateGlobalState("qdrantUrl", message.text)
+			await provider.postStateToWebview()
+			break
+		case "qdrantCollectionName":
+			await updateGlobalState("qdrantCollectionName", message.text)
+			await provider.postStateToWebview()
+			break
 		case "autoCondenseContextPercent":
 			await updateGlobalState("autoCondenseContextPercent", message.value)
 			await provider.postStateToWebview()

@@ -64,6 +64,12 @@ export async function getTheme() {
 		// Strip comments from theme
 		let parsed = parseThemeString(currentTheme)
 
+		// If parsed is null/undefined, return undefined early
+		if (!parsed || typeof parsed !== "object") {
+			console.log("Failed to parse theme, returning undefined")
+			return undefined
+		}
+
 		if (parsed.include) {
 			const includeThemeString = await fs.readFile(
 				path.join(getExtensionUri().fsPath, "integrations", "theme", "default-themes", parsed.include),

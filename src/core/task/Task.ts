@@ -118,7 +118,10 @@ import {
 } from "../checkpoints"
 import { processUserContentMentions } from "../mentions/processUserContentMentions"
 import { getMessagesSinceLastSummary, summarizeConversation } from "../condense"
+// Import the new subagent system with backward-compatible wrapper
 import { SubAgentExecutor, SubAgentConfig, SubAgentResult } from "../condense/SubAgentExecutor"
+// TODO: Eventually migrate to new ConversationController system
+// import { ConversationController } from "../subagent/ConversationController"
 import { Gpt5Metadata, ClineMessageWithMetadata } from "./types"
 import { MessageQueueService } from "../message-queue/MessageQueueService"
 
@@ -496,7 +499,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	/**
 	 * 初始化向量记忆存储
-	 * 从CodeIndexManager获取embedder，配置并初始化VectorMemoryStore
+	 * 从CodeIndexManager获取embedder和Qdrant配置，复用代码索引的基础设施
 	 */
 	private async initializeVectorMemoryStore(provider: ClineProvider): Promise<void> {
 		try {
@@ -508,11 +511,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				return
 			}
 
-			// 获取Qdrant配置
-			const qdrantUrl = config.get<string>("vectorMemory.qdrantUrl", "http://localhost:6333")
-			const qdrantApiKey = config.get<string>("vectorMemory.qdrantApiKey")
-
-			// 从CodeIndexManager获取embedder和向量维度
+			// 从CodeIndexManager获取embedder、向量维度和Qdrant配置
 			const codeIndexManager = CodeIndexManager.getInstance(provider.context, this.cwd)
 
 			if (!codeIndexManager || !codeIndexManager.isInitialized) {
@@ -534,13 +533,21 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				return
 			}
 
+			// ✅ 核心修复：从CodeIndexManager的ConfigManager中获取Qdrant配置
+			// 复用代码索引已配置的Qdrant连接，而不是单独配置
+			const qdrantConfig = codeIndexManager.getQdrantConfig()
+			if (!qdrantConfig.url) {
+				console.warn("Qdrant URL not configured in code indexing, skipping VectorMemoryStore initialization")
+				return
+			}
+
 			// 生成项目ID（基于工作空间路径）
 			const projectId = this.cwd
 
-			// 配置VectorMemoryStore
+			// 配置VectorMemoryStore - 使用代码索引的Qdrant配置
 			const vectorMemoryConfig: VectorMemoryStoreConfig = {
-				qdrantUrl,
-				qdrantApiKey,
+				qdrantUrl: qdrantConfig.url,
+				qdrantApiKey: qdrantConfig.apiKey,
 				vectorSize,
 				workspacePath: this.cwd,
 				projectId,
@@ -550,7 +557,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			this.vectorMemoryStore = new VectorMemoryStore(embedder, vectorMemoryConfig)
 			await this.vectorMemoryStore.initialize()
 
-			console.log("VectorMemoryStore initialized successfully")
+			console.log(
+				`VectorMemoryStore initialized successfully using code indexing Qdrant config: ${qdrantConfig.url}`,
+			)
 		} catch (error) {
 			console.error("Error initializing VectorMemoryStore:", error)
 			// 非关键功能，记录错误但不抛出

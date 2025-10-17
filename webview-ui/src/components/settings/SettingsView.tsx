@@ -203,6 +203,9 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		contextAnalyzerPrompt,
 		memoryExtractorPrompt,
 		codeSummarizerPrompt,
+		redisUrl,
+		qdrantUrl,
+		qdrantCollectionName,
 	} = cachedState
 
 	const apiConfiguration = useMemo(() => cachedState.apiConfiguration ?? {}, [cachedState.apiConfiguration])
@@ -400,6 +403,9 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			vscode.postMessage({ type: "contextAnalyzerPrompt", text: contextAnalyzerPrompt || undefined })
 			vscode.postMessage({ type: "memoryExtractorPrompt", text: memoryExtractorPrompt || undefined })
 			vscode.postMessage({ type: "codeSummarizerPrompt", text: codeSummarizerPrompt || undefined })
+			vscode.postMessage({ type: "redisUrl", text: redisUrl || "" })
+			vscode.postMessage({ type: "qdrantUrl", text: qdrantUrl || "" })
+			vscode.postMessage({ type: "qdrantCollectionName", text: qdrantCollectionName || "" })
 			vscode.postMessage({ type: "upsertApiConfiguration", text: currentApiConfigName, apiConfiguration })
 			vscode.postMessage({ type: "telemetrySetting", text: telemetrySetting })
 			vscode.postMessage({ type: "profileThresholds", values: profileThresholds })
@@ -768,6 +774,9 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 							contextAnalyzerPrompt={contextAnalyzerPrompt}
 							memoryExtractorPrompt={memoryExtractorPrompt}
 							codeSummarizerPrompt={codeSummarizerPrompt}
+							redisUrl={redisUrl}
+							qdrantUrl={qdrantUrl}
+							qdrantCollectionName={qdrantCollectionName}
 							setCachedStateField={setCachedStateField}
 						/>
 					)}

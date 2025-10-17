@@ -72,6 +72,13 @@ export interface ExtensionStateContextType extends ExtensionState {
 	setMemoryExtractorPrompt: (value: string) => void
 	codeSummarizerPrompt?: string
 	setCodeSummarizerPrompt: (value: string) => void
+	// Storage configuration URLs
+	redisUrl?: string
+	setRedisUrl: (value: string) => void
+	qdrantUrl?: string
+	setQdrantUrl: (value: string) => void
+	qdrantCollectionName?: string
+	setQdrantCollectionName: (value: string) => void
 	setApiConfiguration: (config: ProviderSettings) => void
 	setCustomInstructions: (value?: string) => void
 	setAlwaysAllowReadOnly: (value: boolean) => void
@@ -282,6 +289,10 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		contextAnalyzerPrompt: undefined,
 		memoryExtractorPrompt: undefined,
 		codeSummarizerPrompt: undefined,
+		// Storage configuration URLs
+		redisUrl: "",
+		qdrantUrl: "",
+		qdrantCollectionName: "",
 		profileThresholds: {},
 		codebaseIndexConfig: {
 			codebaseIndexEnabled: true,
@@ -605,6 +616,13 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		setMemoryExtractorPrompt: (value) => setState((prevState) => ({ ...prevState, memoryExtractorPrompt: value })),
 		codeSummarizerPrompt: state.codeSummarizerPrompt,
 		setCodeSummarizerPrompt: (value) => setState((prevState) => ({ ...prevState, codeSummarizerPrompt: value })),
+		// Storage configuration URLs
+		redisUrl: state.redisUrl,
+		setRedisUrl: (value) => setState((prevState) => ({ ...prevState, redisUrl: value })),
+		qdrantUrl: state.qdrantUrl,
+		setQdrantUrl: (value) => setState((prevState) => ({ ...prevState, qdrantUrl: value })),
+		qdrantCollectionName: state.qdrantCollectionName,
+		setQdrantCollectionName: (value) => setState((prevState) => ({ ...prevState, qdrantCollectionName: value })),
 	}
 
 	return <ExtensionStateContext.Provider value={contextValue}>{children}</ExtensionStateContext.Provider>

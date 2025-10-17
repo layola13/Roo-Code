@@ -23,6 +23,7 @@ import { TaskActions } from "./TaskActions"
 import { ContextWindowProgress } from "./ContextWindowProgress"
 import { Mention } from "./Mention"
 import { TodoListDisplay } from "./TodoListDisplay"
+import StorageStatusIndicator, { StorageStatus } from "./StorageStatusIndicator"
 
 export interface TaskHeaderProps {
 	task: ClineMessage
@@ -46,6 +47,8 @@ export interface TaskHeaderProps {
 	useContextAnalyzer?: boolean
 	useMemoryExtractor?: boolean
 	useCodeSummarizer?: boolean
+	// Storage status
+	storageStatus?: StorageStatus
 }
 
 const TaskHeader = ({
@@ -64,6 +67,7 @@ const TaskHeader = ({
 	useContextAnalyzer,
 	useMemoryExtractor,
 	useCodeSummarizer,
+	storageStatus,
 }: TaskHeaderProps) => {
 	const { t } = useTranslation()
 	const { apiConfiguration, currentTaskItem, clineMessages, subAgentInvocations } = useExtensionState()
@@ -604,6 +608,18 @@ const TaskHeader = ({
 											</div>
 										</td>
 									</tr>
+
+									{/* Storage status row */}
+									{storageStatus && (
+										<tr>
+											<th className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-3 h-[24px]">
+												{t("chat:task.storage")}
+											</th>
+											<td className="align-top">
+												<StorageStatusIndicator status={storageStatus} compact={false} />
+											</td>
+										</tr>
+									)}
 								</tbody>
 							</table>
 						</div>
