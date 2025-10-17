@@ -277,7 +277,16 @@
 		"title": "Contesto condensato",
 		"condensing": "Condensazione del contesto...",
 		"errorHeader": "Impossibile condensare il contesto",
-		"tokens": "token"
+		"tokens": "token",
+		"subAgents": "sub-agents",
+		"statistics": "Compression Statistics",
+		"before": "Before",
+		"after": "After",
+		"reduced": "Reduced",
+		"ratio": "Compression Ratio",
+		"subAgentDetails": "Sub-Agent Details",
+		"summary": "Summary",
+		"compressedBy": "Compressed by {{apiConfig}} model"
 	},
 	"followUpSuggest": {
 		"copyToInput": "Copia nell'input (o Shift + clic)",

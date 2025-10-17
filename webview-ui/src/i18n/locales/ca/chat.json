@@ -277,7 +277,16 @@
 		"title": "Context condensat",
 		"condensing": "Condensant context...",
 		"errorHeader": "Error en condensar el context",
-		"tokens": "tokens"
+		"tokens": "tokens",
+		"subAgents": "sub-agents",
+		"statistics": "Compression Statistics",
+		"before": "Before",
+		"after": "After",
+		"reduced": "Reduced",
+		"ratio": "Compression Ratio",
+		"subAgentDetails": "Sub-Agent Details",
+		"summary": "Summary",
+		"compressedBy": "Compressed by {{apiConfig}} model"
 	},
 	"followUpSuggest": {
 		"copyToInput": "Copiar a l'entrada (o Shift + clic)",

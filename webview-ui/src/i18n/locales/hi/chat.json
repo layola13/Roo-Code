@@ -277,7 +277,16 @@
 		"title": "संदर्भ संक्षिप्त किया गया",
 		"condensing": "संदर्भ संघनित कर रहा है...",
 		"errorHeader": "संदर्भ संघनित करने में विफल",
-		"tokens": "टोकन"
+		"tokens": "टोकन",
+		"subAgents": "sub-agents",
+		"statistics": "Compression Statistics",
+		"before": "Before",
+		"after": "After",
+		"reduced": "Reduced",
+		"ratio": "Compression Ratio",
+		"subAgentDetails": "Sub-Agent Details",
+		"summary": "Summary",
+		"compressedBy": "Compressed by {{apiConfig}} model"
 	},
 	"followUpSuggest": {
 		"copyToInput": "इनपुट में कॉपी करें (या Shift + क्लिक)",

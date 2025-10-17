@@ -277,7 +277,16 @@
 		"title": "컨텍스트 요약됨",
 		"condensing": "컨텍스트 압축 중...",
 		"errorHeader": "컨텍스트 압축 실패",
-		"tokens": "토큰"
+		"tokens": "토큰",
+		"subAgents": "하위 에이전트",
+		"statistics": "압축 통계",
+		"before": "압축 전",
+		"after": "압축 후",
+		"reduced": "감소",
+		"ratio": "압축률",
+		"subAgentDetails": "하위 에이전트 세부 정보",
+		"summary": "요약",
+		"compressedBy": "{{apiConfig}} 모델로 압축"
 	},
 	"followUpSuggest": {
 		"copyToInput": "입력창에 복사 (또는 Shift + 클릭)",

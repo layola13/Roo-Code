@@ -172,7 +172,16 @@
 		"title": "Konteks Dikondensasi",
 		"condensing": "Mengondensasi konteks...",
 		"errorHeader": "Gagal mengondensasi konteks",
-		"tokens": "token"
+		"tokens": "token",
+		"subAgents": "sub-agents",
+		"statistics": "Compression Statistics",
+		"before": "Before",
+		"after": "After",
+		"reduced": "Reduced",
+		"ratio": "Compression Ratio",
+		"subAgentDetails": "Sub-Agent Details",
+		"summary": "Summary",
+		"compressedBy": "Compressed by {{apiConfig}} model"
 	},
 	"instructions": {
 		"wantsToFetch": "Roo ingin mengambil instruksi detail untuk membantu tugas saat ini"

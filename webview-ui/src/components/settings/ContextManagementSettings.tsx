@@ -99,7 +99,7 @@ export const ContextManagementSettings = ({
 	...props
 }: ContextManagementSettingsProps) => {
 	const { t } = useAppTranslation()
-	const { subagentApiConfigId, setSubagentApiConfigId } = useExtensionState()
+	const { condensingApiConfigId, setCondensingApiConfigId } = useExtensionState()
 	const [selectedThresholdProfile, setSelectedThresholdProfile] = React.useState<string>("default")
 
 	// 🔍 DEBUG: Log current state and defaults
@@ -605,12 +605,12 @@ export const ContextManagementSettings = ({
 										"Subagent API Configuration"}
 								</label>
 								<Select
-									value={subagentApiConfigId || "-"}
+									value={condensingApiConfigId || "-"}
 									onValueChange={(value) => {
 										const newConfigId = value === "-" ? "" : value
-										setSubagentApiConfigId(newConfigId)
+										setCondensingApiConfigId(newConfigId)
 										vscode.postMessage({
-											type: "subagentApiConfigId",
+											type: "condensingApiConfigId",
 											text: newConfigId,
 										})
 									}}

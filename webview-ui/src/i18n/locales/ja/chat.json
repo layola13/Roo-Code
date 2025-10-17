@@ -277,7 +277,16 @@
 		"title": "コンテキスト要約",
 		"condensing": "コンテキストを圧縮中...",
 		"errorHeader": "コンテキストの圧縮に失敗しました",
-		"tokens": "トークン"
+		"tokens": "トークン",
+		"subAgents": "サブエージェント",
+		"statistics": "圧縮統計",
+		"before": "圧縮前",
+		"after": "圧縮後",
+		"reduced": "削減",
+		"ratio": "圧縮率",
+		"subAgentDetails": "サブエージェント詳細",
+		"summary": "概要",
+		"compressedBy": "{{apiConfig}} モデルで圧縮"
 	},
 	"followUpSuggest": {
 		"copyToInput": "入力欄にコピー（またはShift + クリック）",

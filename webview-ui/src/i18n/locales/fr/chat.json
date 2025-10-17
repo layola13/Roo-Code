@@ -277,7 +277,16 @@
 		"title": "Contexte condensé",
 		"condensing": "Condensation du contexte...",
 		"errorHeader": "Échec de la condensation du contexte",
-		"tokens": "tokens"
+		"tokens": "tokens",
+		"subAgents": "sous-agents",
+		"statistics": "Statistiques de compression",
+		"before": "Avant",
+		"after": "Après",
+		"reduced": "Réduit",
+		"ratio": "Taux de compression",
+		"subAgentDetails": "Détails du sous-agent",
+		"summary": "Résumé",
+		"compressedBy": "Compressé par le modèle {{apiConfig}}"
 	},
 	"followUpSuggest": {
 		"copyToInput": "Copier vers l'entrée (ou Shift + clic)",

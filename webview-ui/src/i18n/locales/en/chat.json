@@ -184,7 +184,8 @@
 		"reduced": "Reduced",
 		"ratio": "Compression Ratio",
 		"subAgentDetails": "Sub-Agent Details",
-		"summary": "Summary"
+		"summary": "Summary",
+		"compressedBy": "Compressed by {{apiConfig}} model"
 	},
 	"instructions": {
 		"wantsToFetch": "Roo wants to fetch detailed instructions to assist with the current task"

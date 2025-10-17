@@ -278,7 +278,16 @@
 		"title": "Ngữ cảnh đã tóm tắt",
 		"condensing": "Đang cô đọng ngữ cảnh...",
 		"errorHeader": "Không thể cô đọng ngữ cảnh",
-		"tokens": "token"
+		"tokens": "token",
+		"subAgents": "sub-agents",
+		"statistics": "Compression Statistics",
+		"before": "Before",
+		"after": "After",
+		"reduced": "Reduced",
+		"ratio": "Compression Ratio",
+		"subAgentDetails": "Sub-Agent Details",
+		"summary": "Summary",
+		"compressedBy": "Compressed by {{apiConfig}} model"
 	},
 	"followUpSuggest": {
 		"copyToInput": "Sao chép vào ô nhập liệu (hoặc Shift + nhấp chuột)",

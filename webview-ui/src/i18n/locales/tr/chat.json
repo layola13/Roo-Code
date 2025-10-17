@@ -278,7 +278,16 @@
 		"title": "Bağlam Özetlendi",
 		"condensing": "Bağlam yoğunlaştırılıyor...",
 		"errorHeader": "Bağlam yoğunlaştırılamadı",
-		"tokens": "token"
+		"tokens": "token",
+		"subAgents": "sub-agents",
+		"statistics": "Compression Statistics",
+		"before": "Before",
+		"after": "After",
+		"reduced": "Reduced",
+		"ratio": "Compression Ratio",
+		"subAgentDetails": "Sub-Agent Details",
+		"summary": "Summary",
+		"compressedBy": "Compressed by {{apiConfig}} model"
 	},
 	"followUpSuggest": {
 		"copyToInput": "Giriş alanına kopyala (veya Shift + tıklama)",

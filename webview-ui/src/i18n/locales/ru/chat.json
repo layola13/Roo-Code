@@ -289,7 +289,16 @@
 		"title": "Контекст сжат",
 		"condensing": "Сжатие контекста...",
 		"errorHeader": "Не удалось сжать контекст",
-		"tokens": "токены"
+		"tokens": "токены",
+		"subAgents": "подагенты",
+		"statistics": "Статистика сжатия",
+		"before": "До",
+		"after": "После",
+		"reduced": "Уменьшено",
+		"ratio": "Степень сжатия",
+		"subAgentDetails": "Детали подагента",
+		"summary": "Резюме",
+		"compressedBy": "Сжато моделью {{apiConfig}}"
 	},
 	"followUpSuggest": {
 		"copyToInput": "Скопировать во ввод (то же, что shift + клик)",

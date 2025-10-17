@@ -277,7 +277,16 @@
 		"title": "Kontekst skondensowany",
 		"condensing": "Kondensowanie kontekstu...",
 		"errorHeader": "Nie udało się skondensować kontekstu",
-		"tokens": "tokeny"
+		"tokens": "tokeny",
+		"subAgents": "sub-agents",
+		"statistics": "Compression Statistics",
+		"before": "Before",
+		"after": "After",
+		"reduced": "Reduced",
+		"ratio": "Compression Ratio",
+		"subAgentDetails": "Sub-Agent Details",
+		"summary": "Summary",
+		"compressedBy": "Compressed by {{apiConfig}} model"
 	},
 	"followUpSuggest": {
 		"copyToInput": "Kopiuj do pola wprowadzania (lub Shift + kliknięcie)",

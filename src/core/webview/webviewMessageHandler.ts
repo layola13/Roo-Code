@@ -1689,11 +1689,9 @@ export const webviewMessageHandler = async (
 			await provider.postStateToWebview()
 			break
 		case "condensingApiConfigId":
-			await updateGlobalState("condensingApiConfigId", message.text)
-			await provider.postStateToWebview()
-			break
 		case "subagentApiConfigId":
-			await updateGlobalState("subagentApiConfigId", message.text)
+			// Both message types update the same unified config
+			await updateGlobalState("condensingApiConfigId", message.text)
 			await provider.postStateToWebview()
 			break
 		case "updateCondensingPrompt":

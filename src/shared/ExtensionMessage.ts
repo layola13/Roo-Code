@@ -290,8 +290,8 @@ export type ExtensionState = Pick<
 	| "customModePrompts"
 	| "customSupportPrompts"
 	| "enhancementApiConfigId"
-	| "condensingApiConfigId"
-	| "subagentApiConfigId"
+	| "condensingApiConfigId" // Unified API config for all compression scenarios (auto-compress + subagent)
+	| "subagentApiConfigId" // Legacy: now unified with condensingApiConfigId for backward compatibility
 	| "customCondensingPrompt"
 	| "codebaseIndexConfig"
 	| "codebaseIndexModels"

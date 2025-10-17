@@ -277,7 +277,16 @@
 		"title": "Kontext komprimiert",
 		"condensing": "Kontext wird komprimiert...",
 		"errorHeader": "Kontext konnte nicht komprimiert werden",
-		"tokens": "Tokens"
+		"tokens": "Tokens",
+		"subAgents": "Sub-Agenten",
+		"statistics": "Kompressionsstatistiken",
+		"before": "Vorher",
+		"after": "Nachher",
+		"reduced": "Reduziert",
+		"ratio": "Kompressionsrate",
+		"subAgentDetails": "Sub-Agent-Details",
+		"summary": "Zusammenfassung",
+		"compressedBy": "Komprimiert mit {{apiConfig}} Modell"
 	},
 	"followUpSuggest": {
 		"copyToInput": "In Eingabefeld kopieren (oder Shift + Klick)",

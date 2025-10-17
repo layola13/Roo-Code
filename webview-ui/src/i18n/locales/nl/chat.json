@@ -288,7 +288,16 @@
 		"title": "Context samengevat",
 		"condensing": "Context aan het samenvatten...",
 		"errorHeader": "Context samenvatten mislukt",
-		"tokens": "tokens"
+		"tokens": "tokens",
+		"subAgents": "sub-agents",
+		"statistics": "Compression Statistics",
+		"before": "Before",
+		"after": "After",
+		"reduced": "Reduced",
+		"ratio": "Compression Ratio",
+		"subAgentDetails": "Sub-Agent Details",
+		"summary": "Summary",
+		"compressedBy": "Compressed by {{apiConfig}} model"
 	},
 	"followUpSuggest": {
 		"copyToInput": "Kopiëren naar invoer (zelfde als shift + klik)",
