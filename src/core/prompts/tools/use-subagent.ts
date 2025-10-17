@@ -8,6 +8,20 @@ export function getUseSubagentDescription(args: ToolArgs): string {
 	return `## use_subagent
 Description: Delegate specialized analysis to isolated subagents for context management and structured insights. Subagents run in separate contexts with focused prompts optimized for specific analysis types.
 
+**🔑 CRITICAL: How to Invoke This Tool**
+
+You MUST use the standard tool call syntax to invoke subagents. This is the ONLY way that works:
+
+\`\`\`xml
+<use_subagent>
+<agent_name>condense-memory-extractor</agent_name>
+<task>Extract critical decisions from last 20 messages</task>
+<context>Focus on user requirements and technical constraints</context>
+</use_subagent>
+\`\`\`
+
+**Place the tool call at the END of your response**, after any explanatory text about why you're calling it.
+
 **AUTO-TRIGGER CONDITIONS:**
 
 🔴 **CRITICAL - Proactive Compression (High Priority)**:

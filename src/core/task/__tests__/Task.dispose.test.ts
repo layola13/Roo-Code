@@ -384,4 +384,154 @@ describe("Task disposal and resource cleanup", () => {
 
 		consoleLogSpy.mockRestore()
 	})
+
+	// 🔴 NEW TEST: Memory leak fix - Base64 image data cleanup
+	it("should prevent memory leak from Base64 image data in clineMessages", async () => {
+		task = new Task({
+			provider: mockProvider as ClineProvider,
+			apiConfiguration: mockApiConfiguration,
+			task: "test task",
+			startTask: false,
+		})
+
+		// Simulate messages with large Base64 image data (10KB each)
+		const largeBase64Image = "data:image/png;base64," + "A".repeat(10000)
+		await task["addToClineMessages"]({
+			ts: Date.now(),
+			type: "say",
+			say: "text",
+			text: "Image message 1",
+			images: [largeBase64Image],
+		})
+		await task["addToClineMessages"]({
+			ts: Date.now(),
+			type: "say",
+			say: "text",
+			text: "Image message 2",
+			images: [largeBase64Image],
+		})
+
+		// Verify messages with images exist
+		expect(task.clineMessages.length).toBe(2)
+		expect(task.clineMessages[0].images).toBeDefined()
+		expect(task.clineMessages[0].images![0].length).toBeGreaterThan(5000)
+
+		task.dispose()
+
+		// 🔴 CRITICAL: All image data should be cleared to prevent memory leak
+		expect(task.clineMessages).toHaveLength(0)
+	})
+
+	// 🔴 NEW TEST: Memory leak fix - Base64 image data in API history cleanup
+	it("should prevent memory leak from Base64 image data in apiConversationHistory", async () => {
+		task = new Task({
+			provider: mockProvider as ClineProvider,
+			apiConfiguration: mockApiConfiguration,
+			task: "test task",
+			startTask: false,
+		})
+
+		// Simulate API conversation history with large Base64 images (10KB each)
+		const largeBase64Data = "A".repeat(10000)
+		task["apiConversationHistory"] = [
+			{
+				role: "user",
+				content: [
+					{ type: "text", text: "Hello" },
+					{
+						type: "image",
+						source: {
+							type: "base64",
+							media_type: "image/png",
+							data: largeBase64Data,
+						},
+					},
+				],
+				ts: Date.now(),
+			},
+			{
+				role: "assistant",
+				content: [{ type: "text", text: "Response" }],
+				ts: Date.now(),
+			},
+		]
+
+		// Verify API history with images exists
+		expect(task.apiConversationHistory.length).toBe(2)
+		const content = task.apiConversationHistory[0].content
+		if (Array.isArray(content)) {
+			const imageContent = content.find((c: any) => c.type === "image")
+			expect(imageContent).toBeDefined()
+			expect((imageContent as any).source.data.length).toBeGreaterThan(5000)
+		}
+
+		task.dispose()
+
+		// 🔴 CRITICAL: All API history including image data should be cleared
+		expect(task.apiConversationHistory).toHaveLength(0)
+	})
+
+	// 🔴 NEW TEST: Verify subAgentInvocations cleanup
+	it("should clear subAgentInvocations array on dispose", async () => {
+		task = new Task({
+			provider: mockProvider as ClineProvider,
+			apiConfiguration: mockApiConfiguration,
+			task: "test task",
+			startTask: false,
+		})
+
+		// Add mock subagent invocations
+		task["subAgentInvocations"] = [
+			{
+				agentName: "condense-memory-extractor",
+				timestamp: Date.now(),
+				triggerType: "tool_call",
+				tokensIn: 1000,
+				tokensOut: 500,
+				cost: 0.01,
+				success: true,
+			},
+			{
+				agentName: "condense-context-analyzer",
+				timestamp: Date.now(),
+				triggerType: "auto_compress",
+				tokensIn: 800,
+				tokensOut: 400,
+				cost: 0.008,
+				success: true,
+			},
+		]
+
+		expect(task["subAgentInvocations"].length).toBe(2)
+
+		task.dispose()
+
+		// Verify subAgentInvocations is cleared
+		expect(task["subAgentInvocations"]).toHaveLength(0)
+	})
+
+	// 🔴 NEW TEST: Verify todoList cleanup
+	it("should clear todoList on dispose", async () => {
+		task = new Task({
+			provider: mockProvider as ClineProvider,
+			apiConfiguration: mockApiConfiguration,
+			task: "test task",
+			startTask: false,
+		})
+
+		// Add todoList data
+		task.todoList = [
+			{ id: "1", content: "Task 1", status: "pending" },
+			{ id: "2", content: "Task 2", status: "in_progress" },
+			{ id: "3", content: "Task 3", status: "completed" },
+		]
+
+		expect(task.todoList).toBeDefined()
+		expect(task.todoList!.length).toBe(3)
+
+		task.dispose()
+
+		// Verify todoList is cleared
+		expect(task.todoList).toBeUndefined()
+	})
 })
