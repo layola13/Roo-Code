@@ -240,6 +240,7 @@ export const clineMessageSchema = z.object({
 	partial: z.boolean().optional(),
 	reasoning: z.string().optional(),
 	conversationHistoryIndex: z.number().optional(),
+	messageIndex: z.number().optional(), // Global unique message index for intelligent context system
 	checkpoint: z.record(z.string(), z.unknown()).optional(),
 	progressStatus: toolProgressStatusSchema.optional(),
 	contextCondense: contextCondenseSchema.optional(),

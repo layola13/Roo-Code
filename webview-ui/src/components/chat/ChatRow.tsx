@@ -349,6 +349,17 @@ export const ChatRowContent = ({
 	// 格式化消息时间戳
 	const messageTime = useMemo(() => formatMessageTime(message.ts), [message.ts])
 
+	// 消息索引号显示
+	const messageIndexBadge =
+		message.messageIndex !== undefined && message.messageIndex !== null ? (
+			<span
+				className="text-xs px-1.5 py-0.5 rounded bg-vscode-badge-background text-vscode-badge-foreground font-mono"
+				style={{ opacity: 0.7 }}
+				title={`Message Index: #${message.messageIndex}`}>
+				#{message.messageIndex}
+			</span>
+		) : null
+
 	const tool = useMemo(
 		() => (message.ask === "tool" ? safeJsonParse<ClineSayTool>(message.text) : null),
 		[message.ask, message.text],
@@ -388,6 +399,7 @@ export const ChatRowContent = ({
 								<span style={{ fontWeight: "bold" }}>
 									{t("chat:fileOperations.wantsToApplyBatchChanges")}
 								</span>
+								{messageIndexBadge}
 								<span className="ml-auto text-xs text-vscode-descriptionForeground opacity-60">
 									{messageTime}
 								</span>
@@ -416,6 +428,7 @@ export const ChatRowContent = ({
 										? t("chat:fileOperations.wantsToEditOutsideWorkspace")
 										: t("chat:fileOperations.wantsToEdit")}
 							</span>
+							{messageIndexBadge}
 							<span className="ml-auto text-xs text-vscode-descriptionForeground opacity-60">
 								{messageTime}
 							</span>
@@ -1188,6 +1201,7 @@ export const ChatRowContent = ({
 							<div style={headerStyle}>
 								<MessageCircle className="w-4 shrink-0" aria-label="Speech bubble icon" />
 								<span style={{ fontWeight: "bold" }}>{t("chat:text.rooSaid")}</span>
+								{messageIndexBadge}
 								<span className="ml-auto text-xs text-vscode-descriptionForeground opacity-60">
 									{messageTime}
 								</span>
@@ -1210,6 +1224,7 @@ export const ChatRowContent = ({
 							<div style={headerStyle}>
 								<User className="w-4 shrink-0" aria-label="User icon" />
 								<span style={{ fontWeight: "bold" }}>{t("chat:feedback.youSaid")}</span>
+								{messageIndexBadge}
 								<span className="ml-auto text-xs text-vscode-descriptionForeground opacity-60">
 									{messageTime}
 								</span>
@@ -1303,6 +1318,7 @@ export const ChatRowContent = ({
 							<div style={headerStyle}>
 								{icon}
 								{title}
+								{messageIndexBadge}
 								<span className="ml-auto text-xs text-vscode-descriptionForeground opacity-60">
 									{messageTime}
 								</span>
