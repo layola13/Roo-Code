@@ -24,6 +24,30 @@ export interface RoutingRule {
 }
 
 /**
+ * Token budget allocation for each subagent
+ */
+export interface TokenBudget {
+	agent: SubagentName
+	allocatedTokens: number
+	priority: number
+	reasoning: string
+}
+
+/**
+ * Task complexity analysis result
+ */
+export interface ComplexityAnalysis {
+	level: "simple" | "moderate" | "complex"
+	score: number
+	factors: {
+		messageCount: number
+		hasCode: boolean
+		hasMultipleTopics: boolean
+		requiresCrossReference: boolean
+	}
+}
+
+/**
  * RoutingEngine - Routes requests to appropriate subagents
  */
 export class RoutingEngine {
