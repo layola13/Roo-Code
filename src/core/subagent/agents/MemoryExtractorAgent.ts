@@ -10,8 +10,9 @@ import { maybeRemoveImageBlocks } from "../../../api/transform/image-cleaning"
 import { DEFAULT_SUBAGENT_PROMPTS } from "../../../shared/subagent-prompts"
 import { VectorMemoryStore } from "../../memory/VectorMemoryStore"
 import { MemoryEntry, MemoryType, MemoryPriority } from "../../memory/ConversationMemory"
+import { HistoricalMessage, AgentSearchResult, ExpertAgent } from "../types-intelligent-context"
 
-export class MemoryExtractorAgent implements SubagentInterface {
+export class MemoryExtractorAgent implements SubagentInterface, ExpertAgent {
 	readonly name = "condense-memory-extractor"
 	readonly defaultTask = "Extract critical information, decisions, and requirements from the conversation"
 
@@ -257,5 +258,145 @@ export class MemoryExtractorAgent implements SubagentInterface {
 			/\b(react|vue|angular|express|fastapi|django|postgresql|mongodb|redis|jwt|oauth|graphql|rest|typescript|javascript|python|java|go|rust|docker|kubernetes)\b/gi
 		const matches = context.match(techPattern)
 		return matches ? [...new Set(matches.map((m) => m.toLowerCase()))] : []
+	}
+
+	/**
+	 * 实现ExpertAgent接口：从候选消息中选择相关的
+	 * 记忆提取器关注包含决策、需求和关键信息的消息
+	 */
+	async selectRelevantMessages(userMessage: string, candidates: HistoricalMessage[]): Promise<AgentSearchResult> {
+		const startTime = Date.now()
+
+		try {
+			const selectedIndices: number[] = []
+			const relevanceScores = new Map<number, number>()
+
+			if (candidates.length === 0) {
+				return {
+					agentName: this.name,
+					selectedIndices: [],
+					relevanceScores: new Map(),
+					reasoning: "No candidate messages available",
+					executionTime: Date.now() - startTime,
+					success: true,
+				}
+			}
+
+			// 检测决策和需求相关的关键词
+			const decisionKeywords = [
+				"decide",
+				"decision",
+				"require",
+				"must",
+				"should",
+				"need",
+				"important",
+				"critical",
+				"remember",
+				"note",
+				"configure",
+				"决定",
+				"需求",
+				"必须",
+				"应该",
+				"重要",
+				"关键",
+				"记住",
+				"注意",
+				"配置",
+			]
+
+			const userLower = userMessage.toLowerCase()
+			const userHasDecisionContext = decisionKeywords.some((kw) => userLower.includes(kw))
+
+			for (const candidate of candidates) {
+				const content =
+					typeof candidate.content === "string"
+						? candidate.content
+						: candidate.content.map((block: any) => (block.type === "text" ? block.text : "")).join(" ")
+
+				const contentLower = content.toLowerCase()
+				let score = 0
+
+				// 1. 用户消息包含关键词
+				if (candidate.role === "user") {
+					for (const keyword of decisionKeywords) {
+						if (contentLower.includes(keyword)) {
+							score += 0.3
+							break
+						}
+					}
+				}
+
+				// 2. 包含配置信息
+				if (contentLower.match(/\b(config|setup|install|port|url|api[_\s]?key)\b/)) {
+					score += 0.2
+				}
+
+				// 3. 包含技术决策
+				if (contentLower.match(/\b(use|using|implement|adopt|choose|select)\b/)) {
+					score += 0.15
+				}
+
+				// 4. 包含错误或问题（重要上下文）
+				if (contentLower.match(/\b(error|issue|problem|bug|fail)\b/)) {
+					score += 0.15
+				}
+
+				// 5. 简短的用户指令（通常很重要）
+				if (candidate.role === "user" && content.length < 200 && content.length > 20) {
+					score += 0.1
+				}
+
+				// 6. 如果用户当前消息有决策上下文，优先选择助手的相关回复
+				if (userHasDecisionContext && candidate.role === "assistant") {
+					score += 0.1
+				}
+
+				// 如果分数足够高，选中这条消息
+				if (score >= 0.3) {
+					selectedIndices.push(candidate.messageIndex)
+					relevanceScores.set(candidate.messageIndex, Math.min(score, 1.0))
+				}
+			}
+
+			// 如果选中的消息太少，添加最近的几条
+			if (selectedIndices.length < 3) {
+				const recentMessages = candidates.sort((a, b) => b.timestamp - a.timestamp).slice(0, 5)
+
+				for (const msg of recentMessages) {
+					if (!selectedIndices.includes(msg.messageIndex)) {
+						selectedIndices.push(msg.messageIndex)
+						relevanceScores.set(msg.messageIndex, 0.5)
+					}
+				}
+			}
+
+			// 限制最多20条消息
+			const finalIndices = selectedIndices.slice(0, 20)
+			const finalScores = new Map<number, number>()
+			for (const idx of finalIndices) {
+				finalScores.set(idx, relevanceScores.get(idx) || 0.5)
+			}
+
+			return {
+				agentName: this.name,
+				selectedIndices: finalIndices,
+				relevanceScores: finalScores,
+				reasoning: `Selected ${finalIndices.length} messages containing decisions, requirements, and critical information`,
+				executionTime: Date.now() - startTime,
+				success: true,
+			}
+		} catch (error) {
+			return {
+				agentName: this.name,
+				selectedIndices: [],
+				relevanceScores: new Map(),
+				reasoning: `Error: ${error instanceof Error ? error.message : String(error)}`,
+				executionTime: Date.now() - startTime,
+				success: false,
+				error: error instanceof Error ? error.message : String(error),
+			}
+		}
 	}
 }
