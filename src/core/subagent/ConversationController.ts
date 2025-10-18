@@ -7,6 +7,8 @@
  * - ExecutionScheduler for task management
  * - PerformanceMonitor for metrics
  * - ContextManager for context compression
+ * - VectorMemoryStore for semantic memory (from core/memory)
+ * - TieredStorageManager for tiered storage
  */
 
 import { ApiHandler } from "../../api"
@@ -17,6 +19,7 @@ import { PerformanceMonitor } from "./monitoring/PerformanceMonitor"
 import { ContextManager } from "./context/ContextManager"
 import { CompressionQueue } from "./queue/CompressionQueue"
 import { VectorMemoryStore } from "../memory/VectorMemoryStore"
+import { TieredStorageManager } from "./storage/TieredStorageManager"
 import { SubagentParams, SubagentResult, AgentContext, SubagentName, CompressionTask } from "./types"
 
 // Import agents

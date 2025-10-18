@@ -42,6 +42,11 @@ export type { ScheduledTask, SchedulerOptions } from "./routing/ExecutionSchedul
 export { PerformanceMonitor } from "./monitoring/PerformanceMonitor"
 export type { PerformanceMetrics, ExecutionRecord } from "./monitoring/PerformanceMonitor"
 
+// Storage & Queue
+export { TieredStorageManager } from "./storage/TieredStorageManager"
+export { CompressionQueue } from "./queue/CompressionQueue"
+export type { CompressionQueueOptions, QueueStats } from "./queue/CompressionQueue"
+
 // Main Controller
 export { ConversationController } from "./ConversationController"
 export type { ControllerOptions } from "./ConversationController"

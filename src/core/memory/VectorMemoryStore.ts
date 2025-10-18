@@ -2,6 +2,7 @@ import { IEmbedder, EmbeddingResponse } from "../../services/code-index/interfac
 import { IVectorStore, PointStruct, VectorStoreSearchResult } from "../../services/code-index/interfaces/vector-store"
 import { QdrantVectorStore } from "../../services/code-index/vector-store/qdrant-client"
 import { MemoryEntry, MemoryPriority, MemoryType } from "./ConversationMemory"
+import { RedisHotCache } from "./RedisHotCache"
 import { createHash } from "crypto"
 
 /**
@@ -45,9 +46,10 @@ export interface MemorySearchResult {
 }
 
 /**
- * VectorMemoryStore配置
+ * VectorMemoryStore配置（两层存储架构）
  */
 export interface VectorMemoryStoreConfig {
+	// L2层：Qdrant向量存储配置
 	/** Qdrant服务器URL */
 	qdrantUrl: string
 	/** Qdrant API Key（可选） */
@@ -58,17 +60,28 @@ export interface VectorMemoryStoreConfig {
 	workspacePath: string
 	/** 项目ID（用于跨对话记忆） */
 	projectId?: string
+
+	// L1层：Redis热缓存配置（可选）
+	/** Redis连接URL（如redis://localhost:6379） */
+	redisUrl?: string
+	/** 是否启用Redis缓存（默认false） */
+	enableRedisCache?: boolean
+	/** Redis缓存TTL（秒，默认3600） */
+	redisCacheTtl?: number
 }
 
 /**
- * 向量化记忆存储
- * 使用Qdrant向量数据库和Embedder服务实现语义搜索
+ * 向量化记忆存储（两层存储架构）
+ * L1层：Redis热缓存（1小时TTL）
+ * L2层：Qdrant向量数据库（永久存储）
  */
 export class VectorMemoryStore {
 	private vectorStore: IVectorStore
 	private embedder: IEmbedder
 	private collectionName: string = "roo-memories"
 	private projectId?: string
+	private redisCache?: RedisHotCache
+	private enableRedisCache: boolean = false
 
 	/**
 	 * 创建VectorMemoryStore实例
@@ -78,6 +91,7 @@ export class VectorMemoryStore {
 	constructor(embedder: IEmbedder, config: VectorMemoryStoreConfig) {
 		this.embedder = embedder
 		this.projectId = config.projectId
+		this.enableRedisCache = config.enableRedisCache ?? false
 
 		// 为记忆创建独立的Qdrant collection
 		// 使用项目级别的collection名称以支持跨对话记忆
@@ -93,13 +107,34 @@ export class VectorMemoryStore {
 			config.vectorSize,
 			config.qdrantApiKey,
 		)
+
+		// 初始化Redis缓存层（如果启用）
+		if (this.enableRedisCache && config.redisUrl) {
+			this.redisCache = new RedisHotCache({
+				redisUrl: config.redisUrl,
+				ttl: config.redisCacheTtl ?? 3600, // 默认1小时
+				prefix: `roo-memory:${this.collectionName}:`,
+			})
+		}
 	}
 
 	/**
-	 * 初始化向量存储
+	 * 初始化向量存储和Redis缓存
 	 */
 	async initialize(): Promise<void> {
 		await this.vectorStore.initialize()
+
+		// 初始化Redis缓存（如果启用）
+		if (this.redisCache) {
+			try {
+				await this.redisCache.connect()
+				console.log("[VectorMemoryStore] Redis L1 cache enabled")
+			} catch (error) {
+				console.warn("[VectorMemoryStore] Failed to connect to Redis, continuing without cache:", error)
+				this.redisCache = undefined
+				this.enableRedisCache = false
+			}
+		}
 	}
 
 	/**
@@ -171,7 +206,7 @@ export class VectorMemoryStore {
 	}
 
 	/**
-	 * 语义搜索相关记忆
+	 * 语义搜索相关记忆（支持L1缓存）
 	 * @param query 查询文本（用户当前任务或上下文）
 	 * @param options 搜索选项
 	 * @returns 相关记忆列表
@@ -191,11 +226,21 @@ export class VectorMemoryStore {
 			priorities?: MemoryPriority[]
 		},
 	): Promise<MemorySearchResult[]> {
-		// 1. 为查询创建嵌入向量
+		// 1. 尝试从Redis缓存读取
+		if (this.redisCache) {
+			const cacheKey = this.buildSearchCacheKey(query, options)
+			const cached = await this.redisCache.get<MemorySearchResult[]>(cacheKey)
+			if (cached) {
+				console.log(`[VectorMemoryStore] Cache hit for query: ${query.substring(0, 50)}...`)
+				return cached
+			}
+		}
+
+		// 2. 为查询创建嵌入向量
 		const embeddingResponse = await this.embedder.createEmbeddings([query])
 		const queryVector = embeddingResponse.embeddings[0]
 
-		// 2. 执行向量搜索
+		// 3. 执行向量搜索（L2层：Qdrant）
 		const searchResults: VectorStoreSearchResult[] = await this.vectorStore.search(
 			queryVector,
 			undefined, // 不使用目录前缀过滤
@@ -203,7 +248,7 @@ export class VectorMemoryStore {
 			options?.maxResults ?? 10, // 默认返回10条
 		)
 
-		// 3. 转换结果并应用过滤
+		// 4. 转换结果并应用过滤
 		const memoryResults: MemorySearchResult[] = []
 
 		for (const result of searchResults) {
@@ -245,7 +290,27 @@ export class VectorMemoryStore {
 			})
 		}
 
+		// 5. 写入Redis缓存
+		if (this.redisCache && memoryResults.length > 0) {
+			const cacheKey = this.buildSearchCacheKey(query, options)
+			await this.redisCache.set(cacheKey, memoryResults).catch((err) => {
+				console.warn("[VectorMemoryStore] Failed to cache search results:", err)
+			})
+		}
+
 		return memoryResults
+	}
+
+	/**
+	 * 构建搜索缓存键
+	 */
+	private buildSearchCacheKey(query: string, options?: any): string {
+		const queryHash = createHash("sha256").update(query).digest("hex").substring(0, 16)
+		const optionsHash = createHash("sha256")
+			.update(JSON.stringify(options || {}))
+			.digest("hex")
+			.substring(0, 8)
+		return `search:${queryHash}:${optionsHash}`
 	}
 
 	/**
@@ -326,10 +391,26 @@ export class VectorMemoryStore {
 	}
 
 	/**
-	 * 清除所有记忆
+	 * 清除所有记忆（包括Redis缓存）
 	 */
 	async clearAllMemories(): Promise<void> {
 		await this.vectorStore.clearCollection()
+
+		// 清除Redis缓存
+		if (this.redisCache) {
+			await this.redisCache.clearAll().catch((err) => {
+				console.warn("[VectorMemoryStore] Failed to clear Redis cache:", err)
+			})
+		}
+	}
+
+	/**
+	 * 关闭连接（释放Redis资源）
+	 */
+	async disconnect(): Promise<void> {
+		if (this.redisCache) {
+			await this.redisCache.disconnect()
+		}
 	}
 
 	/**
