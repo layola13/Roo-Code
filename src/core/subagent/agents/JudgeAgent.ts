@@ -30,6 +30,12 @@ export interface JudgeAgentConfig {
 	reserveForResponse: number
 	/** 是否启用详细日志 */
 	verboseLogging: boolean
+	/** Agent之间的延迟（毫秒），用于避免rate limit */
+	agentDelayMs: number
+	/** 最大重试次数 */
+	maxRetries: number
+	/** 是否要求所有Agent必须成功 */
+	requireAllAgents: boolean
 }
 
 /**
@@ -37,10 +43,13 @@ export interface JudgeAgentConfig {
  */
 const DEFAULT_CONFIG: JudgeAgentConfig = {
 	agentTimeout: 3000, // 3秒
-	enableParallel: true,
+	enableParallel: false, // 默认改为串行，避免rate limit
 	totalTokenBudget: 120000, // 120K tokens
 	reserveForResponse: 20000, // 20K for response
 	verboseLogging: false,
+	agentDelayMs: 1000, // 默认间隔1秒
+	maxRetries: 3, // 默认最多重试3次
+	requireAllAgents: true, // 默认要求所有Agent必须成功
 }
 
 /**
@@ -250,27 +259,150 @@ Respond with a JSON object only.`
 		const agents = Array.from(this.expertAgents.values())
 
 		if (this.config.enableParallel) {
-			// 并行执行所有Agent，使用Promise.allSettled容错
-			const promises = agents.map((agent) => this.executeAgentWithTimeout(agent, userMessage, candidateMessages))
+			// 并行执行，但添加重试机制
+			const promises = agents.map((agent) =>
+				this.executeAgentWithRetry(agent, userMessage, candidateMessages, this.config.maxRetries),
+			)
 
 			const results = await Promise.allSettled(promises)
 
-			return results
+			const successfulResults = results
 				.filter((result): result is PromiseFulfilledResult<AgentSearchResult> => result.status === "fulfilled")
 				.map((result) => result.value)
+
+			// 如果要求所有Agent必须成功，检查失败情况
+			if (this.config.requireAllAgents && successfulResults.length < agents.length) {
+				const failedCount = agents.length - successfulResults.length
+				console.warn(`[JudgeAgent] ${failedCount} agent(s) failed, but requireAllAgents is true`)
+
+				// 添加失败的Agent占位结果
+				const failedResults = results
+					.filter((result): result is PromiseRejectedResult => result.status === "rejected")
+					.map((result, index) => ({
+						agentName: agents[successfulResults.length + index]?.name || "unknown",
+						selectedIndices: [],
+						relevanceScores: new Map(),
+						reasoning: `Failed after ${this.config.maxRetries} retries: ${result.reason}`,
+						executionTime: 0,
+						success: false,
+						error: String(result.reason),
+					}))
+
+				return [...successfulResults, ...failedResults]
+			}
+
+			return successfulResults
 		} else {
-			// 串行执行
+			// 串行执行，间隔agentDelayMs，带重试机制
 			const results: AgentSearchResult[] = []
-			for (const agent of agents) {
+			for (let i = 0; i < agents.length; i++) {
+				const agent = agents[i]
+
 				try {
-					const result = await this.executeAgentWithTimeout(agent, userMessage, candidateMessages)
+					const result = await this.executeAgentWithRetry(
+						agent,
+						userMessage,
+						candidateMessages,
+						this.config.maxRetries,
+					)
 					results.push(result)
+
+					if (this.config.verboseLogging) {
+						console.log(`[JudgeAgent] Agent ${agent.name} completed successfully`)
+					}
 				} catch (error) {
-					console.error(`[JudgeAgent] Agent ${agent.name} failed:`, error)
+					console.error(`[JudgeAgent] Agent ${agent.name} failed after all retries:`, error)
+
+					// 如果要求所有Agent必须成功，则添加失败占位
+					if (this.config.requireAllAgents) {
+						results.push({
+							agentName: agent.name,
+							selectedIndices: [],
+							relevanceScores: new Map(),
+							reasoning: `Failed after ${this.config.maxRetries} retries: ${error instanceof Error ? error.message : String(error)}`,
+							executionTime: 0,
+							success: false,
+							error: error instanceof Error ? error.message : String(error),
+						})
+					}
+				}
+
+				// 在Agent之间添加延迟，避免rate limit（最后一个Agent后不需要延迟）
+				if (i < agents.length - 1 && this.config.agentDelayMs > 0) {
+					if (this.config.verboseLogging) {
+						console.log(`[JudgeAgent] Waiting ${this.config.agentDelayMs}ms before next agent...`)
+					}
+					await new Promise((resolve) => setTimeout(resolve, this.config.agentDelayMs))
 				}
 			}
+
 			return results
 		}
+	}
+
+	/**
+	 * 带重试机制执行Agent
+	 */
+	private async executeAgentWithRetry(
+		agent: ExpertAgent,
+		userMessage: string,
+		candidates: HistoricalMessage[],
+		maxRetries: number,
+	): Promise<AgentSearchResult> {
+		let lastError: Error | undefined
+
+		for (let attempt = 1; attempt <= maxRetries; attempt++) {
+			try {
+				if (this.config.verboseLogging && attempt > 1) {
+					console.log(`[JudgeAgent] Retrying ${agent.name} (attempt ${attempt}/${maxRetries})`)
+				}
+
+				const result = await this.executeAgentWithTimeout(agent, userMessage, candidates)
+
+				// 如果成功，直接返回
+				if (result.success) {
+					return result
+				}
+
+				// 如果失败但不是rate limit错误，直接抛出
+				if (result.error && !this.isRateLimitError(result.error)) {
+					throw new Error(result.error)
+				}
+
+				// 如果是rate limit错误，记录并准备重试
+				lastError = new Error(result.error || "Unknown error")
+
+				// 如果还有重试机会，等待后重试（指数退避）
+				if (attempt < maxRetries) {
+					const backoffMs = 1000 * Math.pow(2, attempt - 1) // 1s, 2s, 4s
+					if (this.config.verboseLogging) {
+						console.log(`[JudgeAgent] Rate limit detected for ${agent.name}, waiting ${backoffMs}ms...`)
+					}
+					await new Promise((resolve) => setTimeout(resolve, backoffMs))
+				}
+			} catch (error) {
+				lastError = error instanceof Error ? error : new Error(String(error))
+
+				// 检查是否是rate limit错误
+				if (this.isRateLimitError(lastError.message)) {
+					// 如果还有重试机会，等待后重试（指数退避）
+					if (attempt < maxRetries) {
+						const backoffMs = 1000 * Math.pow(2, attempt - 1)
+						if (this.config.verboseLogging) {
+							console.log(`[JudgeAgent] Rate limit detected for ${agent.name}, waiting ${backoffMs}ms...`)
+						}
+						await new Promise((resolve) => setTimeout(resolve, backoffMs))
+						continue
+					}
+				}
+
+				// 非rate limit错误或已达最大重试次数，直接抛出
+				throw lastError
+			}
+		}
+
+		// 所有重试都失败
+		throw lastError || new Error(`Agent ${agent.name} failed after ${maxRetries} retries`)
 	}
 
 	/**
@@ -311,6 +443,23 @@ Respond with a JSON object only.`
 				error: error instanceof Error ? error.message : String(error),
 			}
 		}
+	}
+
+	/**
+	 * 判断是否是rate limit错误
+	 */
+	private isRateLimitError(errorMessage: string): boolean {
+		const rateLimitKeywords = [
+			"rate limit",
+			"rate_limit",
+			"too many requests",
+			"429",
+			"quota exceeded",
+			"throttle",
+			"throttled",
+		]
+		const lowerMessage = errorMessage.toLowerCase()
+		return rateLimitKeywords.some((keyword) => lowerMessage.includes(keyword))
 	}
 
 	/**
