@@ -86,9 +86,9 @@ export class MessageIndexManager {
 	 * 存储消息到索引
 	 * @param message API消息
 	 * @param conversationId 对话ID
-	 * @returns 分配的索引号和全局ID
+	 * @returns 完整的历史消息对象
 	 */
-	storeMessage(message: ApiMessage, conversationId: string): { messageIndex: number; globalId: string } {
+	storeMessage(message: ApiMessage, conversationId: string): HistoricalMessage {
 		const messageIndex = this.assignIndex(conversationId)
 		const globalId = `msg#${messageIndex}`
 
@@ -96,7 +96,7 @@ export class MessageIndexManager {
 		const content =
 			typeof message.content === "string"
 				? message.content
-				: message.content.map((block) => (block.type === "text" ? block.text : "")).join(" ")
+				: message.content?.map((block) => (block.type === "text" ? block.text : "")).join(" ") || ""
 
 		const tokens = Math.ceil(content.length / 4) // 粗略估算
 
@@ -104,7 +104,7 @@ export class MessageIndexManager {
 			messageIndex,
 			globalId,
 			role: message.role,
-			content: message.content,
+			content,
 			timestamp: Date.now(),
 			conversationId,
 			tokens,
@@ -113,16 +113,16 @@ export class MessageIndexManager {
 		this.messageStore.set(messageIndex, historicalMessage)
 		this.isDirty = true
 
-		return { messageIndex, globalId }
+		return historicalMessage
 	}
 
 	/**
 	 * 批量存储消息
 	 * @param messages API消息数组
 	 * @param conversationId 对话ID
-	 * @returns 存储结果数组
+	 * @returns 历史消息数组
 	 */
-	storeMessages(messages: ApiMessage[], conversationId: string): Array<{ messageIndex: number; globalId: string }> {
+	storeMessages(messages: ApiMessage[], conversationId: string): HistoricalMessage[] {
 		return messages.map((message) => this.storeMessage(message, conversationId))
 	}
 
@@ -232,12 +232,9 @@ export class MessageIndexManager {
 
 		// 内容匹配
 		const matched = messages.filter((msg) => {
-			const content =
-				typeof msg.content === "string"
-					? msg.content
-					: msg.content.map((block) => (block.type === "text" ? block.text : "")).join(" ")
+			const content = typeof msg.content === "string" ? msg.content : msg.content || ""
 
-			return content.toLowerCase().includes(queryLower)
+			return typeof content === "string" && content.toLowerCase().includes(queryLower)
 		})
 
 		// 限制返回数量
@@ -251,7 +248,16 @@ export class MessageIndexManager {
 	/**
 	 * 获取索引统计信息
 	 */
-	getStats(): IndexStats {
+	getStats(): {
+		totalMessages: number
+		totalConversations: number
+		totalTokens: number
+		nextGlobalIndex: number
+		maxIndex: number
+		byConversation: Record<string, number>
+		earliestTimestamp?: number
+		latestTimestamp?: number
+	} {
 		const messages = this.getAllMessages()
 		const byConversation: Record<string, number> = {}
 
@@ -260,9 +266,13 @@ export class MessageIndexManager {
 		}
 
 		const timestamps = messages.map((m) => m.timestamp).filter((t) => t > 0)
+		const totalTokens = messages.reduce((sum, msg) => sum + (msg.tokens || 0), 0)
 
 		return {
 			totalMessages: messages.length,
+			totalConversations: this.conversationIndices.size,
+			totalTokens,
+			nextGlobalIndex: this.currentMaxIndex + 1,
 			maxIndex: this.currentMaxIndex,
 			byConversation,
 			earliestTimestamp: timestamps.length > 0 ? Math.min(...timestamps) : undefined,

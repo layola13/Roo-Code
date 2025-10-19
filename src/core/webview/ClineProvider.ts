@@ -9,6 +9,9 @@ import axios from "axios"
 import pWaitFor from "p-wait-for"
 import * as vscode from "vscode"
 
+// Import ConversationController for intelligent context filtering
+import { ConversationController } from "../subagent/ConversationController"
+
 import {
 	type TaskProviderLike,
 	type TaskProviderEvents,
@@ -142,6 +145,9 @@ export class ClineProvider
 	private pendingOperations: Map<string, PendingEditOperation> = new Map()
 	private static readonly PENDING_OPERATION_TIMEOUT_MS = 30000 // 30 seconds
 
+	// Intelligent context system - ConversationController for managing subagents
+	private conversationController?: ConversationController
+
 	public isViewLaunched = false
 	public settingsImportedAt?: number
 	public readonly latestAnnouncementId = "sep-2025-code-supernova-1m" // Code Supernova 1M context window announcement
@@ -189,6 +195,12 @@ export class ClineProvider
 			})
 
 		this.marketplaceManager = new MarketplaceManager(this.context, this.customModesManager)
+
+		// Initialize ConversationController for intelligent context filtering
+		// This will be initialized asynchronously after provider is ready
+		this.initializeConversationController().catch((error) => {
+			this.log(`Failed to initialize ConversationController: ${error}`)
+		})
 
 		// Forward <most> task events to the provider.
 		// We do something fairly similar for the IPC-based API.
@@ -284,6 +296,62 @@ export class ClineProvider
 		} else {
 			this.log("CloudService not ready, deferring cloud profile sync")
 		}
+	}
+
+	/**
+	 * Initialize ConversationController for intelligent context filtering
+	 * Called asynchronously during provider construction
+	 */
+	private async initializeConversationController(): Promise<void> {
+		try {
+			const state = await this.getState()
+			const enableIntelligentContext = state?.experiments?.intelligentContextFiltering ?? false
+
+			if (!enableIntelligentContext) {
+				this.log("[ClineProvider] Intelligent context filtering is disabled")
+				return
+			}
+
+			// Get API configuration for ConversationController
+			const apiHandler = buildApiHandler(state.apiConfiguration)
+
+			// Get vector memory store if available (shared with Task initialization)
+			// Note: VectorMemoryStore will be initialized per-task, we just pass undefined here
+			// ConversationController will work without it
+
+			this.conversationController = new ConversationController(
+				apiHandler,
+				undefined, // vectorMemoryStore - will be task-specific
+				{
+					enableCache: true,
+					enableMetrics: true,
+					enableAutoCompression: false, // Disable auto-compression in controller
+					compressionThreshold: 75,
+					verboseLogging: false,
+					enableIntelligentContext: true,
+					messageIndexStoragePath: path.join(this.context.globalStorageUri.fsPath, "message-index"),
+					contextFilterConfig: {
+						minHistoryMessages: 10,
+						maxSelectedMessages: 25,
+						defaultTokenBudget: 120000,
+					},
+				},
+			)
+
+			this.log("[ClineProvider] ConversationController initialized successfully")
+		} catch (error) {
+			this.log(`[ClineProvider] Failed to initialize ConversationController: ${error}`)
+			// Non-critical error, continue without intelligent context filtering
+			this.conversationController = undefined
+		}
+	}
+
+	/**
+	 * Get ConversationController instance
+	 * Returns undefined if not initialized or disabled
+	 */
+	public getConversationController(): ConversationController | undefined {
+		return this.conversationController
 	}
 
 	/**
@@ -601,6 +669,17 @@ export class ClineProvider
 		}
 
 		this.log("Cleared all tasks")
+
+		// Dispose ConversationController if initialized
+		if (this.conversationController) {
+			try {
+				await this.conversationController.dispose()
+				this.conversationController = undefined
+				this.log("Disposed ConversationController")
+			} catch (error) {
+				this.log(`Error disposing ConversationController: ${error}`)
+			}
+		}
 
 		// Clear all pending edit operations to prevent memory leaks
 		this.clearAllPendingEditOperations()
@@ -945,6 +1024,7 @@ export class ClineProvider
 			workspacePath: historyItem.workspace,
 			onCreated: this.taskCreationCallback,
 			enableBridge: BridgeOrchestrator.isEnabled(cloudUserInfo, taskSyncEnabled),
+			conversationController: this.conversationController,
 		})
 
 		await this.addClineToStack(task)
@@ -2641,6 +2721,7 @@ export class ClineProvider
 			onCreated: this.taskCreationCallback,
 			enableBridge: BridgeOrchestrator.isEnabled(cloudUserInfo, remoteControlEnabled),
 			initialTodos: options.initialTodos,
+			conversationController: this.conversationController,
 			...options,
 		})
 

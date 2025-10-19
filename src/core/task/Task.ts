@@ -151,6 +151,7 @@ export interface TaskOptions extends CreateTaskOptions {
 	onCreated?: (task: Task) => void
 	initialTodos?: TodoItem[]
 	workspacePath?: string
+	conversationController?: import("../subagent/ConversationController").ConversationController
 }
 
 export class Task extends EventEmitter<TaskEvents> implements TaskLike {
@@ -276,6 +277,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	apiConversationHistory: ApiMessage[] = []
 	clineMessages: ClineMessage[] = []
 
+	// Message indexing for intelligent context system
+	private nextMessageIndex: number = 1
+
 	// Ask
 	private askResponse?: ClineAskResponse
 	private askResponseText?: string
@@ -329,6 +333,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	private saveDebounceTimer?: NodeJS.Timeout
 	private pendingSave: boolean = false
 
+	// Intelligent Context Filtering
+	conversationController?: import("../subagent/ConversationController").ConversationController
+
 	constructor({
 		provider,
 		apiConfiguration,
@@ -347,6 +354,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		onCreated,
 		initialTodos,
 		workspacePath,
+		conversationController,
 	}: TaskOptions) {
 		super()
 
@@ -404,6 +412,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		this.parentTask = parentTask
 		this.taskNumber = taskNumber
+		this.conversationController = conversationController
 
 		// Store the task's mode when it's created.
 		// For history items, use the stored mode; for new tasks, we'll set it
@@ -718,6 +727,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	}
 
 	private async addToClineMessages(message: ClineMessage) {
+		// Automatically assign messageIndex if not present
+		if (!message.messageIndex) {
+			message.messageIndex = this.nextMessageIndex++
+		}
+
 		this.clineMessages.push(message)
 		const provider = this.providerRef.deref()
 		await provider?.postStateToWebview()
@@ -735,6 +749,25 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	}
 
 	public async overwriteClineMessages(newMessages: ClineMessage[]) {
+		// Ensure all messages have messageIndex (for backward compatibility with old messages)
+		let maxIndex = 0
+		for (const message of newMessages) {
+			if (message.messageIndex) {
+				maxIndex = Math.max(maxIndex, message.messageIndex)
+			}
+		}
+
+		// Assign indices to messages that don't have them
+		let nextIndex = maxIndex + 1
+		for (const message of newMessages) {
+			if (!message.messageIndex) {
+				message.messageIndex = nextIndex++
+			}
+		}
+
+		// Update nextMessageIndex to continue from the highest index
+		this.nextMessageIndex = Math.max(this.nextMessageIndex, nextIndex)
+
 		this.clineMessages = newMessages
 
 		// If deletion or history truncation leaves a condense_context as the last message,
@@ -3049,6 +3082,89 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		let cleanConversationHistory = maybeRemoveImageBlocks(messagesSinceLastSummary, this.api).map(
 			({ role, content }) => ({ role, content }),
 		)
+
+		// **智能上下文筛选**: 在发送API请求前检查是否需要智能上下文筛选
+		let intelligentContextApplied = false
+		let intelligentContextResult: any = null
+
+		try {
+			if (this.conversationController && cleanConversationHistory.length > 0) {
+				const lastMessage = cleanConversationHistory[cleanConversationHistory.length - 1]
+				const userMessage = lastMessage?.content?.toString() || ""
+
+				const shouldApply = this.conversationController.shouldApplyIntelligentContext(
+					cleanConversationHistory.length,
+					userMessage,
+				)
+
+				if (shouldApply) {
+					const conversationId = this.taskId
+
+					// 将ClineMessage[]转换为智能上下文筛选所需格式
+					const allMessages = this.clineMessages.map((msg, index) => ({
+						...msg,
+						messageIndex: msg.messageIndex || index + 1, // 使用已有的messageIndex或生成新的
+					}))
+
+					const filterResult = await this.conversationController.executeIntelligentContextFilter(
+						userMessage,
+						conversationId,
+						allMessages,
+					)
+
+					intelligentContextResult = filterResult
+
+					// 根据筛选结果更新对话历史
+					if (filterResult.selectedMessages.length > 0) {
+						// 创建新的API对话历史，只包含筛选出的消息
+						const selectedMessageIndices = new Set(
+							filterResult.selectedMessages.map((msg) => msg.messageIndex),
+						)
+
+						// 重新构建API对话历史，保留assistant消息和被选中的user消息
+						const filteredApiHistory: typeof this.apiConversationHistory = []
+
+						for (let i = 0; i < this.apiConversationHistory.length; i++) {
+							const apiMsg = this.apiConversationHistory[i]
+
+							if (apiMsg.role === "assistant") {
+								// 保留所有assistant消息
+								filteredApiHistory.push(apiMsg)
+							} else if (apiMsg.role === "user") {
+								// 查找对应的cline消息索引
+								// 由于API历史和Cline消息不是一一对应的，我们需要通过消息内容匹配
+								const correspondingClineMsg = this.clineMessages.find((clineMsg) => {
+									if (clineMsg.type !== "say") return false
+									const msgIndex = clineMsg.messageIndex || 0
+									return selectedMessageIndices.has(msgIndex)
+								})
+
+								if (correspondingClineMsg) {
+									filteredApiHistory.push(apiMsg)
+								}
+							}
+						}
+
+						// 更新cleanConversationHistory为筛选后的历史
+						const filteredMessagesSinceLastSummary = getMessagesSinceLastSummary(filteredApiHistory)
+						cleanConversationHistory = maybeRemoveImageBlocks(
+							filteredMessagesSinceLastSummary,
+							this.api,
+						).map(({ role, content }) => ({ role, content }))
+
+						intelligentContextApplied = true
+
+						console.log(
+							`[Task#${this.taskId}] Applied intelligent context filtering: ${filterResult.originalMessageCount} -> ${filterResult.selectedMessageCount} messages, saved ${filterResult.tokenSavings} tokens`,
+						)
+					}
+				}
+			}
+		} catch (error) {
+			// 智能上下文筛选失败，继续使用原始历史
+			console.warn(`[Task#${this.taskId}] Intelligent context filtering failed:`, error)
+			intelligentContextApplied = false
+		}
 
 		// Check auto-approval limits
 		const approvalResult = await this.autoApprovalHandler.checkAutoApprovalLimits(
