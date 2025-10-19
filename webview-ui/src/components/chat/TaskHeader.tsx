@@ -24,6 +24,8 @@ import { ContextWindowProgress } from "./ContextWindowProgress"
 import { Mention } from "./Mention"
 import { TodoListDisplay } from "./TodoListDisplay"
 import StorageStatusIndicator, { StorageStatus } from "./StorageStatusIndicator"
+import { JudgeAnalysis } from "./JudgeAnalysis"
+import { AgentResultsComparison } from "./AgentResultsComparison"
 
 export interface TaskHeaderProps {
 	task: ClineMessage
@@ -248,6 +250,18 @@ const TaskHeader = ({
 							</div>
 						</div>
 						{task.images && task.images.length > 0 && <Thumbnails images={task.images} />}
+
+						{/* Judge Analysis and Agent Results */}
+						{task.judgeDecision && (
+							<>
+								<JudgeAnalysis decision={task.judgeDecision} />
+								<AgentResultsComparison
+									agentResults={task.judgeDecision.agentResults}
+									selectedIndices={task.judgeDecision.selectedIndices}
+									conflictedIndices={task.judgeDecision.conflictResolution?.conflictedIndices}
+								/>
+							</>
+						)}
 
 						<div className="border-t border-b border-vscode-panel-border/50 py-4 mt-2 mb-1">
 							<table className="w-full">

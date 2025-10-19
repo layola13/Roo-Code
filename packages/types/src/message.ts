@@ -210,6 +210,61 @@ export const subAgentTokenUsageSchema = z.object({
 export type SubAgentTokenUsage = z.infer<typeof subAgentTokenUsageSchema>
 
 /**
+ * AgentSearchResult
+ *
+ * Result from a single agent's context search
+ */
+
+export const agentSearchResultSchema = z.object({
+	agentName: z.string(),
+	selectedIndices: z.array(z.number()),
+	relevanceScores: z.record(z.number()),
+	reasoning: z.string(),
+	executionTime: z.number(),
+})
+
+export type AgentSearchResult = z.infer<typeof agentSearchResultSchema>
+
+/**
+ * JudgeDecision
+ *
+ * Judge agent's analysis and decision
+ */
+
+export const judgeDecisionSchema = z.object({
+	intent: z.string(),
+	domains: z.array(z.string()),
+	timeScope: z.string(),
+	agentResults: z.array(agentSearchResultSchema),
+	selectedIndices: z.array(z.number()),
+	conflictResolution: z
+		.object({
+			conflictedIndices: z.array(z.number()),
+			resolution: z.string(),
+		})
+		.optional(),
+	totalTokenBudget: z.number(),
+	allocatedTokens: z.number(),
+	reservedForResponse: z.number(),
+})
+
+export type JudgeDecision = z.infer<typeof judgeDecisionSchema>
+
+/**
+ * MessageRelevance
+ *
+ * Relevance information for a message in intelligent context
+ */
+
+export const messageRelevanceSchema = z.object({
+	score: z.number(), // 0-1 relevance score
+	selectedByAgents: z.array(z.string()), // Names of agents that selected this message
+	reasoning: z.string().optional(),
+})
+
+export type MessageRelevance = z.infer<typeof messageRelevanceSchema>
+
+/**
  * ContextCondense
  */
 
@@ -247,6 +302,8 @@ export const clineMessageSchema = z.object({
 	isProtected: z.boolean().optional(),
 	apiProtocol: z.union([z.literal("openai"), z.literal("anthropic")]).optional(),
 	isAnswered: z.boolean().optional(),
+	judgeDecision: judgeDecisionSchema.optional(), // Judge agent analysis and decision
+	relevance: messageRelevanceSchema.optional(), // Message relevance in intelligent context
 	metadata: z
 		.object({
 			gpt5: z
