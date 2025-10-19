@@ -13,7 +13,13 @@ import {
 	ORGANIZATION_ALLOW_ALL,
 } from "@roo-code/types"
 
-import { ExtensionMessage, ExtensionState, MarketplaceInstalledMetadata, Command } from "@roo/ExtensionMessage"
+import {
+	ExtensionMessage,
+	ExtensionState,
+	MarketplaceInstalledMetadata,
+	Command,
+	SubAgentInvocation,
+} from "@roo/ExtensionMessage"
 import { findLastIndex } from "@roo/array"
 import { McpServer } from "@roo/mcp"
 import { checkExistKey } from "@roo/checkExistApiConfig"
@@ -34,6 +40,7 @@ export interface ExtensionStateContextType extends ExtensionState {
 	hasSystemPromptOverride?: boolean
 	currentCheckpoint?: string
 	currentTaskTodos?: TodoItem[] // Initial todos for the current task
+	subAgentInvocations?: SubAgentInvocation[] // Sub-agent invocation history
 	filePaths: string[]
 	openedTabs: Array<{ label: string; isActive: boolean; path?: string }>
 	commands: Command[]

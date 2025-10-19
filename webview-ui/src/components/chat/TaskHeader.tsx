@@ -185,51 +185,82 @@ const TaskHeader = ({
 					</div>
 				</div>
 				{!isTaskExpanded && contextWindow > 0 && (
-					<div className="flex items-center gap-2 text-sm" onClick={(e) => e.stopPropagation()}>
-						<StandardTooltip
-							content={
-								<div className="space-y-1">
-									<div>
-										{t("chat:tokenProgress.tokensUsed", {
-											used: formatLargeNumber(contextTokens || 0),
-											total: formatLargeNumber(contextWindow),
-										})}
-									</div>
-									{(() => {
-										const maxTokens = model
-											? getModelMaxOutputTokens({ modelId, model, settings: apiConfiguration })
-											: 0
-										const reservedForOutput = maxTokens || 0
-										const availableSpace = contextWindow - (contextTokens || 0) - reservedForOutput
+					<div className="flex flex-col gap-1" onClick={(e) => e.stopPropagation()}>
+						<div className="flex items-center gap-2 text-sm">
+							<StandardTooltip
+								content={
+									<div className="space-y-1">
+										<div>
+											{t("chat:tokenProgress.tokensUsed", {
+												used: formatLargeNumber(contextTokens || 0),
+												total: formatLargeNumber(contextWindow),
+											})}
+										</div>
+										{(() => {
+											const maxTokens = model
+												? getModelMaxOutputTokens({
+														modelId,
+														model,
+														settings: apiConfiguration,
+													})
+												: 0
+											const reservedForOutput = maxTokens || 0
+											const availableSpace =
+												contextWindow - (contextTokens || 0) - reservedForOutput
 
-										return (
-											<>
-												{reservedForOutput > 0 && (
-													<div>
-														{t("chat:tokenProgress.reservedForResponse", {
-															amount: formatLargeNumber(reservedForOutput),
-														})}
-													</div>
-												)}
-												{availableSpace > 0 && (
-													<div>
-														{t("chat:tokenProgress.availableSpace", {
-															amount: formatLargeNumber(availableSpace),
-														})}
-													</div>
-												)}
-											</>
-										)
-									})()}
-								</div>
-							}
-							side="top"
-							sideOffset={8}>
-							<span className="mr-1">
-								{formatLargeNumber(contextTokens || 0)} / {formatLargeNumber(contextWindow)}
-							</span>
-						</StandardTooltip>
-						{!!totalCost && <span>${totalCost.toFixed(2)}</span>}
+											return (
+												<>
+													{reservedForOutput > 0 && (
+														<div>
+															{t("chat:tokenProgress.reservedForResponse", {
+																amount: formatLargeNumber(reservedForOutput),
+															})}
+														</div>
+													)}
+													{availableSpace > 0 && (
+														<div>
+															{t("chat:tokenProgress.availableSpace", {
+																amount: formatLargeNumber(availableSpace),
+															})}
+														</div>
+													)}
+												</>
+											)
+										})()}
+									</div>
+								}
+								side="top"
+								sideOffset={8}>
+								<span className="mr-1">
+									{formatLargeNumber(contextTokens || 0)} / {formatLargeNumber(contextWindow)}
+								</span>
+							</StandardTooltip>
+							{!!totalCost && <span>${totalCost.toFixed(2)}</span>}
+						</div>
+						{/* SubAgent summary in collapsed state */}
+						{(subAgentCompressionEnabled || (subAgentInvocations && subAgentInvocations.length > 0)) && (
+							<div className="flex items-center gap-2 text-xs text-vscode-descriptionForeground">
+								<span
+									className={`codicon ${subAgentCompressionEnabled ? "codicon-check text-vscode-charts-green" : "codicon-circle-slash opacity-60"}`}
+								/>
+								<span>
+									子代理:{" "}
+									{subAgentInvocations && subAgentInvocations.length > 0
+										? `${subAgentInvocations.length}次调用 • ${subAgentInvocations.filter((inv) => inv.success).length}成功`
+										: subAgentCompressionEnabled
+											? "已启用"
+											: "未启用"}
+								</span>
+								{subAgentInvocations && subAgentInvocations.length > 0 && (
+									<>
+										<span className="text-vscode-descriptionForeground opacity-50">•</span>
+										<span>
+											${subAgentInvocations.reduce((sum, inv) => sum + inv.cost, 0).toFixed(3)}
+										</span>
+									</>
+								)}
+							</div>
+						)}
 					</div>
 				)}
 				{/* Expanded state: Show task text and images */}
