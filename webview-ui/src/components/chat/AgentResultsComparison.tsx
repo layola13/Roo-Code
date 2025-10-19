@@ -33,27 +33,52 @@ export const AgentResultsComparison = memo(
 
 				{isExpanded && (
 					<div className="mt-3 space-y-3">
-						{agentResults.map((result, idx) => (
-							<div key={idx} className="border-l-2 border-vscode-charts-blue/50 pl-3">
-								<div className="flex items-center gap-2 mb-1">
-									<span className="font-medium text-xs">{result.agentName}:</span>
-									<span className="text-xs text-vscode-descriptionForeground">
-										耗时 {result.executionTime}ms
-									</span>
-								</div>
+						{agentResults.map((result, idx) => {
+							const isSuccess = result.success !== false
+							const statusIcon = isSuccess ? "check" : "error"
+							const statusColor = isSuccess ? "text-vscode-charts-green" : "text-vscode-charts-red"
+							const borderColor = isSuccess
+								? "border-vscode-charts-blue/50"
+								: "border-vscode-charts-red/50"
 
-								<div className="text-xs mb-1">
-									<span className="text-vscode-descriptionForeground opacity-80">选中: </span>
-									<span className="font-mono">
-										{result.selectedIndices.map((idx) => `msg#${idx}`).join(", ")}
-									</span>
-								</div>
+							return (
+								<div key={idx} className={`border-l-2 ${borderColor} pl-3`}>
+									<div className="flex items-center gap-2 mb-1">
+										<span className={`codicon codicon-${statusIcon} ${statusColor}`} />
+										<span className="font-medium text-xs">{result.agentName}:</span>
+										<span className="text-xs text-vscode-descriptionForeground">
+											耗时 {result.executionTime}ms
+										</span>
+										{!isSuccess && result.error && (
+											<span className="text-xs text-vscode-charts-red">失败</span>
+										)}
+									</div>
 
-								<div className="text-xs text-vscode-descriptionForeground opacity-80">
-									{result.reasoning}
+									{isSuccess ? (
+										<>
+											<div className="text-xs mb-1">
+												<span className="text-vscode-descriptionForeground opacity-80">
+													选中:{" "}
+												</span>
+												<span className="font-mono">
+													{result.selectedIndices.length > 0
+														? result.selectedIndices.map((idx) => `msg#${idx}`).join(", ")
+														: "无"}
+												</span>
+											</div>
+
+											<div className="text-xs text-vscode-descriptionForeground opacity-80">
+												{result.reasoning}
+											</div>
+										</>
+									) : (
+										<div className="text-xs text-vscode-charts-red opacity-90">
+											错误: {result.error || "未知错误"}
+										</div>
+									)}
 								</div>
-							</div>
-						))}
+							)
+						})}
 
 						<div className="border-t border-vscode-panel-border/30 pt-2 mt-2">
 							<div className="text-xs">

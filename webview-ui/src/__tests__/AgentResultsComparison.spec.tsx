@@ -11,6 +11,7 @@ describe("AgentResultsComparison", () => {
 			relevanceScores: { 5: 0.8, 12: 0.95, 18: 0.7 },
 			reasoning: "这些消息包含API错误讨论",
 			executionTime: 234,
+			success: true,
 		},
 		{
 			agentName: "产品专家Agent",
@@ -18,6 +19,7 @@ describe("AgentResultsComparison", () => {
 			relevanceScores: { 12: 0.9, 20: 0.85, 25: 0.75 },
 			reasoning: "涉及产品功能变更",
 			executionTime: 189,
+			success: true,
 		},
 	]
 

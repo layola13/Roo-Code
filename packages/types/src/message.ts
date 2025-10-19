@@ -221,6 +221,8 @@ export const agentSearchResultSchema = z.object({
 	relevanceScores: z.record(z.number()),
 	reasoning: z.string(),
 	executionTime: z.number(),
+	success: z.boolean(),
+	error: z.string().optional(),
 })
 
 export type AgentSearchResult = z.infer<typeof agentSearchResultSchema>
@@ -235,8 +237,10 @@ export const judgeDecisionSchema = z.object({
 	intent: z.string(),
 	domains: z.array(z.string()),
 	timeScope: z.string(),
+	confidence: z.number(),
 	agentResults: z.array(agentSearchResultSchema),
 	selectedIndices: z.array(z.number()),
+	duplicateIndices: z.record(z.array(z.string())).optional(),
 	conflictResolution: z
 		.object({
 			conflictedIndices: z.array(z.number()),
@@ -246,6 +250,8 @@ export const judgeDecisionSchema = z.object({
 	totalTokenBudget: z.number(),
 	allocatedTokens: z.number(),
 	reservedForResponse: z.number(),
+	totalExecutionTime: z.number(),
+	timestamp: z.number(),
 })
 
 export type JudgeDecision = z.infer<typeof judgeDecisionSchema>

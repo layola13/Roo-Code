@@ -448,7 +448,113 @@ export enum ExtensionBridgeEventName {
 	HeartbeatUpdated = "heartbeat_updated",
 }
 
-export const extensionBridgeEventSchema = z.discriminatedUnion("type", [
+export const extensionBridgeEventSchema: z.ZodDiscriminatedUnion<
+	"type",
+	[
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.TaskCreated>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.TaskStarted>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.TaskCompleted>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.TaskAborted>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.TaskFocused>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.TaskUnfocused>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.TaskActive>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.TaskInteractive>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.TaskResumable>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.TaskIdle>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.TaskPaused>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.TaskUnpaused>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.TaskSpawned>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.TaskUserMessage>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.TaskTokenUsageUpdated>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.ModeChanged>
+			instance: typeof extensionInstanceSchema
+			mode: z.ZodString
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.ProviderProfileChanged>
+			instance: typeof extensionInstanceSchema
+			providerProfile: z.ZodObject<{ name: z.ZodString; provider: z.ZodOptional<z.ZodString> }>
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.InstanceRegistered>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.InstanceUnregistered>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<ExtensionBridgeEventName.HeartbeatUpdated>
+			instance: typeof extensionInstanceSchema
+			timestamp: z.ZodNumber
+		}>,
+	]
+> = z.discriminatedUnion("type", [
 	z.object({
 		type: z.literal(ExtensionBridgeEventName.TaskCreated),
 		instance: extensionInstanceSchema,

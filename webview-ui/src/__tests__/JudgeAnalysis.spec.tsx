@@ -8,11 +8,18 @@ describe("JudgeAnalysis", () => {
 		intent: "问题解决",
 		domains: ["技术问题", "API错误"],
 		timeScope: "最近7天",
+		confidence: 0.92,
 		agentResults: [],
 		selectedIndices: [5, 12, 18],
 		totalTokenBudget: 120000,
 		allocatedTokens: 85000,
 		reservedForResponse: 35000,
+		totalExecutionTime: 500,
+		timestamp: Date.now(),
+		conflictResolution: {
+			conflictedIndices: [12],
+			resolution: "merged",
+		},
 	}
 
 	it("renders judge analysis correctly", () => {
