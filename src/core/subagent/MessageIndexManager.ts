@@ -2,12 +2,14 @@
  * MessageIndexManager - 消息索引管理器
  *
  * 负责为历史消息分配全局唯一索引号，支持消息的存储、检索和管理
+ * 集成向量数据库实现语义搜索
  * 基于 docs/user-requirement-intelligent-context-system.md
  */
 
 import { HistoricalMessage } from "./types-intelligent-context"
 import { ApiMessage } from "../task-persistence/apiMessages"
 import { safeWriteJson } from "../../utils/safeWriteJson"
+import { MessageVectorStore, MessageSearchResult } from "./MessageVectorStore"
 import * as fs from "fs"
 import * as path from "path"
 
@@ -21,6 +23,8 @@ export interface IndexStorageConfig {
 	enablePersistence: boolean
 	/** 自动保存间隔（毫秒） */
 	autoSaveInterval?: number
+	/** 向量存储实例（可选，用于语义搜索） */
+	vectorStore?: MessageVectorStore
 }
 
 /**
@@ -46,7 +50,8 @@ export class MessageIndexManager {
 	private currentMaxIndex: number = 0
 	private messageStore: Map<number, HistoricalMessage> = new Map()
 	private conversationIndices: Map<string, number[]> = new Map()
-	private config: Required<IndexStorageConfig>
+	private config: IndexStorageConfig & { autoSaveInterval: number }
+	private vectorStore?: MessageVectorStore
 	private autoSaveTimer?: NodeJS.Timeout
 	private isDirty: boolean = false
 
@@ -55,7 +60,11 @@ export class MessageIndexManager {
 			storagePath: config.storagePath,
 			enablePersistence: config.enablePersistence,
 			autoSaveInterval: config.autoSaveInterval || 30000, // 默认30秒
+			vectorStore: config.vectorStore,
 		}
+
+		// 保存向量存储引用
+		this.vectorStore = config.vectorStore
 
 		// 加载已有索引
 		if (this.config.enablePersistence) {
@@ -83,7 +92,7 @@ export class MessageIndexManager {
 	}
 
 	/**
-	 * 存储消息到索引
+	 * 存储消息到索引（同时存储到向量数据库）
 	 * @param message API消息
 	 * @param conversationId 对话ID
 	 * @returns 完整的历史消息对象
@@ -113,17 +122,58 @@ export class MessageIndexManager {
 		this.messageStore.set(messageIndex, historicalMessage)
 		this.isDirty = true
 
+		// 异步存储到向量数据库（不阻塞）
+		if (this.vectorStore) {
+			this.vectorStore.storeMessages([historicalMessage]).catch((err) => {
+				console.error("[MessageIndexManager] Failed to store message to vector store:", err)
+			})
+		}
+
 		return historicalMessage
 	}
 
 	/**
-	 * 批量存储消息
+	 * 批量存储消息（同时存储到向量数据库）
 	 * @param messages API消息数组
 	 * @param conversationId 对话ID
 	 * @returns 历史消息数组
 	 */
 	storeMessages(messages: ApiMessage[], conversationId: string): HistoricalMessage[] {
-		return messages.map((message) => this.storeMessage(message, conversationId))
+		const historicalMessages = messages.map((message) => {
+			const messageIndex = this.assignIndex(conversationId)
+			const globalId = `msg#${messageIndex}`
+
+			const content =
+				typeof message.content === "string"
+					? message.content
+					: message.content?.map((block) => (block.type === "text" ? block.text : "")).join(" ") || ""
+
+			const tokens = Math.ceil(content.length / 4)
+
+			const historicalMessage: HistoricalMessage = {
+				messageIndex,
+				globalId,
+				role: message.role,
+				content,
+				timestamp: Date.now(),
+				conversationId,
+				tokens,
+			}
+
+			this.messageStore.set(messageIndex, historicalMessage)
+			return historicalMessage
+		})
+
+		this.isDirty = true
+
+		// 批量存储到向量数据库（不阻塞）
+		if (this.vectorStore && historicalMessages.length > 0) {
+			this.vectorStore.storeMessages(historicalMessages).catch((err) => {
+				console.error("[MessageIndexManager] Failed to store messages to vector store:", err)
+			})
+		}
+
+		return historicalMessages
 	}
 
 	/**
@@ -205,7 +255,44 @@ export class MessageIndexManager {
 	}
 
 	/**
-	 * 搜索消息内容
+	 * 语义搜索消息（使用向量数据库）
+	 * @param query 查询文本
+	 * @param options 搜索选项
+	 * @returns 匹配的历史消息和相似度分数
+	 */
+	async semanticSearch(
+		query: string,
+		options?: {
+			conversationId?: string
+			role?: "user" | "assistant"
+			maxResults?: number
+			minScore?: number
+		},
+	): Promise<MessageSearchResult[]> {
+		if (!this.vectorStore) {
+			console.warn("[MessageIndexManager] Vector store not available, falling back to keyword search")
+			// 降级到关键词搜索
+			const messages = this.searchMessages(query, {
+				conversationId: options?.conversationId,
+				role: options?.role,
+				limit: options?.maxResults,
+			})
+			return messages.map((message) => ({
+				message,
+				similarityScore: 0.5, // 默认分数
+			}))
+		}
+
+		return this.vectorStore.semanticSearch(query, {
+			conversationId: options?.conversationId,
+			role: options?.role,
+			maxResults: options?.maxResults ?? 50, // 默认top-50（设计要求）
+			minScore: options?.minScore ?? 0.6,
+		})
+	}
+
+	/**
+	 * 搜索消息内容（关键词搜索）
 	 * @param query 搜索关键词
 	 * @param options 搜索选项
 	 * @returns 匹配的历史消息数组

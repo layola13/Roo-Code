@@ -2,6 +2,7 @@
  * JudgeAgent - 上下文裁判Agent
  *
  * 负责分析用户意图、协调多个专家Agent并行执行、汇总结果做出最终决策
+ * 支持向量数据库语义搜索top-50候选消息
  * 基于 docs/user-requirement-intelligent-context-system.md
  */
 
@@ -15,6 +16,7 @@ import {
 	ExpertAgent,
 	ContextFilterConfig,
 } from "../types-intelligent-context"
+import { MessageIndexManager } from "../MessageIndexManager"
 
 /**
  * 裁判Agent配置
@@ -36,12 +38,18 @@ export interface JudgeAgentConfig {
 	maxRetries: number
 	/** 是否要求所有Agent必须成功 */
 	requireAllAgents: boolean
+	/** 语义搜索top-K候选数量 */
+	semanticSearchTopK: number
+	/** 语义搜索最小相似度分数 */
+	semanticSearchMinScore: number
+	/** 消息索引管理器（可选，用于语义搜索） */
+	messageIndexManager?: MessageIndexManager
 }
 
 /**
  * 默认配置
  */
-const DEFAULT_CONFIG: JudgeAgentConfig = {
+const DEFAULT_CONFIG: Partial<JudgeAgentConfig> = {
 	agentTimeout: 3000, // 3秒
 	enableParallel: false, // 默认改为串行，避免rate limit
 	totalTokenBudget: 120000, // 120K tokens
@@ -50,6 +58,8 @@ const DEFAULT_CONFIG: JudgeAgentConfig = {
 	agentDelayMs: 1000, // 默认间隔1秒
 	maxRetries: 3, // 默认最多重试3次
 	requireAllAgents: true, // 默认要求所有Agent必须成功
+	semanticSearchTopK: 50, // 默认top-50（设计要求）
+	semanticSearchMinScore: 0.6, // 默认最小相似度0.6
 }
 
 /**
@@ -58,12 +68,14 @@ const DEFAULT_CONFIG: JudgeAgentConfig = {
 export class JudgeAgent implements JudgeAgentInterface {
 	private expertAgents: Map<string, ExpertAgent> = new Map()
 	private config: JudgeAgentConfig
+	private messageIndexManager?: MessageIndexManager
 
 	constructor(
 		private apiHandler: ApiHandler,
 		config?: Partial<JudgeAgentConfig>,
 	) {
-		this.config = { ...DEFAULT_CONFIG, ...config }
+		this.config = { ...DEFAULT_CONFIG, ...config } as JudgeAgentConfig
+		this.messageIndexManager = config?.messageIndexManager
 	}
 
 	/**
@@ -89,8 +101,12 @@ export class JudgeAgent implements JudgeAgentInterface {
 			console.log("[JudgeAgent] Intent analysis:", intentAnalysis)
 		}
 
-		// 步骤2: 从候选消息中筛选（这里使用所有历史消息作为候选）
-		const candidateMessages = context.messages
+		// 步骤2: 从向量数据库检索候选消息（语义搜索top-50）
+		const candidateMessages = await this.retrieveCandidateMessages(userMessage, context.messages)
+
+		if (this.config.verboseLogging) {
+			console.log(`[JudgeAgent] Retrieved ${candidateMessages.length} candidate messages from vector search`)
+		}
 
 		// 步骤3: 并行执行专家Agent
 		const agentResults = await this.executeAgentsInParallel(userMessage, candidateMessages)
@@ -241,6 +257,58 @@ Respond with a JSON object only.`
 			domains,
 			timeScope,
 			confidence: 0.6, // 降级方法置信度较低
+		}
+	}
+
+	/**
+	 * 从向量数据库检索候选消息（步骤2：语义搜索top-50）
+	 */
+	private async retrieveCandidateMessages(
+		userMessage: string,
+		allMessages: HistoricalMessage[],
+	): Promise<HistoricalMessage[]> {
+		// 如果没有MessageIndexManager或向量存储，降级到使用所有消息
+		if (!this.messageIndexManager) {
+			if (this.config.verboseLogging) {
+				console.warn(
+					"[JudgeAgent] MessageIndexManager not available, using all messages as candidates (degraded mode)",
+				)
+			}
+			return allMessages
+		}
+
+		try {
+			// 使用语义搜索获取top-K候选消息
+			const searchResults = await this.messageIndexManager.semanticSearch(userMessage, {
+				maxResults: this.config.semanticSearchTopK,
+				minScore: this.config.semanticSearchMinScore,
+			})
+
+			if (searchResults.length === 0) {
+				if (this.config.verboseLogging) {
+					console.warn("[JudgeAgent] Semantic search returned no results, falling back to recent messages")
+				}
+				// 降级：返回最近的N条消息
+				return allMessages.slice(-this.config.semanticSearchTopK)
+			}
+
+			// 提取消息并按相似度排序（已经是排序好的）
+			const candidates = searchResults.map((result) => result.message)
+
+			if (this.config.verboseLogging) {
+				console.log(
+					`[JudgeAgent] Semantic search retrieved ${candidates.length} candidates with scores:`,
+					searchResults
+						.slice(0, 5)
+						.map((r) => `msg#${r.message.messageIndex}:${r.similarityScore.toFixed(3)}`),
+				)
+			}
+
+			return candidates
+		} catch (error) {
+			console.error("[JudgeAgent] Failed to retrieve candidates from vector store:", error)
+			// 降级：返回所有消息
+			return allMessages
 		}
 	}
 
