@@ -58,6 +58,8 @@ export interface TaskContext {
 	fileChanges: string[]
 	/** 当前模式 */
 	currentMode: string
+	/** Git状态信息（实际的文件改动情况） */
+	gitStatus?: string
 }
 
 /**

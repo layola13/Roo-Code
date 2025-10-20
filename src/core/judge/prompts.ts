@@ -9,7 +9,7 @@ export function buildJudgePrompt(
 	attemptResult: string,
 	detailLevel: JudgeDetailLevel,
 ): string {
-	const { originalTask, conversationHistory, toolCalls, fileChanges, currentMode } = taskContext
+	const { originalTask, conversationHistory, toolCalls, fileChanges, currentMode, gitStatus } = taskContext
 
 	// 提取对话历史的摘要
 	const conversationSummary = summarizeConversationHistory(conversationHistory)
@@ -20,16 +20,40 @@ export function buildJudgePrompt(
 	// 提取文件修改摘要
 	const fileChangesSummary = summarizeFileChanges(fileChanges)
 
+	// 提取最近的用户反馈和需求变更
+	const recentUserFeedback = extractRecentUserFeedback(conversationHistory)
+
 	const detailInstructions =
 		detailLevel === "detailed"
 			? `请提供详细的判断理由，逐项检查并提供改进建议。`
 			: `请提供简洁的判断理由，只指出主要问题。`
 
-	return `你是一个严格的任务审查员（Judge）。请根据以下信息判断任务是否真正完成。
+	// Git状态部分
+	const gitStatusSection = gitStatus
+		? `
+## 实际文件改动情况 (Git Status)
 
-## 原始任务
+${gitStatus}
+
+**重要提示**: 上述是通过 git status 检查的实际文件改动情况。如果声称修改了某些文件但这里没有显示，说明文件可能没有真正被修改。`
+		: ""
+
+	// 用户需求变更部分
+	const userFeedbackSection = recentUserFeedback
+		? `
+## 最新的用户需求和反馈
+
+${recentUserFeedback}
+
+**重要提示**: 如果用户在对话过程中提出了新的需求或修改了原有需求，请以最新的用户需求为准进行评判，而不是仅仅关注最初的任务描述。`
+		: ""
+
+	return `你是一个严格但灵活的任务审查员（Judge）。请根据以下信息判断任务是否真正完成。
+
+## 初始任务描述
 
 ${originalTask}
+${userFeedbackSection}
 
 ## 当前模式
 
@@ -43,8 +67,9 @@ ${conversationSummary.rounds} 轮对话
 ### 工具调用
 ${toolCallsSummary}
 
-### 文件修改
+### 文件修改声明
 ${fileChangesSummary}
+${gitStatusSection}
 
 ## 模型声称的完成结果
 
@@ -54,29 +79,31 @@ ${attemptResult}
 
 请根据以下标准逐项评估：
 
-### 1. 完整性 (Completeness)
-- 原始任务的所有要求是否都被满足？
+### 1. 需求匹配度 (Requirement Alignment)
+- **最重要**: 是否满足用户最新提出的需求？（如果有需求变更，以最新需求为准）
+- 初始任务的核心要求是否被满足？
 - 是否有明显的遗漏？
-- 所有提到的功能是否都已实现？
+- 所有用户明确要求的功能是否都已实现？
 
-### 2. 正确性 (Correctness)
+### 2. 实际改动验证 (Actual Changes Verification)
+- **关键检查点**: 如果声称修改了文件，Git状态中是否真的显示了这些文件的改动？
+- 如果Git状态显示"无改动"但声称完成了任务，这很可能意味着文件没有真正被修改
+- 文件修改的时间是否合理（最近修改的文件才是真正改动过的）
+
+### 3. 正确性 (Correctness)
 - 实现是否正确无误？
 - 是否有明显的逻辑错误或bug？
 - 代码是否能正常运行？
 
-### 3. 质量 (Quality)
+### 4. 质量 (Quality)
 - 代码质量是否符合基本标准？
 - 是否有测试覆盖（如果要求）？
 - 是否有适当的错误处理？
 - 是否遵循了最佳实践？
 
-### 4. 文档 (Documentation)
+### 5. 文档 (Documentation)
 - 是否有必要的注释和文档？
 - 是否更新了相关的 README 或文档文件（如果需要）？
-
-### 5. 特殊要求 (Special Requirements)
-- 用户的任何特殊要求是否被遵守？
-- 是否遵循了项目的编码规范？
 
 ## 输出格式
 
@@ -87,7 +114,7 @@ ${detailInstructions}
 \`\`\`json
 {
   "approved": false,
-  "reasoning": "详细的判断理由，说明为什么批准或拒绝",
+  "reasoning": "详细的判断理由，说明为什么批准或拒绝。特别说明：是否满足最新用户需求、文件是否真正被修改等关键问题",
   "completeness_score": 7,
   "correctness_score": 8,
   "quality_score": 6,
@@ -98,21 +125,25 @@ ${detailInstructions}
     "更新 README.md 中的使用说明",
     "在 API 调用处添加 try-catch 错误处理"
   ],
-  "criticalIssues": ["可能存在内存泄漏风险"]
+  "criticalIssues": ["声称修改了文件但Git状态显示无改动", "可能存在内存泄漏风险"]
 }
 \`\`\`
 
-## 注意事项
+## 评判原则
 
-1. 如果任务基本完成但有小问题，可以批准并在 suggestions 中提出改进建议
-2. 如果有严重问题或明显遗漏，必须拒绝（approved: false）
-3. 不要过于吹毛求疵，关注核心要求
-4. 提供可操作的具体建议，而非笼统的评价
-5. 评分范围为 0-10，其中：
-   - 0-3: 严重不足
-   - 4-6: 有明显问题
+1. **灵活性优先**: 如果用户在对话中修改了需求，以最新的需求为准，不要死板地坚持初始任务
+2. **验证实际改动**: 优先参考Git状态来验证文件是否真正被修改，而不是仅凭声明
+3. **批准适度**: 如果任务基本完成但有小问题，可以批准并在 suggestions 中提出改进建议
+4. **严格对待关键问题**: 如果有以下严重问题必须拒绝：
+   - 声称修改文件但Git显示无改动
+   - 明显违背用户最新要求
+   - 有严重的逻辑错误或安全问题
+5. **具体建议**: 提供可操作的具体建议，而非笼统的评价
+6. **评分范围**: 0-10分，其中：
+   - 0-3: 严重不足，完全未完成
+   - 4-6: 有明显问题或遗漏
    - 7-8: 基本合格但有改进空间
-   - 9-10: 优秀
+   - 9-10: 优秀，完全满足要求
 
 请现在开始评判。`
 }
@@ -162,6 +193,39 @@ function summarizeFileChanges(fileChanges: string[]): string {
 
 	const lines = fileChanges.map((file) => `- ${file}`).join("\n")
 	return `修改了 ${fileChanges.length} 个文件：\n${lines}`
+}
+
+/**
+ * 提取最近的用户反馈和需求变更
+ */
+function extractRecentUserFeedback(conversationHistory: ClineMessage[]): string {
+	// 收集用户反馈消息
+	const userFeedbacks = conversationHistory
+		.filter((m) => m.type === "say" && m.say === "user_feedback" && m.text)
+		.map((m) => m.text!)
+
+	// 收集用户的直接输入（来自ask响应）
+	const userInputs = conversationHistory
+		.filter((m) => m.type === "ask" && m.ask === "followup" && m.text)
+		.map((m) => {
+			try {
+				const parsed = JSON.parse(m.text || "{}")
+				return parsed.question || ""
+			} catch {
+				return m.text || ""
+			}
+		})
+		.filter((text) => text.length > 0)
+
+	const allFeedback = [...userFeedbacks, ...userInputs]
+
+	if (allFeedback.length === 0) {
+		return ""
+	}
+
+	// 只取最近3条反馈，避免信息过载
+	const recentFeedback = allFeedback.slice(-3)
+	return recentFeedback.map((fb, i) => `${i + 1}. ${fb.substring(0, 300)}${fb.length > 300 ? "..." : ""}`).join("\n")
 }
 
 /**
