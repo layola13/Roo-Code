@@ -592,6 +592,10 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("useSubAgentCompression", message.bool)
 			await provider.postStateToWebview()
 			break
+		case "experimentalMessageCompression":
+			await updateGlobalState("experimentalMessageCompression", message.bool ?? false)
+			await provider.postStateToWebview()
+			break
 		case "useContextAnalyzer":
 			await updateGlobalState("useContextAnalyzer", message.bool)
 			await provider.postStateToWebview()
@@ -3156,5 +3160,20 @@ export const webviewMessageHandler = async (
 			})
 			break
 		}
+		case "showInformationMessage":
+			if (message.text) {
+				vscode.window.showInformationMessage(message.text)
+			}
+			break
+		case "showWarningMessage":
+			if (message.text) {
+				vscode.window.showWarningMessage(message.text)
+			}
+			break
+		case "showErrorMessage":
+			if (message.text) {
+				vscode.window.showErrorMessage(message.text)
+			}
+			break
 	}
 }

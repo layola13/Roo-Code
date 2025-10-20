@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next"
 import { useCloudUpsell } from "@src/hooks/useCloudUpsell"
 import { CloudUpsellDialog } from "@src/components/cloud/CloudUpsellDialog"
 import DismissibleUpsell from "@src/components/common/DismissibleUpsell"
-import { FoldVertical, ChevronUp, ChevronDown } from "lucide-react"
+import { FoldVertical, ChevronUp, ChevronDown, Sparkles } from "lucide-react"
 import prettyBytes from "pretty-bytes"
 
 import type { ClineMessage } from "@roo-code/types"
@@ -37,6 +37,7 @@ export interface TaskHeaderProps {
 	contextTokens: number
 	buttonsDisabled: boolean
 	handleCondenseContext: (taskId: string) => void
+	handleCompressMessages?: () => void
 	todos?: any[]
 	subAgentTokenUsage?: Array<{
 		agentName: string
@@ -51,6 +52,8 @@ export interface TaskHeaderProps {
 	useCodeSummarizer?: boolean
 	// Storage status
 	storageStatus?: StorageStatus
+	// Compression progress
+	compressionProgress?: { current: number; total: number } | null
 }
 
 const TaskHeader = ({
@@ -63,6 +66,7 @@ const TaskHeader = ({
 	contextTokens,
 	buttonsDisabled,
 	handleCondenseContext,
+	handleCompressMessages,
 	todos,
 	subAgentTokenUsage,
 	subAgentCompressionEnabled,
@@ -70,6 +74,7 @@ const TaskHeader = ({
 	useMemoryExtractor,
 	useCodeSummarizer,
 	storageStatus,
+	compressionProgress,
 }: TaskHeaderProps) => {
 	const { t } = useTranslation()
 	const { apiConfiguration, currentTaskItem, clineMessages, subAgentInvocations } = useExtensionState()
@@ -289,6 +294,24 @@ const TaskHeader = ({
 														}
 													/>
 													{condenseButton}
+													{handleCompressMessages && (
+														<div className="flex items-center gap-1">
+															<StandardTooltip content={t("chat:task.compressMessages")}>
+																<button
+																	disabled={buttonsDisabled || !!compressionProgress}
+																	onClick={handleCompressMessages}
+																	className="shrink-0 min-h-[20px] min-w-[20px] p-[2px] cursor-pointer disabled:cursor-not-allowed opacity-85 hover:opacity-100 bg-transparent border-none rounded-md">
+																	<Sparkles size={16} />
+																</button>
+															</StandardTooltip>
+															{compressionProgress && (
+																<span className="text-xs text-vscode-descriptionForeground whitespace-nowrap">
+																	{compressionProgress.current}/
+																	{compressionProgress.total}
+																</span>
+															)}
+														</div>
+													)}
 												</div>
 											</td>
 										</tr>

@@ -816,7 +816,16 @@
 			"allowUserOverride": "允许用户覆盖裁判决定",
 			"allowUserOverrideDesc": "启用后，即使裁判判定任务未完成，您也可以选择继续。",
 			"blockOnCriticalIssues": "严重问题强制拦截",
-			"blockOnCriticalIssuesDesc": "启用后，当裁判检测到严重问题时，将强制阻止任务完成，不允许用户覆盖。这确保关键错误必须修复后才能继续。"
+			"blockOnCriticalIssuesDesc": "启用后，当裁判检测到严重问题时,将强制阻止任务完成，不允许用户覆盖。这确保关键错误必须修复后才能继续。"
+		},
+		"INTELLIGENT_CONTEXT_FILTERING": {
+			"name": "智能上下文过滤（已废弃）",
+			"description": "此功能已被智能消息压缩取代。请使用下方的新功能。"
+		},
+		"messageCompression": {
+			"name": "智能消息压缩",
+			"description": "通过智能压缩不可见消息来减少内存使用。这可以改善长对话中的性能。",
+			"info": "开启后，Roo 将在后台智能压缩旧消息以优化性能。"
 		}
 	},
 	"promptCaching": {

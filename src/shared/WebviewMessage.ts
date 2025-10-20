@@ -246,6 +246,10 @@ export interface WebviewMessage {
 		| "judgeDetailLevel"
 		| "judgeAllowUserOverride"
 		| "judgeModelConfigId"
+		| "experimentalMessageCompression"
+		| "showInformationMessage"
+		| "showWarningMessage"
+		| "showErrorMessage"
 	text?: string
 	editedMessageContent?: string
 	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "cloud"

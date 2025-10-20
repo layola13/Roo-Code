@@ -78,6 +78,7 @@ export const globalSettingsSchema = z.object({
 	autoCondenseContext: z.boolean().optional(),
 	autoCondenseContextPercent: z.number().optional(),
 	vectorMemoryEnabled: z.boolean().optional(),
+	experimentalMessageCompression: z.boolean().optional(),
 	maxConcurrentFileReads: z.number().optional(),
 
 	// Sub-agent compression settings (experimental)

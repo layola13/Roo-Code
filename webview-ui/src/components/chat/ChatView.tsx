@@ -10,6 +10,8 @@ import { Trans, useTranslation } from "react-i18next"
 
 import { useDebounceEffect } from "@src/utils/useDebounceEffect"
 import { appendImages } from "@src/utils/imageUtils"
+import { MessageWindowManager } from "@src/utils/MessageWindowManager"
+import { MessageCompressionManager } from "@src/utils/MessageCompressionManager"
 
 import type { ClineAsk, ClineMessage, McpServerUse } from "@roo-code/types"
 
@@ -128,6 +130,8 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		useContextAnalyzer,
 		useMemoryExtractor,
 		useCodeSummarizer,
+		// Message compression configuration (experimental)
+		experimentalMessageCompression,
 	} = useExtensionState()
 
 	const messagesRef = useRef(messages)
@@ -171,7 +175,45 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		return getLatestTodo(messages)
 	}, [messages, currentTaskTodos])
 
-	const modifiedMessages = useMemo(() => combineApiRequests(combineCommandSequences(messages.slice(1))), [messages])
+	// 应用消息窗口（硬限制，防止内存溢出）
+	const windowedMessages = useMemo(() => {
+		return MessageWindowManager.applyWindow(messages)
+	}, [messages])
+
+	// 应用消息压缩（实验性功能，可选，异步处理）
+	const [compressedMessages, setCompressedMessages] = useState<ClineMessage[]>(windowedMessages)
+
+	useEffect(() => {
+		// 压缩是异步的，使用 useEffect 处理
+		if (experimentalMessageCompression) {
+			MessageCompressionManager.checkAndCompress(windowedMessages, experimentalMessageCompression)
+				.then((compressed) => {
+					if (isMountedRef.current) {
+						setCompressedMessages(compressed)
+					}
+				})
+				.catch((error) => {
+					console.error("[Compression] 压缩失败:", error)
+					// 压缩失败时使用未压缩的消息
+					if (isMountedRef.current) {
+						setCompressedMessages(windowedMessages)
+					}
+				})
+		} else {
+			// 未启用压缩时直接使用窗口化消息
+			if (isMountedRef.current) {
+				setCompressedMessages(windowedMessages)
+			}
+		}
+	}, [windowedMessages, experimentalMessageCompression])
+
+	// 使用压缩后的消息作为最终处理结果
+	const processedMessages = compressedMessages
+
+	const modifiedMessages = useMemo(
+		() => combineApiRequests(combineCommandSequences(processedMessages.slice(1))),
+		[processedMessages],
+	)
 
 	// Has to be after api_req_finished are all reduced into api_req_started messages.
 	const apiMetrics = useMemo(() => getApiMetrics(modifiedMessages), [modifiedMessages])
@@ -200,6 +242,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	const [showCheckpointWarning, setShowCheckpointWarning] = useState<boolean>(false)
 	const [isCondensing, setIsCondensing] = useState<boolean>(false)
 	const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
+	const [compressionProgress, setCompressionProgress] = useState<{ current: number; total: number } | null>(null)
 	const everVisibleMessagesTsRef = useRef<LRUCache<number, boolean>>(
 		new LRUCache({
 			max: 100,
@@ -1779,6 +1822,115 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		vscode.postMessage({ type: "condenseTaskContextRequest", text: taskId })
 	}
 
+	const handleCompressMessages = async () => {
+		if (isCondensing || sendingDisabled) {
+			return
+		}
+
+		// 触发历史消息压缩（使用新的compressWithResult方法）
+		if (experimentalMessageCompression) {
+			try {
+				// 先获取可压缩消息的数量用于进度显示
+				const now = Date.now()
+				const boundary = now - 60 * 60 * 1000 // 1小时前
+
+				// 精确计算可压缩的消息（需要满足三个条件）
+				const compressibleMessages = windowedMessages.filter((msg) => {
+					const isOld = msg.ts < boundary
+					const isNotCompressed = !(msg as any).compressed
+					// 简化判断：不是特殊类型的消息都可以压缩
+					const canCompress = msg.type === "say" || msg.type === "ask"
+					return isOld && isNotCompressed && canCompress
+				})
+
+				const totalToCompress = compressibleMessages.length
+
+				// 检查消息数量
+				if (windowedMessages.length < 100) {
+					vscode.postMessage({
+						type: "showWarningMessage",
+						text: `⚠️ 消息数量不足\n当前: ${windowedMessages.length} 条，最少需要: 100 条`,
+					})
+					return
+				}
+
+				// 如果没有可压缩的消息（都在1小时内），提前返回
+				if (totalToCompress === 0) {
+					vscode.postMessage({
+						type: "showWarningMessage",
+						text: "⚠️ 没有找到可压缩的消息\n所有消息都在最近1小时内，或已被压缩过",
+					})
+					return
+				}
+
+				// 设置初始进度
+				setCompressionProgress({ current: 0, total: totalToCompress })
+
+				console.log(`[Compression] 开始压缩 ${totalToCompress} / ${windowedMessages.length} 条消息`)
+
+				// 模拟进度更新（压缩是批量操作，用动画让用户知道正在处理）
+				let currentProgress = 0
+				const progressInterval = setInterval(() => {
+					currentProgress = Math.min(currentProgress + Math.ceil(totalToCompress / 20), totalToCompress)
+					setCompressionProgress({ current: currentProgress, total: totalToCompress })
+					if (currentProgress >= totalToCompress) {
+						clearInterval(progressInterval)
+					}
+				}, 100) // 每100ms更新一次，大约2秒完成进度动画
+
+				const result = await MessageCompressionManager.compressWithResult(windowedMessages, true)
+
+				// 清除进度interval
+				clearInterval(progressInterval)
+
+				// 设置完成进度
+				setCompressionProgress({ current: totalToCompress, total: totalToCompress })
+
+				// 延迟清除进度显示
+				setTimeout(() => {
+					if (isMountedRef.current) {
+						setCompressionProgress(null)
+					}
+				}, 1500)
+
+				if (isMountedRef.current) {
+					if (result.success && result.compressedCount > 0) {
+						// 应用压缩后的消息
+						setCompressedMessages(result.compressedMessages)
+
+						// 发送成功通知给extension（只显示一次）
+						vscode.postMessage({
+							type: "showInformationMessage",
+							text: `✅ 历史消息压缩完成\n已压缩: ${result.compressedCount} / ${result.originalCount} 条\n节省 Token: 约 ${result.tokensSaved} 个\n耗时: ${(result.durationMs / 1000).toFixed(2)}s`,
+						})
+
+						console.log("[Compression] 历史消息压缩成功:", {
+							originalCount: result.originalCount,
+							compressedCount: result.compressedCount,
+							tokensSaved: result.tokensSaved,
+							durationMs: result.durationMs,
+						})
+					} else {
+						// 压缩失败或没有可压缩的消息
+						const errorMsg = result.error || "没有找到可压缩的消息"
+						vscode.postMessage({
+							type: "showWarningMessage",
+							text: `⚠️ 历史消息压缩未执行\n${errorMsg}`,
+						})
+						console.log("[Compression] 压缩跳过:", errorMsg)
+					}
+				}
+			} catch (error) {
+				console.error("[Compression] 历史消息压缩失败:", error)
+				setCompressionProgress(null)
+				vscode.postMessage({
+					type: "showErrorMessage",
+					text: `❌ 历史消息压缩失败\n${error instanceof Error ? error.message : String(error)}`,
+				})
+			}
+		}
+	}
+
 	const areButtonsVisible = showScrollToBottom || primaryButtonText || secondaryButtonText || isStreaming
 
 	return (
@@ -1810,12 +1962,14 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 						contextTokens={apiMetrics.contextTokens}
 						buttonsDisabled={sendingDisabled}
 						handleCondenseContext={handleCondenseContext}
+						handleCompressMessages={handleCompressMessages}
 						todos={latestTodos}
 						subAgentTokenUsage={apiMetrics.subAgentTokenUsage}
 						subAgentCompressionEnabled={subAgentCompressionEnabled}
 						useContextAnalyzer={useContextAnalyzer}
 						useMemoryExtractor={useMemoryExtractor}
 						useCodeSummarizer={useCodeSummarizer}
+						compressionProgress={compressionProgress}
 					/>
 
 					{hasSystemPromptOverride && (

@@ -821,6 +821,15 @@
 			"allowUserOverrideDesc": "When enabled, you can choose to proceed even if the judge determines the task is incomplete.",
 			"blockOnCriticalIssues": "Block on critical issues",
 			"blockOnCriticalIssuesDesc": "When enabled, task completion will be forcefully blocked if critical issues are detected by the judge. User override will not be allowed for critical issues."
+		},
+		"INTELLIGENT_CONTEXT_FILTERING": {
+			"name": "Intelligent Context Filtering (Deprecated)",
+			"description": "This feature has been replaced by intelligent message compression. Please use the new feature below."
+		},
+		"messageCompression": {
+			"name": "Enable intelligent message compression",
+			"description": "When enabled, Roo will intelligently compress old messages in long conversations to reduce memory usage and prevent crashes.",
+			"info": "This feature helps maintain performance during long chat sessions by summarizing non-essential messages."
 		}
 	},
 	"promptCaching": {

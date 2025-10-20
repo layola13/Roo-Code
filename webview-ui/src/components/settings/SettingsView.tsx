@@ -207,6 +207,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		redisUrl,
 		qdrantUrl,
 		qdrantCollectionName,
+		experimentalMessageCompression,
 	} = cachedState
 
 	const apiConfiguration = useMemo(() => cachedState.apiConfiguration ?? {}, [cachedState.apiConfiguration])
@@ -415,6 +416,10 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			vscode.postMessage({
 				type: "openRouterImageGenerationSelectedModel",
 				text: openRouterImageGenerationSelectedModel,
+			})
+			vscode.postMessage({
+				type: "experimentalMessageCompression",
+				bool: experimentalMessageCompression ?? false,
 			})
 			setChangeDetected(false)
 		}
@@ -834,6 +839,10 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 							}
 							setOpenRouterImageApiKey={setOpenRouterImageApiKey}
 							setImageGenerationSelectedModel={setImageGenerationSelectedModel}
+							experimentalMessageCompression={experimentalMessageCompression}
+							setExperimentalMessageCompression={(value) =>
+								setCachedStateField("experimentalMessageCompression", value)
+							}
 						/>
 					)}
 

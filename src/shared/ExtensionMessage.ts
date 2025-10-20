@@ -372,6 +372,7 @@ export type ExtensionState = Pick<
 	autoCondenseContextPercent: number
 	vectorMemoryEnabled: boolean
 	useSubAgentCompression: boolean
+	experimentalMessageCompression: boolean
 	subAgentCompressionEnabled: boolean
 	subAgentInvocations?: SubAgentInvocation[]
 	marketplaceItems?: MarketplaceItem[]

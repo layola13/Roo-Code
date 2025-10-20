@@ -560,6 +560,7 @@ describe("ClineProvider", () => {
 			vectorMemoryEnabled: false,
 			useSubAgentCompression: false,
 			subAgentCompressionEnabled: false,
+			experimentalMessageCompression: false,
 		}
 
 		const message: ExtensionMessage = {

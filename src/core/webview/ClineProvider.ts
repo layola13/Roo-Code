@@ -54,7 +54,7 @@ import { supportPrompt } from "../../shared/support-prompt"
 import { GlobalFileNames } from "../../shared/globalFileNames"
 import type { ExtensionMessage, ExtensionState, MarketplaceInstalledMetadata } from "../../shared/ExtensionMessage"
 import { Mode, defaultModeSlug, getModeBySlug } from "../../shared/modes"
-import { experimentDefault } from "../../shared/experiments"
+import { experimentDefault, EXPERIMENT_IDS } from "../../shared/experiments"
 import { formatLanguage } from "../../shared/language"
 import { WebviewMessage } from "../../shared/WebviewMessage"
 import { EMBEDDING_MODEL_PROFILES } from "../../shared/embeddingModels"
@@ -305,15 +305,25 @@ export class ClineProvider
 	private async initializeConversationController(): Promise<void> {
 		try {
 			const state = await this.getState()
-			const enableIntelligentContext = state?.experiments?.intelligentContextFiltering ?? false
+			// Note: ConversationController is always initialized when available
+			// Intelligent context filtering is now controlled by experimentalMessageCompression setting
 
-			if (!enableIntelligentContext) {
-				this.log("[ClineProvider] Intelligent context filtering is disabled")
-				return
+			// ✅ 使用压缩专用的 API 配置（condensingApiConfigId）而不是主 API
+			let apiHandler = buildApiHandler(state.apiConfiguration)
+
+			// 如果设置了独立的压缩 API 配置，则使用它
+			if (state.condensingApiConfigId) {
+				try {
+					const condensingProfile = await this.providerSettingsManager.getProfile({
+						id: state.condensingApiConfigId,
+					})
+					apiHandler = buildApiHandler(condensingProfile)
+					this.log("[ClineProvider] Using dedicated condensing API configuration for ConversationController")
+				} catch (error) {
+					this.log(`[ClineProvider] Failed to load condensing API config, falling back to main API: ${error}`)
+					// Fallback to main API if condensing config fails to load
+				}
 			}
-
-			// Get API configuration for ConversationController
-			const apiHandler = buildApiHandler(state.apiConfiguration)
 
 			// Get vector memory store if available (shared with Task initialization)
 			// Note: VectorMemoryStore will be initialized per-task, we just pass undefined here
@@ -2093,6 +2103,7 @@ export class ClineProvider
 			openRouterUseMiddleOutTransform,
 			featureRoomoteControlEnabled,
 			useSubAgentCompression: useSubAgentCompression ?? true,
+			experimentalMessageCompression: this.getGlobalState("experimentalMessageCompression") ?? false,
 			subAgentCompressionEnabled: useSubAgentCompression ?? true,
 			subAgentInvocations: this.getCurrentTask()?.getSubAgentInvocations() || [],
 			useContextAnalyzer: useContextAnalyzer ?? true,
@@ -2201,6 +2212,25 @@ export class ClineProvider
 			)
 		}
 
+		// Sanitize experiments: remove deprecated experiment IDs that no longer exist
+		const validExperimentIds = new Set<string>(Object.values(EXPERIMENT_IDS))
+		const rawExperiments = stateValues.experiments ?? experimentDefault
+		const sanitizedExperiments: Record<string, boolean> = {}
+
+		for (const [key, value] of Object.entries(rawExperiments)) {
+			if (validExperimentIds.has(key as string)) {
+				sanitizedExperiments[key] = value
+			}
+		}
+
+		// If experiments were sanitized, update the stored state
+		if (Object.keys(sanitizedExperiments).length !== Object.keys(rawExperiments).length) {
+			// Update in background, don't block getState
+			this.updateGlobalState("experiments", sanitizedExperiments as any).catch((error) => {
+				this.log(`[getState] Failed to save sanitized experiments: ${error}`)
+			})
+		}
+
 		// Return the same structure as before.
 		return {
 			apiConfiguration: providerSettings,
@@ -2268,7 +2298,7 @@ export class ClineProvider
 			customModePrompts: stateValues.customModePrompts ?? {},
 			customSupportPrompts: stateValues.customSupportPrompts ?? {},
 			enhancementApiConfigId: stateValues.enhancementApiConfigId,
-			experiments: stateValues.experiments ?? experimentDefault,
+			experiments: sanitizedExperiments,
 			autoApprovalEnabled: stateValues.autoApprovalEnabled ?? false,
 			customModes,
 			maxOpenTabsContext: stateValues.maxOpenTabsContext ?? 20,
@@ -2338,6 +2368,7 @@ export class ClineProvider
 				}
 			})(),
 			useSubAgentCompression: stateValues.useSubAgentCompression ?? true,
+			experimentalMessageCompression: stateValues.experimentalMessageCompression ?? false,
 			subAgentCompressionEnabled: stateValues.useSubAgentCompression ?? true,
 			useContextAnalyzer: stateValues.useContextAnalyzer ?? true,
 			useMemoryExtractor: stateValues.useMemoryExtractor ?? true,

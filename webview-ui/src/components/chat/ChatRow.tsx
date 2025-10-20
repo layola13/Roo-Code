@@ -6,6 +6,7 @@ import { VSCodeBadge } from "@vscode/webview-ui-toolkit/react"
 
 import type { ClineMessage, FollowUpData, SuggestionItem } from "@roo-code/types"
 import { Mode } from "@roo/modes"
+import type { CompressedMessage } from "@src/utils/MessageCompressionManager"
 
 import { ClineApiReqInfo, ClineAskUseMcpServer, ClineSayTool } from "@roo/ExtensionMessage"
 import { COMMAND_OUTPUT_STRING } from "@roo/combineCommandSequences"
@@ -349,6 +350,10 @@ export const ChatRowContent = ({
 	// 格式化消息时间戳
 	const messageTime = useMemo(() => formatMessageTime(message.ts), [message.ts])
 
+	// 检查消息是否被压缩
+	const compressedMsg = message as CompressedMessage
+	const isCompressed = compressedMsg.compressed === true
+
 	// 消息索引号显示
 	const messageIndexBadge =
 		message.messageIndex !== undefined && message.messageIndex !== null ? (
@@ -359,6 +364,17 @@ export const ChatRowContent = ({
 				#{message.messageIndex}
 			</span>
 		) : null
+
+	// 压缩标记徽章
+	const compressionBadge = isCompressed ? (
+		<span
+			className="text-xs px-1.5 py-0.5 rounded bg-blue-600/20 text-blue-400 font-mono flex items-center gap-1"
+			style={{ opacity: 0.8 }}
+			title={`已压缩 - 级别: ${compressedMsg.compressionLevel}\n原始: ${compressedMsg.originalSize}B → 压缩后: ${compressedMsg.compressedSize}B\n压缩比: ${(compressedMsg.compressionRatio * 100).toFixed(1)}%\n压缩时间: ${formatMessageTime(compressedMsg.compressedAt)}`}>
+			<span className="codicon codicon-archive" style={{ fontSize: "11px" }}></span>
+			<span>已压缩</span>
+		</span>
+	) : null
 
 	const tool = useMemo(
 		() => (message.ask === "tool" ? safeJsonParse<ClineSayTool>(message.text) : null),
@@ -400,6 +416,7 @@ export const ChatRowContent = ({
 									{t("chat:fileOperations.wantsToApplyBatchChanges")}
 								</span>
 								{messageIndexBadge}
+								{compressionBadge}
 								<span className="ml-auto text-xs text-vscode-descriptionForeground opacity-60">
 									{messageTime}
 								</span>
@@ -429,6 +446,7 @@ export const ChatRowContent = ({
 										: t("chat:fileOperations.wantsToEdit")}
 							</span>
 							{messageIndexBadge}
+							{compressionBadge}
 							<span className="ml-auto text-xs text-vscode-descriptionForeground opacity-60">
 								{messageTime}
 							</span>
@@ -1202,6 +1220,7 @@ export const ChatRowContent = ({
 								<MessageCircle className="w-4 shrink-0" aria-label="Speech bubble icon" />
 								<span style={{ fontWeight: "bold" }}>{t("chat:text.rooSaid")}</span>
 								{messageIndexBadge}
+								{compressionBadge}
 								<span className="ml-auto text-xs text-vscode-descriptionForeground opacity-60">
 									{messageTime}
 								</span>
@@ -1225,6 +1244,7 @@ export const ChatRowContent = ({
 								<User className="w-4 shrink-0" aria-label="User icon" />
 								<span style={{ fontWeight: "bold" }}>{t("chat:feedback.youSaid")}</span>
 								{messageIndexBadge}
+								{compressionBadge}
 								<span className="ml-auto text-xs text-vscode-descriptionForeground opacity-60">
 									{messageTime}
 								</span>
@@ -1319,6 +1339,7 @@ export const ChatRowContent = ({
 								{icon}
 								{title}
 								{messageIndexBadge}
+								{compressionBadge}
 								<span className="ml-auto text-xs text-vscode-descriptionForeground opacity-60">
 									{messageTime}
 								</span>

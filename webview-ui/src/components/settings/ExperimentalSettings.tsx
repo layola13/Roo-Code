@@ -1,5 +1,6 @@
 import { HTMLAttributes } from "react"
 import { FlaskConical } from "lucide-react"
+import { VSCodeCheckbox } from "@vscode/webview-ui-toolkit/react"
 
 import type { Experiments } from "@roo-code/types"
 
@@ -24,6 +25,8 @@ type ExperimentalSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	openRouterImageGenerationSelectedModel?: string
 	setOpenRouterImageApiKey?: (apiKey: string) => void
 	setImageGenerationSelectedModel?: (model: string) => void
+	experimentalMessageCompression?: boolean
+	setExperimentalMessageCompression?: (value: boolean) => void
 }
 
 export const ExperimentalSettings = ({
@@ -35,6 +38,8 @@ export const ExperimentalSettings = ({
 	openRouterImageGenerationSelectedModel,
 	setOpenRouterImageApiKey,
 	setImageGenerationSelectedModel,
+	experimentalMessageCompression,
+	setExperimentalMessageCompression,
 	className,
 	...props
 }: ExperimentalSettingsProps) => {
@@ -104,6 +109,25 @@ export const ExperimentalSettings = ({
 					apiConfiguration={apiConfiguration}
 					setApiConfigurationField={setApiConfigurationField}
 				/>
+
+				{/* Message Compression Settings */}
+				{setExperimentalMessageCompression && (
+					<div className="flex flex-col gap-2 pt-4 border-t border-vscode-editorWidget-border">
+						<VSCodeCheckbox
+							checked={experimentalMessageCompression ?? false}
+							onChange={(e: any) => setExperimentalMessageCompression(e.target.checked)}>
+							<span className="font-medium">{t("settings:experimental.messageCompression.name")}</span>
+						</VSCodeCheckbox>
+						<p className="text-vscode-descriptionForeground text-sm mt-0">
+							{t("settings:experimental.messageCompression.description")}
+						</p>
+						{experimentalMessageCompression && (
+							<div className="ml-6 mt-2 p-2 bg-vscode-editorInfo-background text-vscode-editorInfo-foreground rounded text-sm">
+								{t("settings:experimental.messageCompression.info")}
+							</div>
+						)}
+					</div>
+				)}
 			</Section>
 		</div>
 	)

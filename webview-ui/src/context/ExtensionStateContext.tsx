@@ -179,6 +179,9 @@ export interface ExtensionStateContextType extends ExtensionState {
 	setMaxDiagnosticMessages: (value: number) => void
 	includeTaskHistoryInEnhance?: boolean
 	setIncludeTaskHistoryInEnhance: (value: boolean) => void
+	// Experimental message compression
+	experimentalMessageCompression: boolean
+	setExperimentalMessageCompression: (value: boolean) => void
 }
 
 export const ExtensionStateContext = createContext<ExtensionStateContextType | undefined>(undefined)
@@ -310,6 +313,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		maxDiagnosticMessages: 50,
 		openRouterImageApiKey: "",
 		openRouterImageGenerationSelectedModel: "",
+		experimentalMessageCompression: false, // Default to disabled
 	})
 
 	const [didHydrateState, setDidHydrateState] = useState(false)
@@ -603,6 +607,10 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		},
 		includeTaskHistoryInEnhance,
 		setIncludeTaskHistoryInEnhance,
+		// Experimental message compression
+		experimentalMessageCompression: state.experimentalMessageCompression ?? false,
+		setExperimentalMessageCompression: (value) =>
+			setState((prevState) => ({ ...prevState, experimentalMessageCompression: value })),
 		// Sub-agent configuration getters and setters
 		useContextAnalyzer: state.useContextAnalyzer ?? true,
 		setUseContextAnalyzer: (value) => setState((prevState) => ({ ...prevState, useContextAnalyzer: value })),
