@@ -3116,36 +3116,29 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 					// 根据筛选结果更新对话历史
 					if (filterResult.selectedMessages.length > 0) {
-						// 创建新的API对话历史，只包含筛选出的消息
-						const selectedMessageIndices = new Set(
-							filterResult.selectedMessages.map((msg) => msg.messageIndex),
-						)
+						// 直接使用筛选出的消息索引重建对话历史
+						const selectedIndices = new Set(filterResult.selectedMessages.map((m) => m.messageIndex))
 
-						// 重新构建API对话历史，保留assistant消息和被选中的user消息
-						const filteredApiHistory: typeof this.apiConversationHistory = []
-
-						for (let i = 0; i < this.apiConversationHistory.length; i++) {
-							const apiMsg = this.apiConversationHistory[i]
-
-							if (apiMsg.role === "assistant") {
-								// 保留所有assistant消息
-								filteredApiHistory.push(apiMsg)
-							} else if (apiMsg.role === "user") {
-								// 查找对应的cline消息索引
-								// 由于API历史和Cline消息不是一一对应的，我们需要通过消息内容匹配
-								const correspondingClineMsg = this.clineMessages.find((clineMsg) => {
-									if (clineMsg.type !== "say") return false
-									const msgIndex = clineMsg.messageIndex || 0
-									return selectedMessageIndices.has(msgIndex)
-								})
-
-								if (correspondingClineMsg) {
-									filteredApiHistory.push(apiMsg)
+						// 过滤 API 历史，保留 assistant 消息和被选中的 user 消息
+						const filteredApiHistory = this.apiConversationHistory.filter((msg, idx) => {
+							// 保留所有 assistant 消息
+							if (msg.role === "assistant") {
+								return true
+							}
+							// 对于 user 消息，检查对应的 cline 消息是否被选中
+							// 使用消息的时间戳来匹配（API消息和Cline消息通过ts关联）
+							const msgTs = (msg as any).ts
+							if (msgTs) {
+								const clineMsg = this.clineMessages.find((cm) => cm.ts === msgTs)
+								if (clineMsg && clineMsg.messageIndex) {
+									return selectedIndices.has(clineMsg.messageIndex)
 								}
 							}
-						}
+							// 如果无法匹配时间戳，检查消息索引
+							return selectedIndices.has(idx + 1)
+						})
 
-						// 更新cleanConversationHistory为筛选后的历史
+						// 应用到最终的对话历史 - 关键修复：使用筛选后的历史
 						const filteredMessagesSinceLastSummary = getMessagesSinceLastSummary(filteredApiHistory)
 						cleanConversationHistory = maybeRemoveImageBlocks(
 							filteredMessagesSinceLastSummary,
@@ -3153,6 +3146,21 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						).map(({ role, content }) => ({ role, content }))
 
 						intelligentContextApplied = true
+
+						// ✅ 添加 UI 通知
+						await this.say(
+							"text",
+							`🎯 **智能上下文筛选已应用**\n\n` +
+								`- 原始消息数：${filterResult.originalMessageCount} 条\n` +
+								`- 筛选后消息数：${filterResult.selectedMessageCount} 条\n` +
+								`- 节省 Token：${filterResult.tokenSavings} 个\n` +
+								`- 筛选策略：${filterResult.judgeDecision?.intent || "语义相关性"}`,
+							undefined,
+							false,
+							undefined,
+							undefined,
+							{ isNonInteractive: true },
+						)
 
 						console.log(
 							`[Task#${this.taskId}] Applied intelligent context filtering: ${filterResult.originalMessageCount} -> ${filterResult.selectedMessageCount} messages, saved ${filterResult.tokenSavings} tokens`,

@@ -271,6 +271,21 @@ export const messageRelevanceSchema = z.object({
 export type MessageRelevance = z.infer<typeof messageRelevanceSchema>
 
 /**
+ * IntelligentContextResult
+ *
+ * Result from intelligent context filtering
+ */
+
+export const intelligentContextResultSchema = z.object({
+	originalMessageCount: z.number(),
+	selectedMessageCount: z.number(),
+	tokenSavings: z.number(),
+	judgeDecision: judgeDecisionSchema.optional(),
+})
+
+export type IntelligentContextResult = z.infer<typeof intelligentContextResultSchema>
+
+/**
  * ContextCondense
  */
 
@@ -310,6 +325,7 @@ export const clineMessageSchema = z.object({
 	isAnswered: z.boolean().optional(),
 	judgeDecision: judgeDecisionSchema.optional(), // Judge agent analysis and decision
 	relevance: messageRelevanceSchema.optional(), // Message relevance in intelligent context
+	intelligentContextResult: intelligentContextResultSchema.optional(), // Result from intelligent context filtering
 	metadata: z
 		.object({
 			gpt5: z

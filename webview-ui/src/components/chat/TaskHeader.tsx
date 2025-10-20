@@ -623,6 +623,80 @@ const TaskHeader = ({
 										</td>
 									</tr>
 
+									{/* Intelligent Context Filtering Row */}
+									{task.intelligentContextResult && (
+										<tr>
+											<th className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-3 h-[24px]">
+												智能筛选
+											</th>
+											<td className="align-top">
+												<div className="flex flex-col gap-2">
+													{/* Status indicator */}
+													<div className="flex items-center gap-2 text-xs">
+														<span className="codicon codicon-filter text-vscode-charts-blue" />
+														<span className="font-medium text-vscode-charts-green">
+															已应用
+														</span>
+														<span className="text-vscode-descriptionForeground">
+															(节省{" "}
+															{formatLargeNumber(
+																task.intelligentContextResult.tokenSavings,
+															)}{" "}
+															tokens)
+														</span>
+													</div>
+
+													{/* Filtering statistics */}
+													<div className="flex flex-col gap-1 border-t border-vscode-panel-border/30 pt-2">
+														<div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+															<div className="flex items-center gap-1.5">
+																<span className="text-vscode-descriptionForeground opacity-80">
+																	原始消息:
+																</span>
+																<span className="font-medium">
+																	{task.intelligentContextResult.originalMessageCount}
+																</span>
+															</div>
+															<div className="flex items-center gap-1.5">
+																<span className="text-vscode-descriptionForeground opacity-80">
+																	筛选后:
+																</span>
+																<span className="font-medium text-vscode-charts-green">
+																	{task.intelligentContextResult.selectedMessageCount}
+																</span>
+															</div>
+															<div className="flex items-center gap-1.5">
+																<span className="text-vscode-descriptionForeground opacity-80">
+																	压缩率:
+																</span>
+																<span className="font-medium text-vscode-charts-blue">
+																	{(
+																		(1 -
+																			task.intelligentContextResult
+																				.selectedMessageCount /
+																				task.intelligentContextResult
+																					.originalMessageCount) *
+																		100
+																	).toFixed(1)}
+																	%
+																</span>
+															</div>
+															<div className="flex items-center gap-1.5">
+																<span className="text-vscode-descriptionForeground opacity-80">
+																	筛选策略:
+																</span>
+																<span className="font-medium">
+																	{task.intelligentContextResult.judgeDecision
+																		?.intent || "语义相关性"}
+																</span>
+															</div>
+														</div>
+													</div>
+												</div>
+											</td>
+										</tr>
+									)}
+
 									{/* Storage status row */}
 									{storageStatus && (
 										<tr>
