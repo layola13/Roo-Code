@@ -1,0 +1,17 @@
+# 忽略Prisma生成的文件
+src/lib/db/generated/**
+*.generated.js
+
+# 忽略构建输出
+.next/
+out/
+dist/
+build/
+
+# 忽略依赖
+node_modules/
+
+# 忽略配置文件
+next.config.js
+postcss.config.js
+tailwind.config.js

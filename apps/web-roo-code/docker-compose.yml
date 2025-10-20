@@ -1,26 +1,30 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database
   postgres:
-    image: postgres:15-alpine
-    container_name: roocode-postgres
+    image: postgres:16-alpine
+    container_name: roo-code-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: roocode
+      POSTGRES_USER: roocode
+      POSTGRES_PASSWORD: roocode_password
+      POSTGRES_DB: roo_code
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U roocode"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # Redis Cache (optional)
   redis:
     image: redis:7-alpine
-    container_name: roocode-redis
+    container_name: roo-code-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
@@ -28,22 +32,41 @@ services:
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
-      timeout: 5s
+      timeout: 3s
       retries: 5
 
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: roocode-qdrant
+  # Web Application
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: roo-code-web
+    restart: unless-stopped
     ports:
-      - "6333:6333"
-      - "6334:6334"
-    volumes:
-      - qdrant_data:/qdrant/storage
+      - "3000:3000"
     environment:
-      QDRANT__SERVICE__HTTP_PORT: 6333
-      QDRANT__SERVICE__GRPC_PORT: 6334
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://roocode:roocode_password@postgres:5432/roo_code
+      - REDIS_URL=redis://redis:6379
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - GITHUB_ID=${GITHUB_ID}
+      - GITHUB_SECRET=${GITHUB_SECRET}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+    command: sh -c "npx prisma migrate deploy && node server.js"
 
 volumes:
   postgres_data:
+    driver: local
   redis_data:
-  qdrant_data:
+    driver: local
+  uploads:
+    driver: local

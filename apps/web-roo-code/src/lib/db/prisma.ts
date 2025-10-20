@@ -10,26 +10,20 @@ const mockPrismaClient: PrismaClient = {
 	task: {
 		findUnique: async () => null,
 		findMany: async () => [],
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		upsert: async () => ({}) as any,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		update: async () => ({}) as any,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		delete: async () => ({}) as any,
 	},
 	checkpoint: {
 		findFirst: async () => null,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		create: async () => ({}) as any,
 	},
 	settings: {
 		findUnique: async () => null,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		upsert: async () => ({}) as any,
 	},
 	user: {
 		findUnique: async () => null,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		create: async () => ({}) as any,
 	},
 }

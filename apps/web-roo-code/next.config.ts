@@ -1,6 +1,20 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
+	// 明确指定使用src目录
+	experimental: {
+		// Next.js 15需要明确指定
+	},
+	eslint: {
+		// 忽略构建时的 ESLint 错误（生产环境）
+		ignoreDuringBuilds: false,
+		// 指定要 lint 的目录
+		dirs: ["app", "src", "lib", "components"],
+	},
+	typescript: {
+		// 忽略构建时的 TypeScript 错误（生产环境）
+		ignoreBuildErrors: false,
+	},
 	webpack: (config) => {
 		config.resolve.extensionAlias = { ".js": [".ts", ".tsx", ".js", ".jsx"] }
 		return config
