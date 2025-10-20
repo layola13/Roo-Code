@@ -8,6 +8,7 @@ import { TabButton } from "./TabButton"
 import { IconButton } from "./IconButton"
 import { ZoomControls } from "./ZoomControls"
 import { StandardTooltip } from "@/components/ui"
+import { LazyImage } from "./LazyImage"
 
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 20
@@ -205,19 +206,20 @@ export function ImageViewer({
 						<span style={{ color: "var(--vscode-errorForeground)" }}>⚠️ {imageError}</span>
 					</div>
 				) : (
-					<img
-						src={imageUri}
-						alt={alt}
-						className="w-full h-auto rounded cursor-pointer"
-						onClick={handleOpenInEditor}
-						onError={handleImageError}
-						onLoad={handleImageLoad}
-						style={{
-							maxHeight: "400px",
-							objectFit: "contain",
-							backgroundColor: "var(--vscode-editor-background)",
-						}}
-					/>
+					<div onClick={handleOpenInEditor} className="cursor-pointer">
+						<LazyImage
+							src={imageUri}
+							alt={alt}
+							className="w-full h-auto rounded"
+							onError={handleImageError}
+							onLoad={handleImageLoad}
+							style={{
+								maxHeight: "400px",
+								objectFit: "contain",
+								backgroundColor: "var(--vscode-editor-background)",
+							}}
+						/>
+					</div>
 				)}
 				{imagePath && (
 					<div className="mt-1 text-xs text-vscode-descriptionForeground">{formatDisplayPath(imagePath)}</div>

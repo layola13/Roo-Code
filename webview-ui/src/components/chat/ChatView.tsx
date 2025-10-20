@@ -872,8 +872,8 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			}
 		})
 
-		// 简化消息过滤逻辑 - 不再基于时间过滤
-		// Virtuoso 通过虚拟化可以高效处理大量消息
+		// 优化的消息过滤逻辑
+		// Virtuoso已经处理虚拟化，这里只需要过滤掉不应该显示的消息
 		const filteredMessages = modifiedMessages.filter((message) => {
 			// Filter out checkpoint_saved messages that should be suppressed
 			if (message.say === "checkpoint_saved") {
@@ -892,6 +892,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				}
 			}
 
+			// 对于已经处理过的消息，使用缓存快速判断
 			if (everVisibleMessagesTsRef.current.has(message.ts)) {
 				const alwaysHiddenOnceProcessedAsk: ClineAsk[] = [
 					"api_req_failed",
@@ -912,6 +913,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				return true
 			}
 
+			// 对于新消息，执行完整的过滤逻辑
 			switch (message.ask) {
 				case "completion_result":
 					if (message.text === "") return false
@@ -944,11 +946,13 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			return true
 		})
 
-		// 标记最近100条消息为已可见,用于缓存优化
-		const viewportStart = Math.max(0, filteredMessages.length - 100)
-		filteredMessages
-			.slice(viewportStart)
-			.forEach((msg: ClineMessage) => everVisibleMessagesTsRef.current.set(msg.ts, true))
+		// 优化：只标记最近的消息到缓存，避免缓存过大
+		// 使用滑动窗口：只缓存最近150条消息
+		const cacheWindowSize = 150
+		const startIndex = Math.max(0, filteredMessages.length - cacheWindowSize)
+		for (let i = startIndex; i < filteredMessages.length; i++) {
+			everVisibleMessagesTsRef.current.set(filteredMessages[i].ts, true)
+		}
 
 		return filteredMessages
 	}, [modifiedMessages])
@@ -1889,7 +1893,10 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 							ref={virtuosoRef}
 							key={task.ts}
 							className="scrollable grow overflow-y-scroll mb-1"
-							increaseViewportBy={{ top: 3_000, bottom: 1000 }}
+							increaseViewportBy={{
+								top: 2000, // 减少顶部缓冲区（从3000降至2000）
+								bottom: 800, // 减少底部缓冲区（从1000降至800）
+							}}
 							data={groupedMessages}
 							itemContent={itemContent}
 							atBottomStateChange={(isAtBottom: boolean) => {
@@ -1902,6 +1909,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 							atBottomThreshold={10}
 							initialTopMostItemIndex={Math.max(0, groupedMessages.length - 1)}
 							followOutput="smooth"
+							// 优化：启用Virtuoso的性能特性
+							overscan={200} // 减少过度扫描区域（默认值通常较大）
+							defaultItemHeight={100} // 提供默认高度估算，提升性能
 						/>
 					</div>
 					{areButtonsVisible && (
