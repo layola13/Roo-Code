@@ -237,6 +237,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	pausedModeSlug: string = defaultModeSlug
 	private pauseInterval: NodeJS.Timeout | undefined
 
+	// Auto-resume timer for handling network interruptions
+	private autoResumeTimer?: NodeJS.Timeout
+	private autoResumeAttempts: number = 0
+	private readonly AUTO_RESUME_DELAY_MS = 10000 // 10 seconds
+	private readonly MAX_AUTO_RESUME_ATTEMPTS = 10 // Maximum retry attempts
+	private autoResumeCountdown: number = 0
+	private isAutoResuming: boolean = false
+
 	// API
 	readonly apiConfiguration: ProviderSettings
 	api: ApiHandler
@@ -1111,6 +1119,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	}
 
 	handleWebviewAskResponse(askResponse: ClineAskResponse, text?: string, images?: string[]) {
+		// Clear auto-resume timer when user manually responds
+		this.clearAutoResumeTimer()
+
 		this.askResponse = askResponse
 		this.askResponseText = text
 		this.askResponseImages = images
@@ -1594,7 +1605,15 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		this.isInitialized = true
 
+		// Start auto-resume timer for resumable tasks
+		if (askType === "resume_task") {
+			this.startAutoResumeTimer()
+		}
+
 		const { response, text, images } = await this.ask(askType) // Calls `postStateToWebview`.
+
+		// Clear auto-resume timer when user responds
+		this.clearAutoResumeTimer()
 
 		let responseText: string | undefined
 		let responseImages: string[] | undefined
@@ -1895,6 +1914,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			clearInterval(this.pauseInterval)
 			this.pauseInterval = undefined
 		}
+
+		// Clear auto-resume timer if it exists
+		this.clearAutoResumeTimer()
 
 		if (this.enableBridge) {
 			BridgeOrchestrator.getInstance()
@@ -3916,6 +3938,122 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 		} catch (e) {
 			console.error(`[Task] Queue processing error:`, e)
+		}
+	}
+
+	/**
+	 * Start auto-resume timer with countdown
+	 * This method is called when a task needs to be resumed automatically
+	 * (e.g., after a network interruption)
+	 */
+	public startAutoResumeTimer(): void {
+		// Clear any existing timer
+		this.clearAutoResumeTimer()
+
+		// Check if we've exceeded max attempts
+		if (this.autoResumeAttempts >= this.MAX_AUTO_RESUME_ATTEMPTS) {
+			this.say("error", `已达到最大自动恢复尝试次数 (${this.MAX_AUTO_RESUME_ATTEMPTS})。请手动恢复任务。`).catch(
+				console.error,
+			)
+			return
+		}
+
+		this.autoResumeAttempts++
+		this.autoResumeCountdown = this.AUTO_RESUME_DELAY_MS / 1000 // Convert to seconds
+		this.isAutoResuming = true
+
+		this.say(
+			"text",
+			`⏱️ 任务将在 ${this.autoResumeCountdown} 秒后自动恢复... (尝试 ${this.autoResumeAttempts}/${this.MAX_AUTO_RESUME_ATTEMPTS})`,
+			undefined,
+			true,
+		).catch(console.error)
+
+		// Update countdown every second
+		const countdownInterval = setInterval(() => {
+			this.autoResumeCountdown--
+
+			if (this.autoResumeCountdown > 0) {
+				this.say(
+					"text",
+					`⏱️ 任务将在 ${this.autoResumeCountdown} 秒后自动恢复... (尝试 ${this.autoResumeAttempts}/${this.MAX_AUTO_RESUME_ATTEMPTS})`,
+					undefined,
+					true,
+				).catch(console.error)
+			}
+		}, 1000)
+
+		// Set the main auto-resume timer
+		this.autoResumeTimer = setTimeout(async () => {
+			clearInterval(countdownInterval)
+			await this.executeAutoResume()
+		}, this.AUTO_RESUME_DELAY_MS)
+	}
+
+	/**
+	 * Clear auto-resume timer
+	 * This method is called when manual resume is triggered or task is disposed
+	 */
+	public clearAutoResumeTimer(): void {
+		if (this.autoResumeTimer) {
+			clearTimeout(this.autoResumeTimer)
+			this.autoResumeTimer = undefined
+			this.autoResumeCountdown = 0
+			this.isAutoResuming = false
+		}
+	}
+
+	/**
+	 * Execute auto-resume logic
+	 * This method attempts to resume the task automatically
+	 */
+	private async executeAutoResume(): Promise<void> {
+		this.isAutoResuming = false
+
+		try {
+			await this.say(
+				"text",
+				`🔄 正在尝试自动恢复任务... (尝试 ${this.autoResumeAttempts}/${this.MAX_AUTO_RESUME_ATTEMPTS})`,
+			)
+
+			// Try to resume the task by simulating a resume response
+			this.handleWebviewAskResponse("yesButtonClicked")
+
+			// Wait a moment to see if the resume was successful
+			await delay(2000)
+
+			// Check if task is still in a resumable state
+			if (this.resumableAsk) {
+				// Resume failed, try again
+				await this.say("error", `❌ 自动恢复失败，将继续尝试...`)
+				this.startAutoResumeTimer()
+			} else {
+				// Resume succeeded
+				await this.say("text", `✅ 任务已成功自动恢复！`)
+				this.autoResumeAttempts = 0 // Reset attempt counter on success
+			}
+		} catch (error) {
+			await this.say("error", `❌ 自动恢复时发生错误: ${error instanceof Error ? error.message : String(error)}`)
+			// Retry on error
+			this.startAutoResumeTimer()
+		}
+	}
+
+	/**
+	 * Get auto-resume status
+	 * Returns information about the current auto-resume state
+	 */
+	public getAutoResumeStatus(): {
+		isAutoResuming: boolean
+		countdown: number
+		attempts: number
+		maxAttempts: number
+	} {
+		return {
+			isAutoResuming: this.isAutoResuming,
+			countdown: this.autoResumeCountdown,
+			attempts: this.autoResumeAttempts,
+			maxAttempts: this.MAX_AUTO_RESUME_ATTEMPTS,
 		}
 	}
 }
