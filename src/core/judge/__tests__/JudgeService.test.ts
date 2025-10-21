@@ -551,5 +551,96 @@ Overall Score: 8/10`
 			expect(result.reasoning).toContain("所有要求都已满足")
 			expect(result.overallScore).toBe(8)
 		})
+
+		it("should correctly parse rejection when Decision contains 'approved' but means rejection", async () => {
+			// Bug fix test: This is the exact scenario reported by the user
+			// The response says "Task completion approved" but JSON shows approved: false
+			const buggyResponse = `# ✅ Judge Approval
+Decision: Task completion approved
+
+Reasoning: \`\`\`json
+{
+"approved": false,
+"reasoning": "任务完全未完成。存在严重问题需要修复。",
+"suggestions": ["完成所有必需的功能", "修复代码错误"]
+}
+\`\`\``
+
+			const mockHandler = {
+				createMessage: vi.fn(async function* () {
+					yield { type: "text", text: buggyResponse }
+				}),
+			}
+
+			judgeService.setApiHandler(mockHandler as any)
+			const result = await judgeService.judgeCompletion(mockTaskContext, "Task completed")
+
+			// Should prefer JSON parsing over Markdown, so it should be rejected
+			expect(result.approved).toBe(false)
+			expect(result.reasoning).toBe("任务完全未完成。存在严重问题需要修复。")
+			expect(result.suggestions).toHaveLength(2)
+		})
+
+		it("should handle 'not approved' in Decision field", async () => {
+			const notApprovedResponse = `# Judge Review
+Decision: Task completion not approved
+
+Reasoning: The task requirements are not met.
+
+Missing Items:
+1. Tests are missing
+2. Documentation incomplete`
+
+			const mockHandler = {
+				createMessage: vi.fn(async function* () {
+					yield { type: "text", text: notApprovedResponse }
+				}),
+			}
+
+			judgeService.setApiHandler(mockHandler as any)
+			const result = await judgeService.judgeCompletion(mockTaskContext, "Task completed")
+
+			expect(result.approved).toBe(false)
+			expect(result.reasoning).toContain("The task requirements are not met")
+			expect(result.missingItems).toHaveLength(2)
+		})
+
+		it("should handle 'denied' in Decision field", async () => {
+			const deniedResponse = `# Judge Review
+Decision: Task completion denied
+
+Reasoning: Critical issues found in the implementation.`
+
+			const mockHandler = {
+				createMessage: vi.fn(async function* () {
+					yield { type: "text", text: deniedResponse }
+				}),
+			}
+
+			judgeService.setApiHandler(mockHandler as any)
+			const result = await judgeService.judgeCompletion(mockTaskContext, "Task completed")
+
+			expect(result.approved).toBe(false)
+			expect(result.reasoning).toContain("Critical issues found")
+		})
+
+		it("should default to rejection when Decision field is ambiguous", async () => {
+			const ambiguousResponse = `# Judge Review
+Decision: Task completion status unclear
+
+Reasoning: Need more information to make a decision.`
+
+			const mockHandler = {
+				createMessage: vi.fn(async function* () {
+					yield { type: "text", text: ambiguousResponse }
+				}),
+			}
+
+			judgeService.setApiHandler(mockHandler as any)
+			const result = await judgeService.judgeCompletion(mockTaskContext, "Task completed")
+
+			// Should default to false for safety
+			expect(result.approved).toBe(false)
+		})
 	})
 })

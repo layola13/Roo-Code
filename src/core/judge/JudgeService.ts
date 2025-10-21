@@ -143,15 +143,36 @@ export class JudgeService {
 		const decisionMatch = response.match(/Decision:\s*(.+?)(?:\n|$)/i)
 		if (decisionMatch) {
 			const decision = decisionMatch[1].toLowerCase()
-			approved = decision.includes("approved") || decision.includes("批准")
+			// 必须先检查拒绝关键词，因为可能会出现 "not approved" 或 "rejected" 的情况
+			if (
+				decision.includes("rejected") ||
+				decision.includes("拒绝") ||
+				decision.includes("not approved") ||
+				decision.includes("denied")
+			) {
+				approved = false
+			} else if (decision.includes("approved") || decision.includes("批准")) {
+				approved = true
+			} else {
+				// 如果 Decision 字段既不包含批准也不包含拒绝关键词，默认为拒绝
+				approved = false
+			}
 		} else {
 			// 如果没有明确的 Decision 字段，尝试从整体文本判断
 			const lowerResponse = response.toLowerCase()
-			approved =
+			// 优先检查拒绝关键词
+			if (lowerResponse.includes("rejected") || lowerResponse.includes("拒绝")) {
+				approved = false
+			} else if (
 				lowerResponse.includes("approved") ||
 				lowerResponse.includes("批准") ||
-				lowerResponse.includes("task completion approved") ||
-				(!lowerResponse.includes("rejected") && !lowerResponse.includes("拒绝"))
+				lowerResponse.includes("task completion approved")
+			) {
+				approved = true
+			} else {
+				// 如果都不包含，默认为拒绝（安全起见）
+				approved = false
+			}
 		}
 
 		// 提取理由
