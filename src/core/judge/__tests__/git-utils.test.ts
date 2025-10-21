@@ -1,157 +1,150 @@
-import { describe, it, expect, beforeEach, vi } from "vitest"
-import { formatGitStatus, GitStatusResult } from "../git-utils"
+import { describe, it, expect, vi, beforeEach } from "vitest"
+
+// Create mock function that will be returned by promisify
+const mockExecAsync = vi.fn()
+
+// Mock child_process and util before imports
+vi.mock("child_process", () => ({
+	exec: vi.fn(),
+}))
+
+vi.mock("util", () => ({
+	promisify: vi.fn(() => mockExecAsync),
+}))
+
+// Import after mocks
+const { checkGitStatus, formatGitStatus } = await import("../git-utils")
 
 describe("git-utils", () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
+		mockExecAsync.mockReset()
 	})
 
-	// 注意：checkGitStatus 的测试需要真实的 git 环境，所以我们只测试 formatGitStatus
-	// 在实际使用中，git-utils会在真实的git仓库环境中运行
-
 	describe("checkGitStatus", () => {
-		it("should be defined", async () => {
-			const { checkGitStatus } = await import("../git-utils")
-			expect(checkGitStatus).toBeDefined()
-			expect(typeof checkGitStatus).toBe("function")
+		it("should return clean status when no changes", async () => {
+			mockExecAsync.mockResolvedValue({ stdout: "", stderr: "" })
+
+			const result = await checkGitStatus("/test/path")
+
+			expect(result).toEqual({
+				hasChanges: false,
+				modifiedFiles: [],
+				summary: "工作目录干净，没有未提交的更改",
+			})
+		})
+
+		it("should parse git status output correctly", async () => {
+			const mockOutput = `M  src/main.ts
+A  src/new-file.ts
+D  src/deleted-file.ts
+R  src/renamed-file.ts -> src/new-name.ts
+?? src/untracked-file.ts
+`
+
+			mockExecAsync.mockResolvedValue({ stdout: mockOutput, stderr: "" })
+
+			const result = await checkGitStatus("/test/path")
+
+			expect(result.hasChanges).toBe(true)
+			expect(result.modifiedFiles).toHaveLength(5)
+
+			// Check modified file
+			const modifiedFile = result.modifiedFiles.find((f) => f.path === "src/main.ts")
+			expect(modifiedFile?.statusDescription).toContain("修改")
+
+			// Check added file
+			const addedFile = result.modifiedFiles.find((f) => f.path === "src/new-file.ts")
+			expect(addedFile?.statusDescription).toContain("新增")
+
+			// Check deleted file
+			const deletedFile = result.modifiedFiles.find((f) => f.path === "src/deleted-file.ts")
+			expect(deletedFile?.statusDescription).toContain("删除")
+
+			// Check renamed file
+			const renamedFile = result.modifiedFiles.find((f) => f.path === "src/renamed-file.ts")
+			expect(renamedFile?.statusDescription).toContain("重命名")
+
+			// Check untracked file
+			const untrackedFile = result.modifiedFiles.find((f) => f.path === "src/untracked-file.ts")
+			expect(untrackedFile?.statusDescription).toContain("未跟踪")
+		})
+
+		it("should handle git command failure gracefully", async () => {
+			mockExecAsync.mockRejectedValue(new Error("git command failed"))
+
+			const result = await checkGitStatus("/test/path")
+
+			expect(result.hasChanges).toBe(false)
+			expect(result.modifiedFiles).toEqual([])
+			expect(result.summary).toContain("无法获取 Git 状态")
+			expect(result.summary).toContain("git command failed")
+		})
+
+		it("should handle complex status combinations", async () => {
+			const complexOutput = "MM src/important.ts\nAM src/new-modified.ts\nRM src/old.ts -> src/renamed.ts\n"
+
+			mockExecAsync.mockResolvedValue({ stdout: complexOutput, stderr: "" })
+
+			const result = await checkGitStatus("/test/path")
+
+			expect(result.hasChanges).toBe(true)
+			expect(result.modifiedFiles).toHaveLength(3)
+			expect(result.modifiedFiles[0].statusDescription).toBe("暂存区修改, 工作区修改")
+			expect(result.modifiedFiles[1].statusDescription).toBe("暂存区新增, 工作区修改")
+			expect(result.modifiedFiles[2].statusDescription).toBe("暂存区重命名, 工作区修改")
 		})
 	})
 
 	describe("formatGitStatus", () => {
-		it("should format error status", () => {
-			const status: GitStatusResult = {
-				success: false,
-				error: "Not a git repository",
-				files: [],
-				hasChanges: false,
-				changedFilesCount: 0,
-			}
-
-			const formatted = formatGitStatus(status)
-
-			expect(formatted).toContain("Git status check failed")
-			expect(formatted).toContain("Not a git repository")
+		it("should format empty file list", () => {
+			const result = formatGitStatus([])
+			expect(result).toBe("没有文件改动")
 		})
 
-		it("should format no changes status", () => {
-			const status: GitStatusResult = {
-				success: true,
-				files: [],
-				hasChanges: false,
-				changedFilesCount: 0,
-			}
+		it("should group files by status and format correctly", () => {
+			const files = [
+				{ path: "src/file1.ts", status: "M ", statusDescription: "工作区修改" },
+				{ path: "src/file2.ts", status: "M ", statusDescription: "工作区修改" },
+				{ path: "src/file3.ts", status: "A ", statusDescription: "新增" },
+				{ path: "src/file4.ts", status: "D ", statusDescription: "删除" },
+			]
 
-			const formatted = formatGitStatus(status)
+			const result = formatGitStatus(files)
 
-			expect(formatted).toContain("No uncommitted changes")
+			const lines = result.split("\n")
+			expect(lines[0]).toBe("工作区修改: 2 个文件")
+			expect(lines[1]).toBe("  - src/file1.ts")
+			expect(lines[2]).toBe("  - src/file2.ts")
+			expect(lines[3]).toBe("新增: 1 个文件")
+			expect(lines[4]).toBe("  - src/file3.ts")
+			expect(lines[5]).toBe("删除: 1 个文件")
+			expect(lines[6]).toBe("  - src/file4.ts")
 		})
 
-		it("should format staged changes", () => {
-			const status: GitStatusResult = {
-				success: true,
-				files: [
-					{
-						path: "src/file1.ts",
-						status: "M",
-						staged: true,
-						lastModified: Date.now() - 60000, // 1 minute ago
-						tracked: true,
-					},
-				],
-				hasChanges: true,
-				changedFilesCount: 1,
-			}
+		it("should handle single file per status", () => {
+			const files = [{ path: "README.md", status: "M ", statusDescription: "工作区修改" }]
 
-			const formatted = formatGitStatus(status)
+			const result = formatGitStatus(files)
 
-			expect(formatted).toContain("Staged Changes")
-			expect(formatted).toContain("src/file1.ts")
-			expect(formatted).toContain("[M]")
-			expect(formatted).toContain("Modified")
+			const lines = result.split("\n")
+			expect(lines[0]).toBe("工作区修改: 1 个文件")
+			expect(lines[1]).toBe("  - README.md")
 		})
 
-		it("should format unstaged changes", () => {
-			const status: GitStatusResult = {
-				success: true,
-				files: [
-					{
-						path: "src/file1.ts",
-						status: "M",
-						staged: false,
-						lastModified: Date.now() - 3600000, // 1 hour ago
-						tracked: true,
-					},
-				],
-				hasChanges: true,
-				changedFilesCount: 1,
-			}
+		it("should handle mixed status descriptions", () => {
+			const files = [
+				{ path: "src/main.ts", status: "MM", statusDescription: "暂存区修改, 工作区修改" },
+				{ path: "src/utils.ts", status: "A ", statusDescription: "新增" },
+			]
 
-			const formatted = formatGitStatus(status)
+			const result = formatGitStatus(files)
 
-			expect(formatted).toContain("Unstaged Changes")
-			expect(formatted).toContain("src/file1.ts")
-			expect(formatted).toContain("1 hour")
-		})
-
-		it("should format untracked files", () => {
-			const status: GitStatusResult = {
-				success: true,
-				files: [
-					{
-						path: "src/newfile.ts",
-						status: "??",
-						staged: false,
-						lastModified: Date.now(),
-						tracked: false,
-					},
-				],
-				hasChanges: true,
-				changedFilesCount: 1,
-			}
-
-			const formatted = formatGitStatus(status)
-
-			expect(formatted).toContain("Untracked Files")
-			expect(formatted).toContain("src/newfile.ts")
-			expect(formatted).toContain("[??]")
-			expect(formatted).toContain("just now")
-		})
-
-		it("should group files by their status", () => {
-			const status: GitStatusResult = {
-				success: true,
-				files: [
-					{
-						path: "src/staged.ts",
-						status: "M",
-						staged: true,
-						tracked: true,
-					},
-					{
-						path: "src/unstaged.ts",
-						status: "M",
-						staged: false,
-						tracked: true,
-					},
-					{
-						path: "src/untracked.ts",
-						status: "??",
-						staged: false,
-						tracked: false,
-					},
-				],
-				hasChanges: true,
-				changedFilesCount: 3,
-			}
-
-			const formatted = formatGitStatus(status)
-
-			expect(formatted).toContain("Staged Changes")
-			expect(formatted).toContain("Unstaged Changes")
-			expect(formatted).toContain("Untracked Files")
-			expect(formatted).toContain("src/staged.ts")
-			expect(formatted).toContain("src/unstaged.ts")
-			expect(formatted).toContain("src/untracked.ts")
+			const lines = result.split("\n")
+			expect(lines[0]).toBe("暂存区修改, 工作区修改: 1 个文件")
+			expect(lines[1]).toBe("  - src/main.ts")
+			expect(lines[2]).toBe("新增: 1 个文件")
+			expect(lines[3]).toBe("  - src/utils.ts")
 		})
 	})
 })

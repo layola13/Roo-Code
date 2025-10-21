@@ -3632,10 +3632,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// 获取Git状态信息
 		let gitStatusInfo: string | undefined
 		try {
-			const { checkGitStatus, formatGitStatus } = await import("../judge/git-utils")
-			const fileChanges = this.getFileChangeHistory()
-			const gitStatus = await checkGitStatus(this.cwd, fileChanges.length > 0 ? fileChanges : undefined)
-			gitStatusInfo = formatGitStatus(gitStatus)
+			const { checkGitStatus } = await import("../judge/git-utils")
+			const gitStatus = await checkGitStatus(this.cwd)
+			gitStatusInfo = gitStatus.summary
 		} catch (error) {
 			console.warn("[Task#invokeJudge] Failed to check git status:", error)
 			// Git状态检查失败不应该阻止裁判执行，只是缺少这部分信息
