@@ -680,6 +680,10 @@
 			"label": "压缩进度条输出",
 			"description": "启用后，将处理包含回车符 (\\r) 的终端输出，模拟真实终端显示内容的方式。这会移除进度条的中间状态，只保留最终状态，为更重要的信息节省上下文空间。 <0>了解更多</0>"
 		},
+		"autoCloseIdleTerminals": {
+			"label": "自动关闭空闲终端",
+			"description": "启用后，当创建新的 Roo 终端时，会自动关闭已完成命令或空闲的旧终端。这有助于避免终端过多导致 VSCode 卡死。后台运行的命令不会被关闭。"
+		},
 		"powershellCounter": {
 			"label": "启用 PowerShell 计数器解决方案",
 			"description": "启用后，会在 PowerShell 命令中添加计数器以确保命令正确执行。这有助于解决可能存在输出捕获问题的 PowerShell 终端。 <0>了解更多</0>"

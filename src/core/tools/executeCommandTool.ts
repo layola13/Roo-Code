@@ -68,6 +68,7 @@ export async function executeCommandTool(
 				terminalOutputLineLimit = 500,
 				terminalOutputCharacterLimit = DEFAULT_TERMINAL_OUTPUT_CHARACTER_LIMIT,
 				terminalShellIntegrationDisabled = false,
+				autoCloseIdleTerminals = true,
 			} = providerState ?? {}
 
 			// Get command execution timeout from VSCode configuration (in seconds)
@@ -94,6 +95,7 @@ export async function executeCommandTool(
 				terminalOutputLineLimit,
 				terminalOutputCharacterLimit,
 				commandExecutionTimeout,
+				autoCloseIdleTerminals,
 			}
 
 			try {
@@ -141,6 +143,7 @@ export type ExecuteCommandOptions = {
 	terminalOutputLineLimit?: number
 	terminalOutputCharacterLimit?: number
 	commandExecutionTimeout?: number
+	autoCloseIdleTerminals?: boolean
 }
 
 export async function executeCommand(
@@ -153,6 +156,7 @@ export async function executeCommand(
 		terminalOutputLineLimit = 500,
 		terminalOutputCharacterLimit = DEFAULT_TERMINAL_OUTPUT_CHARACTER_LIMIT,
 		commandExecutionTimeout = 0,
+		autoCloseIdleTerminals = true,
 	}: ExecuteCommandOptions,
 ): Promise<[boolean, ToolResponse]> {
 	// Convert milliseconds back to seconds for display purposes.
@@ -238,7 +242,12 @@ export async function executeCommand(
 		}
 	}
 
-	const terminal = await TerminalRegistry.getOrCreateTerminal(workingDir, task.taskId, terminalProvider)
+	const terminal = await TerminalRegistry.getOrCreateTerminal(
+		workingDir,
+		task.taskId,
+		terminalProvider,
+		autoCloseIdleTerminals,
+	)
 
 	if (terminal instanceof Terminal) {
 		terminal.terminal.show(true)

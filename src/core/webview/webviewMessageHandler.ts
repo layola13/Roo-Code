@@ -1505,6 +1505,10 @@ export const webviewMessageHandler = async (
 				Terminal.setCompressProgressBar(message.bool)
 			}
 			break
+		case "autoCloseIdleTerminals":
+			await updateGlobalState("autoCloseIdleTerminals", message.bool)
+			await provider.postStateToWebview()
+			break
 		case "mode":
 			await provider.handleModeSwitch(message.text as Mode)
 			break

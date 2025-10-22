@@ -17,6 +17,7 @@ interface ClineMessage {
 	ts: number
 	text?: string
 	partial?: boolean
+	resumeReason?: "user_cancelled" | "api_error" | "network_error" | "reopen_task"
 }
 
 interface ExtensionState {
@@ -1486,5 +1487,189 @@ describe("ChatView - Message Queueing Tests", () => {
 		const chatTextArea = getByTestId("chat-textarea")
 		const input = chatTextArea.querySelector("input")!
 		expect(input.getAttribute("data-sending-disabled")).toBe("false")
+	})
+})
+
+describe("ChatView - Resume Task Icon Tests", () => {
+	beforeEach(() => vi.clearAllMocks())
+
+	it("displays ❌ icon for user_cancelled resume reason", async () => {
+		const { getByText } = renderChatView()
+
+		// Hydrate state with resume_task ask and user_cancelled reason
+		mockPostMessage({
+			clineMessages: [
+				{
+					type: "say",
+					say: "task",
+					ts: Date.now() - 2000,
+					text: "Initial task",
+				},
+				{
+					type: "ask",
+					ask: "resume_task",
+					ts: Date.now(),
+					text: "Resume task after cancellation",
+					resumeReason: "user_cancelled",
+				},
+			],
+		})
+
+		// Wait for button to render with icon
+		await waitFor(() => {
+			const button = getByText(/❌.*chat:resumeTask\.title/)
+			expect(button).toBeInTheDocument()
+		})
+	})
+
+	it("displays ⚠️ icon for api_error resume reason", async () => {
+		const { getByText } = renderChatView()
+
+		// Hydrate state with resume_task ask and api_error reason
+		mockPostMessage({
+			clineMessages: [
+				{
+					type: "say",
+					say: "task",
+					ts: Date.now() - 2000,
+					text: "Initial task",
+				},
+				{
+					type: "ask",
+					ask: "resume_task",
+					ts: Date.now(),
+					text: "Resume task after API error",
+					resumeReason: "api_error",
+				},
+			],
+		})
+
+		// Wait for button to render with icon
+		await waitFor(() => {
+			const button = getByText(/⚠️.*chat:resumeTask\.title/)
+			expect(button).toBeInTheDocument()
+		})
+	})
+
+	it("displays 📡 icon for network_error resume reason", async () => {
+		const { getByText } = renderChatView()
+
+		// Hydrate state with resume_task ask and network_error reason
+		mockPostMessage({
+			clineMessages: [
+				{
+					type: "say",
+					say: "task",
+					ts: Date.now() - 2000,
+					text: "Initial task",
+				},
+				{
+					type: "ask",
+					ask: "resume_task",
+					ts: Date.now(),
+					text: "Resume task after network error",
+					resumeReason: "network_error",
+				},
+			],
+		})
+
+		// Wait for button to render with icon
+		await waitFor(() => {
+			const button = getByText(/📡.*chat:resumeTask\.title/)
+			expect(button).toBeInTheDocument()
+		})
+	})
+
+	it("displays 🔄 icon for reopen_task resume reason", async () => {
+		const { getByText } = renderChatView()
+
+		// Hydrate state with resume_task ask and reopen_task reason
+		mockPostMessage({
+			clineMessages: [
+				{
+					type: "say",
+					say: "task",
+					ts: Date.now() - 2000,
+					text: "Initial task",
+				},
+				{
+					type: "ask",
+					ask: "resume_task",
+					ts: Date.now(),
+					text: "Resume task after reopening",
+					resumeReason: "reopen_task",
+				},
+			],
+		})
+
+		// Wait for button to render with icon
+		await waitFor(() => {
+			const button = getByText(/🔄.*chat:resumeTask\.title/)
+			expect(button).toBeInTheDocument()
+		})
+	})
+
+	it("displays no icon when resumeReason is undefined", async () => {
+		const { getByText } = renderChatView()
+
+		// Hydrate state with resume_task ask but no resumeReason
+		mockPostMessage({
+			clineMessages: [
+				{
+					type: "say",
+					say: "task",
+					ts: Date.now() - 2000,
+					text: "Initial task",
+				},
+				{
+					type: "ask",
+					ask: "resume_task",
+					ts: Date.now(),
+					text: "Resume task without reason",
+					// resumeReason is undefined
+				},
+			],
+		})
+
+		// Wait for button to render without icon
+		await waitFor(() => {
+			const button = getByText("chat:resumeTask.title")
+			expect(button).toBeInTheDocument()
+			// Button text should not contain any emoji icons
+			const text = button.textContent || ""
+			expect(text).not.toContain("❌")
+			expect(text).not.toContain("⚠️")
+			expect(text).not.toContain("📡")
+			expect(text).not.toContain("🔄")
+		})
+	})
+
+	it("shows both primary and secondary buttons for resume_task", async () => {
+		const { getByText } = renderChatView()
+
+		// Hydrate state with resume_task ask
+		mockPostMessage({
+			clineMessages: [
+				{
+					type: "say",
+					say: "task",
+					ts: Date.now() - 2000,
+					text: "Initial task",
+				},
+				{
+					type: "ask",
+					ask: "resume_task",
+					ts: Date.now(),
+					text: "Resume task",
+					resumeReason: "user_cancelled",
+				},
+			],
+		})
+
+		// Wait for both buttons to render
+		await waitFor(() => {
+			expect(getByText(/❌.*chat:resumeTask\.title/)).toBeInTheDocument()
+			expect(getByText("chat:terminate.title")).toBeInTheDocument()
+		})
 	})
 })

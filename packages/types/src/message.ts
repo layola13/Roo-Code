@@ -326,6 +326,7 @@ export const clineMessageSchema = z.object({
 	judgeDecision: judgeDecisionSchema.optional(), // Judge agent analysis and decision
 	relevance: messageRelevanceSchema.optional(), // Message relevance in intelligent context
 	intelligentContextResult: intelligentContextResultSchema.optional(), // Result from intelligent context filtering
+	resumeReason: z.enum(["user_cancelled", "api_error", "network_error", "reopen_task"]).optional(), // Reason for task resumption
 	metadata: z
 		.object({
 			gpt5: z

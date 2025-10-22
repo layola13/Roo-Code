@@ -28,6 +28,7 @@ type TerminalSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	terminalZshP10k?: boolean
 	terminalZdotdir?: boolean
 	terminalCompressProgressBar?: boolean
+	autoCloseIdleTerminals?: boolean
 	setCachedStateField: SetCachedStateField<
 		| "terminalOutputLineLimit"
 		| "terminalOutputCharacterLimit"
@@ -40,6 +41,7 @@ type TerminalSettingsProps = HTMLAttributes<HTMLDivElement> & {
 		| "terminalZshP10k"
 		| "terminalZdotdir"
 		| "terminalCompressProgressBar"
+		| "autoCloseIdleTerminals"
 	>
 }
 
@@ -55,6 +57,7 @@ export const TerminalSettings = ({
 	terminalZshP10k,
 	terminalZdotdir,
 	terminalCompressProgressBar,
+	autoCloseIdleTerminals,
 	setCachedStateField,
 	className,
 	...props
@@ -182,6 +185,19 @@ export const TerminalSettings = ({
 										{" "}
 									</VSCodeLink>
 								</Trans>
+							</div>
+						</div>
+						<div>
+							<VSCodeCheckbox
+								checked={autoCloseIdleTerminals ?? true}
+								onChange={(e: any) => setCachedStateField("autoCloseIdleTerminals", e.target.checked)}
+								data-testid="auto-close-idle-terminals-checkbox">
+								<span className="font-medium">
+									{t("settings:terminal.autoCloseIdleTerminals.label")}
+								</span>
+							</VSCodeCheckbox>
+							<div className="text-vscode-descriptionForeground text-sm mt-1">
+								{t("settings:terminal.autoCloseIdleTerminals.description")}
 							</div>
 						</div>
 					</div>

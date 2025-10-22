@@ -921,6 +921,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		partial?: boolean,
 		progressStatus?: ToolProgressStatus,
 		isProtected?: boolean,
+		resumeReason?: "user_cancelled" | "api_error" | "network_error" | "reopen_task",
 	): Promise<{ response: ClineAskResponse; text?: string; images?: string[] }> {
 		// If this Cline instance was aborted by the provider, then the only
 		// thing keeping us alive is a promise still running in the background,
@@ -997,7 +998,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					this.askResponseImages = undefined
 					askTs = Date.now()
 					this.lastMessageTs = askTs
-					await this.addToClineMessages({ ts: askTs, type: "ask", ask: type, text, isProtected })
+					await this.addToClineMessages({
+						ts: askTs,
+						type: "ask",
+						ask: type,
+						text,
+						isProtected,
+						resumeReason,
+					})
 				}
 			}
 		} else {
@@ -1586,6 +1594,71 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			.find((m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task")) // Could be multiple resume tasks.
 
 		let askType: ClineAsk
+		let resumeReason: "user_cancelled" | "api_error" | "network_error" | "reopen_task" = "reopen_task"
+
+		// 从消息历史中检测任务取消原因
+		// 查找最后一个 api_req_started 消息来判断取消原因
+		const lastApiReqIndex = findLastIndex(this.clineMessages, (m) => m.say === "api_req_started")
+		console.log(
+			`[Task#resumeTaskFromHistory] 🔍 Detecting resume reason. Last api_req_started index: ${lastApiReqIndex}`,
+		)
+
+		if (lastApiReqIndex !== -1) {
+			const lastApiReq = this.clineMessages[lastApiReqIndex]
+			console.log(
+				`[Task#resumeTaskFromHistory] 📝 Last api_req message text:`,
+				lastApiReq?.text?.substring(0, 200),
+			)
+
+			if (lastApiReq?.text) {
+				try {
+					const apiInfo = JSON.parse(lastApiReq.text)
+					console.log(`[Task#resumeTaskFromHistory] 📊 Parsed apiInfo:`, {
+						hasCancelReason: !!apiInfo.cancelReason,
+						cancelReason: apiInfo.cancelReason,
+						hasStreamingFailedMessage: !!apiInfo.streamingFailedMessage,
+						streamingFailedMessage: apiInfo.streamingFailedMessage?.substring(0, 100),
+					})
+
+					// 检查是否有取消原因
+					if (apiInfo.cancelReason) {
+						if (apiInfo.cancelReason === "user_cancelled") {
+							resumeReason = "user_cancelled"
+							console.log(`[Task#resumeTaskFromHistory] ✅ Detected: user_cancelled`)
+						} else if (apiInfo.cancelReason === "streaming_failed") {
+							// 检查streamingFailedMessage来区分网络错误和API错误
+							if (apiInfo.streamingFailedMessage) {
+								const errorMsg = apiInfo.streamingFailedMessage.toLowerCase()
+								if (
+									errorMsg.includes("network") ||
+									errorMsg.includes("timeout") ||
+									errorMsg.includes("connection") ||
+									errorMsg.includes("econnrefused") ||
+									errorMsg.includes("enotfound")
+								) {
+									resumeReason = "network_error"
+									console.log(`[Task#resumeTaskFromHistory] ✅ Detected: network_error`)
+								} else {
+									resumeReason = "api_error"
+									console.log(`[Task#resumeTaskFromHistory] ✅ Detected: api_error`)
+								}
+							} else {
+								resumeReason = "api_error"
+								console.log(`[Task#resumeTaskFromHistory] ✅ Detected: api_error (no message)`)
+							}
+						}
+					} else {
+						console.log(`[Task#resumeTaskFromHistory] ℹ️ No cancelReason found, using default: reopen_task`)
+					}
+				} catch (error) {
+					console.warn("[Task#resumeTaskFromHistory] Failed to parse api_req_started message:", error)
+					// 解析失败，保持默认的 reopen_task
+				}
+			}
+		}
+
+		console.log(`[Task#resumeTaskFromHistory] 🎯 Final resumeReason: ${resumeReason}`)
+
 		if (lastClineMessage?.ask === "completion_result") {
 			askType = "resume_completed_task"
 		} else {
@@ -1594,7 +1667,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		this.isInitialized = true
 
-		const { response, text, images } = await this.ask(askType) // Calls `postStateToWebview`.
+		const { response, text, images } = await this.ask(askType, undefined, false, undefined, undefined, resumeReason) // Calls `postStateToWebview`.
 
 		let responseText: string | undefined
 		let responseImages: string[] | undefined

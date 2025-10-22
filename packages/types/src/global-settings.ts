@@ -143,6 +143,7 @@ export const globalSettingsSchema = z.object({
 	terminalZshP10k: z.boolean().optional(),
 	terminalZdotdir: z.boolean().optional(),
 	terminalCompressProgressBar: z.boolean().optional(),
+	autoCloseIdleTerminals: z.boolean().optional(),
 
 	diagnosticsEnabled: z.boolean().optional(),
 
@@ -315,6 +316,7 @@ export const EVALS_SETTINGS: RooCodeSettings = {
 	terminalZshP10k: false,
 	terminalZdotdir: true,
 	terminalCompressProgressBar: true,
+	autoCloseIdleTerminals: true,
 	terminalShellIntegrationDisabled: true,
 
 	diagnosticsEnabled: true,

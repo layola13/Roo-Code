@@ -684,6 +684,10 @@
 			"label": "Compress progress bar output",
 			"description": "When enabled, processes terminal output with carriage returns (\\r) to simulate how a real terminal would display content. This removes intermediate progress bar states, retaining only the final state, which conserves context space for more relevant information. <0>Learn more</0>"
 		},
+		"autoCloseIdleTerminals": {
+			"label": "Auto-close idle terminals",
+			"description": "When enabled, automatically closes completed or idle old terminals when creating new Roo terminals. This helps prevent VSCode from freezing due to too many terminals. Terminals with running background commands will not be closed."
+		},
 		"powershellCounter": {
 			"label": "Enable PowerShell counter workaround",
 			"description": "When enabled, adds a counter to PowerShell commands to ensure proper command execution. This helps with PowerShell terminals that might have issues with command output capture. <0>Learn more</0>"

@@ -95,19 +95,21 @@ export class JudgeService {
 	 */
 	private parseJudgeResponse(response: string): JudgeResult {
 		try {
-			// 尝试提取 JSON 内容
+			// 尝试提取 JSON 内容 - 优先匹配 ```json 代码块
 			const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) || response.match(/\{[\s\S]*\}/)
 
 			if (!jsonMatch) {
 				// 如果没有找到 JSON，尝试 Markdown 格式解析
+				console.log("[JudgeService] No JSON found, falling back to Markdown parsing")
 				return this.parseMarkdownResponse(response)
 			}
 
 			const jsonStr = jsonMatch[1] || jsonMatch[0]
 			const parsed: JudgeResponseJson = JSON.parse(jsonStr)
 
+			// 成功解析 JSON，使用 JSON 中的值（忽略外层可能存在的 Markdown 格式）
 			const criticalIssues = parsed.criticalIssues || []
-			return {
+			const result = {
 				approved: parsed.approved ?? false,
 				reasoning: parsed.reasoning || "未提供理由",
 				completenessScore: parsed.completeness_score,
@@ -119,6 +121,14 @@ export class JudgeService {
 				criticalIssues,
 				hasCriticalIssues: criticalIssues.length > 0,
 			}
+
+			console.log("[JudgeService] Successfully parsed JSON response:", {
+				approved: result.approved,
+				reasoning: result.reasoning.substring(0, 100) + "...",
+				overallScore: result.overallScore,
+			})
+
+			return result
 		} catch (error) {
 			console.error("[JudgeService] Failed to parse judge response as JSON:", error)
 			console.error("[JudgeService] Response was:", response)

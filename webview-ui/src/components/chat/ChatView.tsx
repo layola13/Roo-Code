@@ -412,7 +412,38 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 							setSendingDisabled(false)
 							setClineAsk("resume_task")
 							setEnableButtons(true)
-							setPrimaryButtonText(t("chat:resumeTask.title"))
+							// Get resume reason from message to show appropriate icon
+							const resumeReason = lastMessage.resumeReason
+							console.log(`[ChatView] 🔍 Resume task detected. Message:`, {
+								ts: lastMessage.ts,
+								hasResumeReason: !!resumeReason,
+								resumeReason: resumeReason,
+								messageKeys: Object.keys(lastMessage),
+							})
+							let resumeIcon = ""
+							switch (resumeReason) {
+								case "user_cancelled":
+									resumeIcon = "❌ "
+									console.log(`[ChatView] ✅ Using icon for user_cancelled`)
+									break
+								case "api_error":
+									resumeIcon = "⚠️ "
+									console.log(`[ChatView] ✅ Using icon for api_error`)
+									break
+								case "network_error":
+									resumeIcon = "📡 "
+									console.log(`[ChatView] ✅ Using icon for network_error`)
+									break
+								case "reopen_task":
+									resumeIcon = "🔄 "
+									console.log(`[ChatView] ✅ Using icon for reopen_task`)
+									break
+								default:
+									resumeIcon = ""
+									console.log(`[ChatView] ⚠️ No matching resume reason, using empty icon`)
+							}
+							console.log(`[ChatView] 🎯 Final button text: "${resumeIcon + t("chat:resumeTask.title")}"`)
+							setPrimaryButtonText(resumeIcon + t("chat:resumeTask.title"))
 							setSecondaryButtonText(t("chat:terminate.title"))
 							setDidClickCancel(false) // special case where we reset the cancel button state
 							break

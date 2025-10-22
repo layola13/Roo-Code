@@ -147,12 +147,15 @@ export class TerminalRegistry {
 	 *
 	 * @param cwd The working directory path
 	 * @param taskId Optional task ID to associate with the terminal
+	 * @param provider Terminal provider type
+	 * @param autoCloseIdleTerminals Whether to automatically close idle terminals before creating new ones
 	 * @returns A Terminal instance
 	 */
 	public static async getOrCreateTerminal(
 		cwd: string,
 		taskId?: string,
 		provider: RooTerminalProvider = "vscode",
+		autoCloseIdleTerminals: boolean = true,
 	): Promise<RooTerminal> {
 		const terminals = this.getAllTerminals()
 		let terminal: RooTerminal | undefined
@@ -194,12 +197,50 @@ export class TerminalRegistry {
 
 		// If no suitable terminal found, create a new one.
 		if (!terminal) {
+			// Before creating a new terminal, close idle terminals if the feature is enabled
+			if (autoCloseIdleTerminals) {
+				this.closeIdleTerminals()
+			}
+
 			terminal = this.createTerminal(cwd, provider)
 		}
 
 		terminal.taskId = taskId
 
 		return terminal
+	}
+
+	/**
+	 * Closes idle terminals that meet the following criteria:
+	 * 1. Not busy (no command currently running)
+	 * 2. Not running background processes
+	 * 3. Has no unretrieved output
+	 *
+	 * This helps prevent VSCode from becoming unresponsive due to too many open terminals.
+	 */
+	public static closeIdleTerminals(): void {
+		const terminals = this.getAllTerminals()
+
+		terminals.forEach((t) => {
+			// Skip busy terminals (commands currently running)
+			if (t.busy) {
+				return
+			}
+
+			// Skip terminals with background processes or unretrieved output
+			if (t.getProcessesWithOutput().length > 0 || t.process?.hasUnretrievedOutput()) {
+				return
+			}
+
+			// Close idle terminal
+			if (t instanceof Terminal && t.terminal) {
+				console.info(`[TerminalRegistry] Closing idle terminal ${t.id}`)
+				t.terminal.dispose()
+			} else if (t instanceof ExecaTerminal) {
+				console.info(`[TerminalRegistry] Closing idle ExecaTerminal ${t.id}`)
+				// ExecaTerminal doesn't need explicit disposal
+			}
+		})
 	}
 
 	/**
