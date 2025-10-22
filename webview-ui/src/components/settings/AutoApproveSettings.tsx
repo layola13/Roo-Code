@@ -37,6 +37,7 @@ type AutoApproveSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	allowedMaxRequests?: number | undefined
 	allowedMaxCost?: number | undefined
 	deniedCommands?: string[]
+	commandApprovalFreeMode?: boolean
 	setCachedStateField: SetCachedStateField<
 		| "alwaysAllowReadOnly"
 		| "alwaysAllowReadOnlyOutsideWorkspace"
@@ -57,6 +58,7 @@ type AutoApproveSettingsProps = HTMLAttributes<HTMLDivElement> & {
 		| "allowedMaxCost"
 		| "deniedCommands"
 		| "alwaysAllowUpdateTodoList"
+		| "commandApprovalFreeMode"
 	>
 }
 
@@ -80,6 +82,7 @@ export const AutoApproveSettings = ({
 	allowedMaxRequests,
 	allowedMaxCost,
 	deniedCommands,
+	commandApprovalFreeMode = true,
 	setCachedStateField,
 	...props
 }: AutoApproveSettingsProps) => {
@@ -302,6 +305,19 @@ export const AutoApproveSettings = ({
 						<div className="flex items-center gap-4 font-bold">
 							<span className="codicon codicon-terminal" />
 							<div>{t("settings:autoApprove.execute.label")}</div>
+						</div>
+
+						{/* Free Mode Toggle */}
+						<div>
+							<VSCodeCheckbox
+								checked={commandApprovalFreeMode}
+								onChange={(e: any) => setCachedStateField("commandApprovalFreeMode", e.target.checked)}
+								data-testid="command-approval-free-mode-checkbox">
+								<span className="font-medium">{t("settings:autoApprove.execute.freeMode.label")}</span>
+							</VSCodeCheckbox>
+							<div className="text-vscode-descriptionForeground text-sm mt-1">
+								{t("settings:autoApprove.execute.freeMode.description")}
+							</div>
 						</div>
 
 						<div>

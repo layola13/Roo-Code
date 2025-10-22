@@ -197,6 +197,10 @@
 			"description": "自动执行白名单中的命令而无需批准",
 			"allowedCommands": "命令白名单",
 			"allowedCommandsDescription": "当\"自动批准命令行操作\"启用时可以自动执行的命令前缀。添加 * 以允许所有命令（谨慎使用）。",
+			"freeMode": {
+				"label": "启用自由模式",
+				"description": "启用后，未在拒绝列表中的安全命令将自动批准执行。已批准命令支持不同参数和绝对路径（git和rm命令除外）。这可以减少重复的批准对话，提升开发效率。"
+			},
 			"deniedCommands": "拒绝的命令",
 			"deniedCommandsDescription": "将自动拒绝的命令前缀，无需用户批准。与允许命令冲突时，最长前缀匹配优先。添加 * 拒绝所有命令。",
 			"commandPlaceholder": "输入命令前缀（例如 'git '）",

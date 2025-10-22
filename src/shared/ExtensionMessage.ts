@@ -247,6 +247,7 @@ export type ExtensionState = Pick<
 	| "followupAutoApproveTimeoutMs"
 	| "allowedCommands"
 	| "deniedCommands"
+	| "commandApprovalFreeMode"
 	| "allowedMaxRequests"
 	| "allowedMaxCost"
 	| "browserToolEnabled"

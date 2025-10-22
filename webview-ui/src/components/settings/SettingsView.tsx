@@ -208,6 +208,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		redisUrl,
 		qdrantUrl,
 		qdrantCollectionName,
+		commandApprovalFreeMode,
 	} = cachedState
 
 	const apiConfiguration = useMemo(() => cachedState.apiConfiguration ?? {}, [cachedState.apiConfiguration])
@@ -418,6 +419,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 				type: "openRouterImageGenerationSelectedModel",
 				text: openRouterImageGenerationSelectedModel,
 			})
+			vscode.postMessage({ type: "commandApprovalFreeMode", bool: commandApprovalFreeMode ?? true })
 			setChangeDetected(false)
 		}
 	}
@@ -715,6 +717,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 							allowedMaxRequests={allowedMaxRequests ?? undefined}
 							allowedMaxCost={allowedMaxCost ?? undefined}
 							deniedCommands={deniedCommands}
+							commandApprovalFreeMode={commandApprovalFreeMode ?? true}
 							setCachedStateField={setCachedStateField}
 						/>
 					)}

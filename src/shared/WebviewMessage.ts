@@ -40,6 +40,7 @@ export interface WebviewMessage {
 		| "customInstructions"
 		| "allowedCommands"
 		| "deniedCommands"
+		| "commandApprovalFreeMode"
 		| "alwaysAllowReadOnly"
 		| "alwaysAllowReadOnlyOutsideWorkspace"
 		| "alwaysAllowWrite"

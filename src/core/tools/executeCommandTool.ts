@@ -8,6 +8,7 @@ import { CommandExecutionStatus, DEFAULT_TERMINAL_OUTPUT_CHARACTER_LIMIT } from 
 import { TelemetryService } from "@roo-code/telemetry"
 
 import { Task } from "../task/Task"
+import { CommandApprovalHelper } from "../task/CommandApprovalHelper"
 
 import { ToolUse, AskApproval, HandleError, PushToolResult, RemoveClosingTag, ToolResponse } from "../../shared/tools"
 import { formatResponse } from "../prompts/responses"
@@ -54,15 +55,38 @@ export async function executeCommandTool(
 			task.consecutiveMistakeCount = 0
 
 			command = unescapeHtmlEntities(command) // Unescape HTML entities.
-			const didApprove = await askApproval("command", command)
+
+			// Check if free mode should auto-approve this command
+			let didApprove = false
+			const provider = task.providerRef.deref()
+			const providerState = await provider?.getState()
+
+			if (providerState) {
+				const freeModeConfig = {
+					commandApprovalFreeMode: providerState.commandApprovalFreeMode ?? true,
+					allowedCommands: providerState.allowedCommands || [],
+					deniedCommands: providerState.deniedCommands || [],
+				}
+
+				// Try auto-approval first if free mode is enabled
+				if (CommandApprovalHelper.shouldAutoApproveCommand(command, freeModeConfig)) {
+					didApprove = true
+					// Log the auto-approval reason for debugging
+					const reason = CommandApprovalHelper.getApprovalReason(command, freeModeConfig)
+					console.log(`[Free Mode] Auto-approved command: ${command} (Reason: ${reason})`)
+				}
+			}
+
+			// If not auto-approved, ask for user approval
+			if (!didApprove) {
+				didApprove = await askApproval("command", command)
+			}
 
 			if (!didApprove) {
 				return
 			}
 
 			const executionId = task.lastMessageTs?.toString() ?? Date.now().toString()
-			const provider = await task.providerRef.deref()
-			const providerState = await provider?.getState()
 
 			const {
 				terminalOutputLineLimit = 500,

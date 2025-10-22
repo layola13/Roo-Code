@@ -1079,6 +1079,10 @@ export const webviewMessageHandler = async (
 
 			break
 		}
+		case "commandApprovalFreeMode": {
+			await updateGlobalState("commandApprovalFreeMode", message.bool)
+			break
+		}
 		case "openCustomModesSettings": {
 			const customModesFilePath = await provider.customModesManager.getCustomModesFilePath()
 
