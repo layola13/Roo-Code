@@ -278,6 +278,8 @@ export type ExtensionState = Pick<
 	| "terminalZdotdir"
 	| "terminalCompressProgressBar"
 	| "autoCloseIdleTerminals"
+	| "terminalAutoContinueEnabled"
+	| "terminalAutoContinueTimeout"
 	| "diagnosticsEnabled"
 	| "diffEnabled"
 	| "fuzzyMatchThreshold"

@@ -145,6 +145,8 @@ export const globalSettingsSchema = z.object({
 	terminalZdotdir: z.boolean().optional(),
 	terminalCompressProgressBar: z.boolean().optional(),
 	autoCloseIdleTerminals: z.boolean().optional(),
+	terminalAutoContinueEnabled: z.boolean().optional(),
+	terminalAutoContinueTimeout: z.number().optional(),
 
 	diagnosticsEnabled: z.boolean().optional(),
 

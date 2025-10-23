@@ -29,6 +29,8 @@ type TerminalSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	terminalZdotdir?: boolean
 	terminalCompressProgressBar?: boolean
 	autoCloseIdleTerminals?: boolean
+	terminalAutoContinueEnabled?: boolean
+	terminalAutoContinueTimeout?: number
 	setCachedStateField: SetCachedStateField<
 		| "terminalOutputLineLimit"
 		| "terminalOutputCharacterLimit"
@@ -42,6 +44,8 @@ type TerminalSettingsProps = HTMLAttributes<HTMLDivElement> & {
 		| "terminalZdotdir"
 		| "terminalCompressProgressBar"
 		| "autoCloseIdleTerminals"
+		| "terminalAutoContinueEnabled"
+		| "terminalAutoContinueTimeout"
 	>
 }
 
@@ -58,6 +62,8 @@ export const TerminalSettings = ({
 	terminalZdotdir,
 	terminalCompressProgressBar,
 	autoCloseIdleTerminals,
+	terminalAutoContinueEnabled,
+	terminalAutoContinueTimeout,
 	setCachedStateField,
 	className,
 	...props
@@ -200,6 +206,42 @@ export const TerminalSettings = ({
 								{t("settings:terminal.autoCloseIdleTerminals.description")}
 							</div>
 						</div>
+						<div>
+							<VSCodeCheckbox
+								checked={terminalAutoContinueEnabled ?? false}
+								onChange={(e: any) =>
+									setCachedStateField("terminalAutoContinueEnabled", e.target.checked)
+								}
+								data-testid="terminal-auto-continue-enabled-checkbox">
+								<span className="font-medium">{t("settings:terminal.autoContinueEnabled.label")}</span>
+							</VSCodeCheckbox>
+							<div className="text-vscode-descriptionForeground text-sm mt-1">
+								{t("settings:terminal.autoContinueEnabled.description")}
+							</div>
+						</div>
+						{terminalAutoContinueEnabled && (
+							<div>
+								<label className="block font-medium mb-1">
+									{t("settings:terminal.autoContinueTimeout.label")}
+								</label>
+								<div className="flex items-center gap-2">
+									<Slider
+										min={10}
+										max={120}
+										step={5}
+										value={[terminalAutoContinueTimeout ?? 60]}
+										onValueChange={([value]) =>
+											setCachedStateField("terminalAutoContinueTimeout", value)
+										}
+										data-testid="terminal-auto-continue-timeout-slider"
+									/>
+									<span className="w-10">{terminalAutoContinueTimeout ?? 60}s</span>
+								</div>
+								<div className="text-vscode-descriptionForeground text-sm mt-1">
+									{t("settings:terminal.autoContinueTimeout.description")}
+								</div>
+							</div>
+						)}
 					</div>
 				</div>
 

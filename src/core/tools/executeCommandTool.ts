@@ -285,10 +285,20 @@ export async function executeCommand(
 	const process = terminal.runCommand(command, callbacks)
 	task.terminalProcess = process
 
+	// Get auto-continue settings from VSCode configuration
+	const terminalAutoContinueEnabled = vscode.workspace
+		.getConfiguration(Package.name)
+		.get<boolean>("terminalAutoContinueEnabled", false)
+	const terminalAutoContinueTimeout = vscode.workspace
+		.getConfiguration(Package.name)
+		.get<number>("terminalAutoContinueTimeout", 60)
+
 	// Implement command execution timeout (skip if timeout is 0).
 	if (commandExecutionTimeout > 0) {
 		let timeoutId: NodeJS.Timeout | undefined
+		let countdownInterval: NodeJS.Timeout | undefined
 		let isTimedOut = false
+		let autoContinueTimeoutId: NodeJS.Timeout | undefined
 
 		const timeoutPromise = new Promise<void>((_, reject) => {
 			timeoutId = setTimeout(() => {
@@ -305,17 +315,76 @@ export async function executeCommand(
 				const status: CommandExecutionStatus = { executionId, status: "timeout" }
 				provider?.postMessageToWebview({ type: "commandExecutionStatus", text: JSON.stringify(status) })
 				await task.say("error", t("common:errors:command_timeout", { seconds: commandExecutionTimeoutSeconds }))
-				task.terminalProcess = undefined
 
-				return [
-					false,
-					`The command was terminated after exceeding a user-configured ${commandExecutionTimeoutSeconds}s timeout. Do not try to re-run the command.`,
-				]
+				// If auto-continue is enabled, start countdown
+				if (terminalAutoContinueEnabled && terminalAutoContinueTimeout > 0) {
+					let remainingSeconds = terminalAutoContinueTimeout
+
+					// Send initial countdown status
+					const countdownStatus: CommandExecutionStatus = {
+						executionId,
+						status: "timeout_countdown",
+						remainingSeconds,
+					}
+					provider?.postMessageToWebview({
+						type: "commandExecutionStatus",
+						text: JSON.stringify(countdownStatus),
+					})
+
+					// Update countdown every second
+					countdownInterval = setInterval(() => {
+						remainingSeconds--
+						if (remainingSeconds > 0) {
+							const countdownStatus: CommandExecutionStatus = {
+								executionId,
+								status: "timeout_countdown",
+								remainingSeconds,
+							}
+							provider?.postMessageToWebview({
+								type: "commandExecutionStatus",
+								text: JSON.stringify(countdownStatus),
+							})
+						}
+					}, 1000)
+
+					// Auto-continue after timeout
+					await new Promise<void>((resolve) => {
+						autoContinueTimeoutId = setTimeout(() => {
+							resolve()
+						}, terminalAutoContinueTimeout * 1000)
+					})
+
+					// Clear countdown interval
+					if (countdownInterval) {
+						clearInterval(countdownInterval)
+					}
+
+					// Auto-continue: clear the ask state and continue
+					task.terminalProcess = undefined
+
+					return [
+						false,
+						`The command was terminated after exceeding a user-configured ${commandExecutionTimeoutSeconds}s timeout. Auto-continued after ${terminalAutoContinueTimeout}s countdown.`,
+					]
+				} else {
+					task.terminalProcess = undefined
+
+					return [
+						false,
+						`The command was terminated after exceeding a user-configured ${commandExecutionTimeoutSeconds}s timeout. Do not try to re-run the command.`,
+					]
+				}
 			}
 			throw error
 		} finally {
 			if (timeoutId) {
 				clearTimeout(timeoutId)
+			}
+			if (countdownInterval) {
+				clearInterval(countdownInterval)
+			}
+			if (autoContinueTimeoutId) {
+				clearTimeout(autoContinueTimeoutId)
 			}
 
 			task.terminalProcess = undefined

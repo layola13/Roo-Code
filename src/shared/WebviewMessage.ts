@@ -146,6 +146,8 @@ export interface WebviewMessage {
 		| "terminalZdotdir"
 		| "terminalCompressProgressBar"
 		| "autoCloseIdleTerminals"
+		| "terminalAutoContinueEnabled"
+		| "terminalAutoContinueTimeout"
 		| "mcpEnabled"
 		| "enableMcpServerCreation"
 		| "remoteControlEnabled"

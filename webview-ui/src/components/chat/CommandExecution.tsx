@@ -47,6 +47,7 @@ export const CommandExecution = ({ executionId, text, icon, title }: CommandExec
 	const [isExpanded, setIsExpanded] = useState(terminalShellIntegrationDisabled)
 	const [streamingOutput, setStreamingOutput] = useState("")
 	const [status, setStatus] = useState<CommandExecutionStatus | null>(null)
+	const [countdown, setCountdown] = useState<number | null>(null)
 
 	// The command's output can either come from the text associated with the
 	// task message (this is the case for completed commands) or from the
@@ -119,6 +120,7 @@ export const CommandExecution = ({ executionId, text, icon, title }: CommandExec
 					switch (data.status) {
 						case "started":
 							setStatus(data)
+							setCountdown(null)
 							break
 						case "output":
 							setStreamingOutput(data.output)
@@ -126,8 +128,14 @@ export const CommandExecution = ({ executionId, text, icon, title }: CommandExec
 						case "fallback":
 							setIsExpanded(true)
 							break
+						case "timeout_countdown":
+							if ("remainingSeconds" in data) {
+								setCountdown(data.remainingSeconds)
+							}
+							break
 						default:
 							setStatus(data)
+							setCountdown(null)
 							break
 					}
 				}
@@ -154,6 +162,16 @@ export const CommandExecution = ({ executionId, text, icon, title }: CommandExec
 										status.exitCode === 0 ? "bg-green-600" : "bg-red-600",
 									)}
 								/>
+							</StandardTooltip>
+						</div>
+					)}
+					{countdown !== null && countdown > 0 && (
+						<div className="flex flex-row items-center gap-2 font-mono text-xs text-yellow-500">
+							<StandardTooltip content={t("chat.commandExecution.autoContinueTooltip")}>
+								<div className="flex items-center gap-1">
+									<span className="codicon codicon-clock"></span>
+									<span>{t("chat.commandExecution.autoContinue", { seconds: countdown })}</span>
+								</div>
 							</StandardTooltip>
 						</div>
 					)}

@@ -688,6 +688,14 @@
 			"label": "自动关闭空闲终端",
 			"description": "启用后，当创建新的 Roo 终端时，会自动关闭已完成命令或空闲的旧终端。这有助于避免终端过多导致 VSCode 卡死。后台运行的命令不会被关闭。"
 		},
+		"autoContinueEnabled": {
+			"label": "启用自动强制继续",
+			"description": "启用后，当命令执行超时需要强制继续时，会显示倒计时并在超时后自动继续，无需手动点击强制继续按钮。"
+		},
+		"autoContinueTimeout": {
+			"label": "自动强制继续超时时间",
+			"description": "命令超时后等待自动强制继续的时间(秒)。倒计时结束后将自动继续执行。"
+		},
 		"powershellCounter": {
 			"label": "启用 PowerShell 计数器解决方案",
 			"description": "启用后，会在 PowerShell 命令中添加计数器以确保命令正确执行。这有助于解决可能存在输出捕获问题的 PowerShell 终端。 <0>了解更多</0>"

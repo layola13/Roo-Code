@@ -251,7 +251,9 @@
 		"expandOutput": "Expand output",
 		"collapseOutput": "Collapse output",
 		"expandManagement": "Expand command management section",
-		"collapseManagement": "Collapse command management section"
+		"collapseManagement": "Collapse command management section",
+		"autoContinue": "Auto-continue: {{seconds}}s",
+		"autoContinueTooltip": "Will automatically continue when countdown ends"
 	},
 	"response": "Response",
 	"arguments": "Arguments",
