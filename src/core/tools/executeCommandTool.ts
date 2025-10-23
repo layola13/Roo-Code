@@ -56,6 +56,17 @@ export async function executeCommandTool(
 
 			command = unescapeHtmlEntities(command) // Unescape HTML entities.
 
+			// Clean up multi-line commands - replace newlines with spaces to make it a single line
+			// This handles shell continuation prompts like "> " in the command string
+			command = command
+				.replace(/\n\s*>\s*/g, " ")
+				.replace(/\n/g, " ")
+				.trim()
+
+			// Clean up incomplete command chains - remove trailing operators that would cause shell to wait
+			// This handles cases like "cmd1 && cmd2 &&" or "cmd1 ||" which leave the shell waiting for more input
+			command = command.replace(/(\s*&&\s*|\s*\|\|\s*|\s*;\s*|\s*\|\s*)$/, "").trim()
+
 			// Check if free mode should auto-approve this command
 			let didApprove = false
 			const provider = task.providerRef.deref()

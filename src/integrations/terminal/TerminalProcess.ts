@@ -209,7 +209,25 @@ export class TerminalProcess extends BaseTerminalProcess {
 		this.terminal.setActiveStream(undefined)
 
 		// Wait for shell execution to complete.
-		await shellExecutionComplete
+		// Use a race condition with a timeout to prevent indefinite blocking
+		// when commands with && operators don't properly signal completion
+		const SHELL_COMPLETION_TIMEOUT = 5000 // 5 seconds timeout
+
+		try {
+			await Promise.race([
+				shellExecutionComplete,
+				new Promise<never>((_, reject) =>
+					setTimeout(() => reject(new Error("Shell execution completion timeout")), SHELL_COMPLETION_TIMEOUT),
+				),
+			])
+		} catch (error) {
+			// If timeout occurs, log a warning but continue execution
+			// This allows the task to proceed even if shell completion signal is delayed
+			console.warn(
+				"[TerminalProcess] Shell execution completion signal not received within timeout, proceeding anyway:",
+				error instanceof Error ? error.message : error,
+			)
+		}
 
 		this.isHot = false
 

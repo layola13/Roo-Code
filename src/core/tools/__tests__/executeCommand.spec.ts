@@ -213,7 +213,12 @@ describe("executeCommand", () => {
 
 			// Verify
 			expect(rejected).toBe(false)
-			expect(TerminalRegistry.getOrCreateTerminal).toHaveBeenCalledWith(customCwd, mockTask.taskId, "vscode")
+			expect(TerminalRegistry.getOrCreateTerminal).toHaveBeenCalledWith(
+				customCwd,
+				mockTask.taskId,
+				"vscode",
+				true,
+			)
 			expect(result).toContain(`within working directory '${customCwd}'`)
 		})
 
@@ -243,7 +248,12 @@ describe("executeCommand", () => {
 
 			// Verify
 			expect(rejected).toBe(false)
-			expect(TerminalRegistry.getOrCreateTerminal).toHaveBeenCalledWith(resolvedCwd, mockTask.taskId, "vscode")
+			expect(TerminalRegistry.getOrCreateTerminal).toHaveBeenCalledWith(
+				resolvedCwd,
+				mockTask.taskId,
+				"vscode",
+				true,
+			)
 			expect(result).toContain(`within working directory '${resolvedCwd.toPosix()}'`)
 		})
 
@@ -292,7 +302,12 @@ describe("executeCommand", () => {
 			await executeCommand(mockTask, options)
 
 			// Verify
-			expect(TerminalRegistry.getOrCreateTerminal).toHaveBeenCalledWith(mockTask.cwd, mockTask.taskId, "vscode")
+			expect(TerminalRegistry.getOrCreateTerminal).toHaveBeenCalledWith(
+				mockTask.cwd,
+				mockTask.taskId,
+				"vscode",
+				true,
+			)
 		})
 
 		it("should use execa provider when shell integration is disabled", async () => {
@@ -315,7 +330,12 @@ describe("executeCommand", () => {
 			await executeCommand(mockTask, options)
 
 			// Verify
-			expect(TerminalRegistry.getOrCreateTerminal).toHaveBeenCalledWith(mockTask.cwd, mockTask.taskId, "execa")
+			expect(TerminalRegistry.getOrCreateTerminal).toHaveBeenCalledWith(
+				mockTask.cwd,
+				mockTask.taskId,
+				"execa",
+				true,
+			)
 		})
 	})
 

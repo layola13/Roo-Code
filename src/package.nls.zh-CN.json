@@ -32,6 +32,8 @@
 	"commands.deniedCommands.description": "将自动拒绝而无需请求批准的命令前缀。与允许命令冲突时，最长前缀匹配优先。添加 * 拒绝所有命令。",
 	"commands.commandExecutionTimeout.description": "等待命令执行完成的最大时间（秒），超时前（0 = 无超时，1-600秒，默认：0秒）",
 	"commands.commandTimeoutAllowlist.description": "从命令执行超时中排除的命令前缀。匹配这些前缀的命令将在没有超时限制的情况下运行。",
+	"commands.terminalAutoContinueEnabled.description": "启用命令超时后自动强制继续。启用后，将显示倒计时，并在指定的超时时间后自动强制继续命令。",
+	"commands.terminalAutoContinueTimeout.description": "命令超时后自动强制继续前的超时时间（秒）（10-300秒，默认：60秒）。此倒计时在命令超时后开始。",
 	"commands.preventCompletionWithOpenTodos.description": "当待办事项列表中有未完成的待办事项时阻止任务完成",
 	"settings.vsCodeLmModelSelector.description": "VSCode 语言模型 API 的设置",
 	"settings.vsCodeLmModelSelector.vendor.description": "语言模型的供应商（例如：copilot）",
