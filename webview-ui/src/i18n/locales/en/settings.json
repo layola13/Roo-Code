@@ -216,6 +216,10 @@
 			"label": "Todo",
 			"description": "Automatically update the to-do list without requiring approval"
 		},
+		"parseAst": {
+			"label": "Parse AST",
+			"description": "Automatically parse file abstract syntax trees without requiring approval"
+		},
 		"apiRequestLimit": {
 			"title": "Max Count",
 			"unlimited": "Unlimited"

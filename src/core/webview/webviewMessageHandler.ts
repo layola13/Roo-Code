@@ -577,6 +577,10 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("alwaysAllowUpdateTodoList", message.bool)
 			await provider.postStateToWebview()
 			break
+		case "alwaysAllowParseAst":
+			await updateGlobalState("alwaysAllowParseAst", message.bool)
+			await provider.postStateToWebview()
+			break
 		case "askResponse":
 			provider.getCurrentTask()?.handleWebviewAskResponse(message.askResponse!, message.text, message.images)
 			break

@@ -250,6 +250,7 @@ export interface WebviewMessage {
 		| "judgeDetailLevel"
 		| "judgeAllowUserOverride"
 		| "judgeModelConfigId"
+		| "alwaysAllowParseAst"
 	text?: string
 	editedMessageContent?: string
 	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "cloud"

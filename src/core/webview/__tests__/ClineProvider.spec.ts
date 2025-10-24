@@ -509,6 +509,7 @@ describe("ClineProvider", () => {
 			alwaysAllowReadOnly: false,
 			alwaysAllowReadOnlyOutsideWorkspace: false,
 			alwaysAllowWrite: false,
+			alwaysAllowParseAst: false,
 			codebaseIndexConfig: {
 				codebaseIndexEnabled: true,
 				codebaseIndexQdrantUrl: "",

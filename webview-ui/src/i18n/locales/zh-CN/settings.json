@@ -212,6 +212,10 @@
 			"label": "待办",
 			"description": "无需批准即可自动更新待办清单"
 		},
+		"parseAst": {
+			"label": "解析 AST",
+			"description": "自动解析文件抽象语法树而无需批准"
+		},
 		"apiRequestLimit": {
 			"title": "最大请求数",
 			"description": "在请求批准以继续执行任务之前，自动发出此数量的 API 请求。",

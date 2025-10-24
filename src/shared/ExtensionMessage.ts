@@ -234,6 +234,7 @@ export type ExtensionState = Pick<
 	| "alwaysAllowWrite"
 	| "alwaysAllowWriteOutsideWorkspace"
 	| "alwaysAllowWriteProtected"
+	| "alwaysAllowParseAst"
 	// | "writeDelayMs" // Optional in GlobalSettings, required here.
 	| "alwaysAllowBrowser"
 	| "alwaysApproveResubmit"
@@ -415,6 +416,7 @@ export interface ClineSayTool {
 		| "generateImage"
 		| "imageGenerated"
 		| "runSlashCommand"
+		| "parseAst"
 	path?: string
 	diff?: string
 	content?: string
@@ -457,6 +459,9 @@ export interface ClineSayTool {
 	args?: string
 	source?: string
 	description?: string
+	// Properties for parseAst tool
+	format?: string
+	maxDepth?: string
 }
 
 // Must keep in sync with system prompt.

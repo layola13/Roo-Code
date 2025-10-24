@@ -1,6 +1,5 @@
 import path from "path"
 import fs from "fs/promises"
-import { SyntaxNode } from "web-tree-sitter"
 
 import { ToolUse, AskApproval, HandleError, PushToolResult, RemoveClosingTag } from "../../shared/tools"
 import { Task } from "../task/Task"
@@ -14,7 +13,7 @@ import { RecordSource } from "../context-tracking/FileContextTrackerTypes"
 /**
  * Format AST node as a tree structure
  */
-function formatAstTree(node: SyntaxNode, depth: number = 0, maxDepth?: number): string {
+function formatAstTree(node: any, depth: number = 0, maxDepth?: number): string {
 	if (maxDepth !== undefined && depth > maxDepth) {
 		return ""
 	}
@@ -55,7 +54,7 @@ function formatAstTree(node: SyntaxNode, depth: number = 0, maxDepth?: number): 
 /**
  * Convert AST node to JSON structure
  */
-function astNodeToJson(node: SyntaxNode, depth: number = 0, maxDepth?: number): any {
+function astNodeToJson(node: any, depth: number = 0, maxDepth?: number): any {
 	if (maxDepth !== undefined && depth > maxDepth) {
 		return {
 			type: node.type,
@@ -288,11 +287,19 @@ export async function parseAstTool(
 					"\n\n... (AST output truncated due to size. Consider using max_depth parameter to limit output)"
 			}
 
-			const completeMessage = JSON.stringify({ ...sharedMessageProps, content: result } satisfies ClineSayTool)
-			const didApprove = await askApproval("tool", completeMessage)
+			// Check if parse_ast is auto-approved
+			const { alwaysAllowParseAst = false } = (await cline.providerRef.deref()?.getState()) ?? {}
 
-			if (!didApprove) {
-				return
+			if (!alwaysAllowParseAst) {
+				const completeMessage = JSON.stringify({
+					...sharedMessageProps,
+					content: result,
+				} satisfies ClineSayTool)
+				const didApprove = await askApproval("tool", completeMessage)
+
+				if (!didApprove) {
+					return
+				}
 			}
 
 			// Track file context
