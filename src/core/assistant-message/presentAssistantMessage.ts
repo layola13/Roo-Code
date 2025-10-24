@@ -17,6 +17,7 @@ import { applyDiffTool } from "../tools/multiApplyDiffTool"
 import { insertContentTool } from "../tools/insertContentTool"
 import { searchAndReplaceTool } from "../tools/searchAndReplaceTool"
 import { listCodeDefinitionNamesTool } from "../tools/listCodeDefinitionNamesTool"
+import { parseAstTool } from "../tools/parseAstTool"
 import { searchFilesTool } from "../tools/searchFilesTool"
 import { browserActionTool } from "../tools/browserActionTool"
 import { executeCommandTool } from "../tools/executeCommandTool"
@@ -202,6 +203,8 @@ export async function presentAssistantMessage(cline: Task) {
 					case "list_files":
 						return `[${block.name} for '${block.params.path}']`
 					case "list_code_definition_names":
+						return `[${block.name} for '${block.params.path}']`
+					case "parse_ast":
 						return `[${block.name} for '${block.params.path}']`
 					case "browser_action":
 						return `[${block.name} for '${block.params.action}']`
@@ -505,6 +508,9 @@ export async function presentAssistantMessage(cline: Task) {
 						pushToolResult,
 						removeClosingTag,
 					)
+					break
+				case "parse_ast":
+					await parseAstTool(cline, block, askApproval, handleError, pushToolResult, removeClosingTag)
 					break
 				case "search_files":
 					await searchFilesTool(cline, block, askApproval, handleError, pushToolResult, removeClosingTag)

@@ -69,6 +69,8 @@ export const toolParamNames = [
 	"image",
 	"agent_name",
 	"context",
+	"format",
+	"max_depth",
 ] as const
 
 export type ToolParamName = (typeof toolParamNames)[number]
@@ -125,6 +127,11 @@ export interface ListFilesToolUse extends ToolUse {
 export interface ListCodeDefinitionNamesToolUse extends ToolUse {
 	name: "list_code_definition_names"
 	params: Partial<Pick<Record<ToolParamName, string>, "path">>
+}
+
+export interface ParseAstToolUse extends ToolUse {
+	name: "parse_ast"
+	params: Partial<Pick<Record<ToolParamName, string>, "path" | "format" | "max_depth">>
 }
 
 export interface BrowserActionToolUse extends ToolUse {
@@ -198,6 +205,7 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
 	search_files: "search files",
 	list_files: "list files",
 	list_code_definition_names: "list definitions",
+	parse_ast: "parse AST",
 	browser_action: "use a browser",
 	use_mcp_tool: "use mcp tools",
 	access_mcp_resource: "access mcp resources",
@@ -223,6 +231,7 @@ export const TOOL_GROUPS: Record<ToolGroup, ToolGroupConfig> = {
 			"search_files",
 			"list_files",
 			"list_code_definition_names",
+			"parse_ast",
 			"codebase_search",
 		],
 	},
