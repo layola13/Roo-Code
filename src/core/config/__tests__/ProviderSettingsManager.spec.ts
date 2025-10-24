@@ -575,6 +575,103 @@ describe("ProviderSettingsManager", () => {
 				"Failed to save config: Error: Failed to write provider profiles to secrets: Error: Storage failed",
 			)
 		})
+
+		it("should persist judgeModelConfigId when updating existing config", async () => {
+			const existingConfig: ProviderProfiles = {
+				currentApiConfigName: "default",
+				apiConfigs: {
+					test: {
+						apiProvider: "anthropic",
+						apiKey: "test-key",
+						id: "test-id",
+						judgeEnabled: true,
+						judgeModelConfigId: "judge-model-1",
+					},
+				},
+				migrations: {
+					rateLimitSecondsMigrated: false,
+				},
+			}
+
+			mockSecrets.get.mockResolvedValue(JSON.stringify(existingConfig))
+
+			const updatedConfig: ProviderSettings = {
+				apiProvider: "anthropic",
+				apiKey: "test-key",
+				judgeEnabled: true,
+				judgeModelConfigId: "judge-model-2", // 更新裁判模型ID
+			}
+
+			await providerSettingsManager.saveConfig("test", updatedConfig)
+
+			const expectedConfig = {
+				currentApiConfigName: "default",
+				apiConfigs: {
+					test: {
+						apiProvider: "anthropic",
+						apiKey: "test-key",
+						id: "test-id", // ID should be preserved
+						judgeEnabled: true,
+						judgeModelConfigId: "judge-model-2", // Should be updated
+					},
+				},
+				migrations: {
+					rateLimitSecondsMigrated: false,
+				},
+			}
+
+			const storedConfig = JSON.parse(mockSecrets.store.mock.calls[mockSecrets.store.mock.calls.length - 1][1])
+			expect(mockSecrets.store.mock.calls[mockSecrets.store.mock.calls.length - 1][0]).toEqual(
+				"roo_cline_config_api_config",
+			)
+			expect(storedConfig).toEqual(expectedConfig)
+			expect(storedConfig.apiConfigs.test.id).toBe("test-id") // Verify ID is preserved
+			expect(storedConfig.apiConfigs.test.judgeModelConfigId).toBe("judge-model-2") // Verify judge model is updated
+		})
+
+		it("should persist all judge mode settings including judgeModelConfigId", async () => {
+			const existingConfig: ProviderProfiles = {
+				currentApiConfigName: "default",
+				apiConfigs: {
+					test: {
+						apiProvider: "anthropic",
+						apiKey: "test-key",
+						id: "test-id",
+					},
+				},
+				migrations: {
+					rateLimitSecondsMigrated: false,
+				},
+			}
+
+			mockSecrets.get.mockResolvedValue(JSON.stringify(existingConfig))
+
+			const updatedConfig: ProviderSettings = {
+				apiProvider: "anthropic",
+				apiKey: "test-key",
+				judgeEnabled: true,
+				judgeMode: "always",
+				judgeDetailLevel: "detailed",
+				judgeAllowUserOverride: true,
+				judgeBlockOnCriticalIssues: true,
+				judgeModelConfigId: "custom-judge-model",
+			}
+
+			await providerSettingsManager.saveConfig("test", updatedConfig)
+
+			const storedConfig = JSON.parse(mockSecrets.store.mock.calls[mockSecrets.store.mock.calls.length - 1][1])
+
+			// Verify all judge settings are persisted
+			expect(storedConfig.apiConfigs.test.judgeEnabled).toBe(true)
+			expect(storedConfig.apiConfigs.test.judgeMode).toBe("always")
+			expect(storedConfig.apiConfigs.test.judgeDetailLevel).toBe("detailed")
+			expect(storedConfig.apiConfigs.test.judgeAllowUserOverride).toBe(true)
+			expect(storedConfig.apiConfigs.test.judgeBlockOnCriticalIssues).toBe(true)
+			expect(storedConfig.apiConfigs.test.judgeModelConfigId).toBe("custom-judge-model")
+
+			// Verify ID is still preserved
+			expect(storedConfig.apiConfigs.test.id).toBe("test-id")
+		})
 	})
 
 	describe("DeleteConfig", () => {

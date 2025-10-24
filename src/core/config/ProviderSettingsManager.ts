@@ -378,8 +378,9 @@ export class ProviderSettingsManager {
 				const existingId = providerProfiles.apiConfigs[name]?.id
 				const id = config.id || existingId || this.generateId()
 
-				// Filter out settings from other providers.
-				const filteredConfig = discriminatedProviderSettingsWithIdSchema.parse(config)
+				// Use providerSettingsWithIdSchema instead of discriminated to preserve all base fields
+				// including judgeModelConfigId and other common settings
+				const filteredConfig = providerSettingsWithIdSchema.parse(config)
 				providerProfiles.apiConfigs[name] = { ...filteredConfig, id }
 				await this.store(providerProfiles)
 				return id

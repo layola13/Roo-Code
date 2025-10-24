@@ -277,14 +277,40 @@ export class ContextProxy {
 	public getProviderSettings(): ProviderSettings {
 		const values = this.getValues()
 
+		// DEBUG: Log the loaded judgeModelConfigId
+		logger.info(
+			`[ContextProxy.getProviderSettings] Loaded judgeModelConfigId: ${JSON.stringify(values.judgeModelConfigId)}`,
+		)
+		logger.info(
+			`[ContextProxy.getProviderSettings] All judge fields in values: ${JSON.stringify({
+				judgeEnabled: values.judgeEnabled,
+				judgeMode: values.judgeMode,
+				judgeDetailLevel: values.judgeDetailLevel,
+				judgeAllowUserOverride: values.judgeAllowUserOverride,
+				judgeBlockOnCriticalIssues: values.judgeBlockOnCriticalIssues,
+				judgeModelConfigId: values.judgeModelConfigId,
+			})}`,
+		)
+
 		try {
-			return providerSettingsSchema.parse(values)
+			const parsed = providerSettingsSchema.parse(values)
+			logger.info(
+				`[ContextProxy.getProviderSettings] Parsed judgeModelConfigId: ${JSON.stringify(parsed.judgeModelConfigId)}`,
+			)
+			return parsed
 		} catch (error) {
 			if (error instanceof ZodError) {
 				TelemetryService.instance.captureSchemaValidationError({ schemaName: "ProviderSettings", error })
 			}
 
-			return PROVIDER_SETTINGS_KEYS.reduce((acc, key) => ({ ...acc, [key]: values[key] }), {} as ProviderSettings)
+			const fallback = PROVIDER_SETTINGS_KEYS.reduce(
+				(acc, key) => ({ ...acc, [key]: values[key] }),
+				{} as ProviderSettings,
+			)
+			logger.info(
+				`[ContextProxy.getProviderSettings] Fallback judgeModelConfigId: ${JSON.stringify(fallback.judgeModelConfigId)}`,
+			)
+			return fallback
 		}
 	}
 
@@ -294,6 +320,21 @@ export class ContextProxy {
 		// If a value is not present in the new configuration, then it is assumed
 		// that the setting's value should be `undefined` and therefore we
 		// need to remove it from the state cache if it exists.
+
+		// DEBUG: Log the incoming judgeModelConfigId
+		logger.info(
+			`[ContextProxy.setProviderSettings] Incoming judgeModelConfigId: ${JSON.stringify(values.judgeModelConfigId)}`,
+		)
+		logger.info(
+			`[ContextProxy.setProviderSettings] All judge fields: ${JSON.stringify({
+				judgeEnabled: values.judgeEnabled,
+				judgeMode: values.judgeMode,
+				judgeDetailLevel: values.judgeDetailLevel,
+				judgeAllowUserOverride: values.judgeAllowUserOverride,
+				judgeBlockOnCriticalIssues: values.judgeBlockOnCriticalIssues,
+				judgeModelConfigId: values.judgeModelConfigId,
+			})}`,
+		)
 
 		// Ensure openAiHeaders is always an object even when empty
 		// This is critical for proper serialization/deserialization through IPC
@@ -305,11 +346,18 @@ export class ContextProxy {
 		}
 
 		await this.setValues({
-			...PROVIDER_SETTINGS_KEYS.filter((key) => !isSecretStateKey(key))
-				.filter((key) => !!this.stateCache[key])
-				.reduce((acc, key) => ({ ...acc, [key]: undefined }), {} as ProviderSettings),
+			...PROVIDER_SETTINGS_KEYS.filter((key) => !isSecretStateKey(key)).reduce(
+				(acc, key) => ({ ...acc, [key]: undefined }),
+				{} as ProviderSettings,
+			),
 			...values,
 		})
+
+		// DEBUG: Log what was saved
+		const saved = this.getProviderSettings()
+		logger.info(
+			`[ContextProxy.setProviderSettings] Saved judgeModelConfigId: ${JSON.stringify(saved.judgeModelConfigId)}`,
+		)
 	}
 
 	/**

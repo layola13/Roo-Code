@@ -555,7 +555,7 @@ Overall Score: 8/10`
 		it("should correctly parse rejection when Decision contains 'approved' but means rejection", async () => {
 			// Bug fix test: This is the exact scenario reported by the user
 			// The response says "Task completion approved" but JSON shows approved: false
-			// NOW: This should be detected as a contradiction and rejected with critical issue
+			// NEW BEHAVIOR: JSON approved field takes precedence, contradiction is noted in reasoning
 			const buggyResponse = `# ✅ Judge Approval
 Decision: Task completion approved
 
@@ -576,12 +576,10 @@ Reasoning: \`\`\`json
 			judgeService.setApiHandler(mockHandler as any)
 			const result = await judgeService.judgeCompletion(mockTaskContext, "Task completed")
 
-			// Should detect contradiction and reject with critical issue
+			// Should use JSON approved field (false) and note the contradiction
 			expect(result.approved).toBe(false)
 			expect(result.reasoning).toContain("矛盾")
 			expect(result.reasoning).toContain("任务完全未完成。存在严重问题需要修复。")
-			expect(result.hasCriticalIssues).toBe(true)
-			expect(result.criticalIssues).toContain("裁判响应格式矛盾：Decision和JSON结果不一致")
 		})
 
 		it("should handle 'not approved' in Decision field", async () => {
@@ -646,8 +644,8 @@ Reasoning: Need more information to make a decision.`
 			expect(result.approved).toBe(false)
 		})
 
-		it("should detect contradiction and reject when Decision says approved but JSON says rejected", async () => {
-			// Test the new contradiction detection logic
+		it("should use JSON approved field when Decision says approved but JSON says rejected", async () => {
+			// Test the new logic: JSON approved field takes precedence
 			const contradictionResponse = `# ✅ Judge Approval
 Decision: Task completion approved
 
@@ -668,11 +666,10 @@ Reasoning: \`\`\`json
 			judgeService.setApiHandler(mockHandler as any)
 			const result = await judgeService.judgeCompletion(mockTaskContext, "Task completed")
 
-			// Should detect contradiction and reject with critical issue
+			// Should use JSON approved field (false) and note contradiction in reasoning
 			expect(result.approved).toBe(false)
 			expect(result.reasoning).toContain("矛盾")
-			expect(result.hasCriticalIssues).toBe(true)
-			expect(result.criticalIssues).toContain("裁判响应格式矛盾：Decision和JSON结果不一致")
+			expect(result.reasoning).toContain("任务完全未完成。存在严重问题需要修复。")
 		})
 
 		it("should not trigger contradiction detection for consistent rejection", async () => {

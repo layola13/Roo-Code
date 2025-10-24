@@ -111,9 +111,11 @@ ${detailInstructions}
 
 请以 JSON 格式回复，结构如下（请确保返回有效的JSON，不要包含任何其他文本）：
 
+重要提示: approved 字段必须根据实际评判结果设置为 true（批准）或 false（拒绝），这是最终决策字段。
+
 \`\`\`json
 {
-  "approved": false,
+  "approved": true,
   "reasoning": "详细的判断理由，说明为什么批准或拒绝。特别说明：是否满足最新用户需求、文件是否真正被修改等关键问题",
   "completeness_score": 7,
   "correctness_score": 8,
@@ -128,6 +130,11 @@ ${detailInstructions}
   "criticalIssues": ["声称修改了文件但Git状态显示无改动", "可能存在内存泄漏风险"]
 }
 \`\`\`
+
+关键说明:
+- 如果任务完成符合要求，设置 "approved": true
+- 如果任务未完成或有严重问题，设置 "approved": false
+- approved 字段是唯一的最终判断标准，请确保其值与你的判断一致
 
 ## 评判原则
 

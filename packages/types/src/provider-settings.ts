@@ -187,6 +187,7 @@ const baseProviderSettingsSchema = z.object({
 	judgeMode: z.enum(["always", "ask", "never"]).optional(),
 	judgeDetailLevel: z.enum(["concise", "detailed"]).optional(),
 	judgeAllowUserOverride: z.boolean().optional(),
+	judgeBlockOnCriticalIssues: z.boolean().optional(),
 	judgeModelConfigId: z.string().optional(), // ID of a separate API configuration to use for judge
 })
 

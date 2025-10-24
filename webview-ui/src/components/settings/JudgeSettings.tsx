@@ -1,4 +1,4 @@
-import { HTMLAttributes } from "react"
+import { HTMLAttributes, useEffect } from "react"
 import { Scale } from "lucide-react"
 import { VSCodeCheckbox, VSCodeDropdown, VSCodeOption } from "@vscode/webview-ui-toolkit/react"
 
@@ -26,6 +26,15 @@ export const JudgeSettings = ({
 	const judgeAllowUserOverride = apiConfiguration?.judgeAllowUserOverride ?? true
 	const judgeBlockOnCriticalIssues = apiConfiguration?.judgeBlockOnCriticalIssues ?? true
 	const judgeModelConfigId = apiConfiguration?.judgeModelConfigId ?? ""
+
+	// DEBUG: Log current value
+	useEffect(() => {
+		console.log(
+			"[JudgeSettings] Current judgeModelConfigId from apiConfiguration:",
+			JSON.stringify(apiConfiguration?.judgeModelConfigId),
+		)
+		console.log("[JudgeSettings] Final judgeModelConfigId (with fallback):", judgeModelConfigId)
+	}, [apiConfiguration?.judgeModelConfigId, judgeModelConfigId])
 
 	return (
 		<div className={cn("flex flex-col gap-4", className)} {...props}>

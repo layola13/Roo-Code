@@ -107,7 +107,8 @@ export class JudgeService {
 			const jsonStr = jsonMatch[1] || jsonMatch[0]
 			const parsed: JudgeResponseJson = JSON.parse(jsonStr)
 
-			// 检测矛盾：如果外层 Markdown Decision 说 approved 但 JSON 说 false
+			// 🔴 关键修复：JSON 中的 approved 字段是最终决策，优先级最高
+			// 检测潜在矛盾：如果外层 Markdown 文本与 JSON approved 字段不一致
 			const decisionMatch = response.match(/Decision:\s*(.+?)(?:\n|$)/i)
 			if (decisionMatch) {
 				const decision = decisionMatch[1].toLowerCase()
@@ -116,37 +117,30 @@ export class JudgeService {
 					!decision.includes("not approved") &&
 					!decision.includes("rejected") &&
 					!decision.includes("denied")
-				const jsonSaysRejected = parsed.approved === false
 
-				// 如果存在矛盾，记录警告并直接拒绝（安全策略）
-				if (markdownSaysApproved && jsonSaysRejected) {
+				// 检查是否存在矛盾
+				const jsonApproved = parsed.approved === true
+				const jsonRejected = parsed.approved === false
+
+				if ((markdownSaysApproved && jsonRejected) || (!markdownSaysApproved && jsonApproved)) {
 					console.warn(
-						"[JudgeService] ⚠️  CONTRADICTION DETECTED: Markdown says approved but JSON says rejected",
+						"[JudgeService] ⚠️  CONTRADICTION DETECTED between Markdown Decision and JSON approved field",
 					)
-					console.warn("[JudgeService] Decision:", decision)
+					console.warn("[JudgeService] Markdown Decision:", decision)
 					console.warn("[JudgeService] JSON approved:", parsed.approved)
-					console.warn("[JudgeService] Applying safety policy: REJECTING task due to contradiction")
+					console.warn("[JudgeService] 🔑 Using JSON approved field as the authoritative decision")
 
-					// 直接返回拒绝结果
-					return {
-						approved: false,
-						reasoning: `裁判判断存在矛盾（Decision说批准但JSON显示拒绝）。出于安全考虑直接拒绝。原因：${parsed.reasoning || "未提供理由"}`,
-						completenessScore: parsed.completeness_score,
-						correctnessScore: parsed.correctness_score,
-						qualityScore: parsed.quality_score,
-						overallScore: parsed.overall_score,
-						missingItems: parsed.missingItems || [],
-						suggestions: parsed.suggestions || ["修复裁判响应格式的矛盾问题"],
-						criticalIssues: ["裁判响应格式矛盾：Decision和JSON结果不一致"],
-						hasCriticalIssues: true,
-					}
+					// 🔑 关键：始终以 JSON 的 approved 字段为准，这是最终决策
+					// 但在 reasoning 中记录这个矛盾
+					const contradictionNote = `\n\n⚠️ 注意：检测到裁判响应中存在矛盾（Markdown Decision 说 "${markdownSaysApproved ? "批准" : "拒绝"}" 但 JSON approved 字段为 ${parsed.approved}）。已采用 JSON approved 字段作为最终决策。`
+					parsed.reasoning = (parsed.reasoning || "未提供理由") + contradictionNote
 				}
 			}
 
-			// 没有矛盾，正常解析
+			// 正常解析，以 JSON 的 approved 字段为准
 			const criticalIssues = parsed.criticalIssues || []
 			const result = {
-				approved: parsed.approved ?? false,
+				approved: parsed.approved ?? false, // 默认拒绝（安全策略）
 				reasoning: parsed.reasoning || "未提供理由",
 				completenessScore: parsed.completeness_score,
 				correctnessScore: parsed.correctness_score,
