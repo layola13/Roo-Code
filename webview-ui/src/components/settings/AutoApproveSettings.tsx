@@ -178,7 +178,10 @@ export const AutoApproveSettings = ({
 						alwaysAllowFollowupQuestions={alwaysAllowFollowupQuestions}
 						alwaysAllowUpdateTodoList={alwaysAllowUpdateTodoList}
 						alwaysAllowParseAst={alwaysAllowParseAst}
-						onToggle={(key, value) => setCachedStateField(key, value)}
+						onToggle={(key, value) => {
+							setCachedStateField(key, value)
+							vscode.postMessage({ type: key, bool: value })
+						}}
 					/>
 
 					<MaxLimitInputs
