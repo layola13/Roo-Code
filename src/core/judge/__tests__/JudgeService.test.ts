@@ -555,6 +555,7 @@ Overall Score: 8/10`
 		it("should correctly parse rejection when Decision contains 'approved' but means rejection", async () => {
 			// Bug fix test: This is the exact scenario reported by the user
 			// The response says "Task completion approved" but JSON shows approved: false
+			// NOW: This should be detected as a contradiction and rejected with critical issue
 			const buggyResponse = `# ✅ Judge Approval
 Decision: Task completion approved
 
@@ -575,10 +576,12 @@ Reasoning: \`\`\`json
 			judgeService.setApiHandler(mockHandler as any)
 			const result = await judgeService.judgeCompletion(mockTaskContext, "Task completed")
 
-			// Should prefer JSON parsing over Markdown, so it should be rejected
+			// Should detect contradiction and reject with critical issue
 			expect(result.approved).toBe(false)
-			expect(result.reasoning).toBe("任务完全未完成。存在严重问题需要修复。")
-			expect(result.suggestions).toHaveLength(2)
+			expect(result.reasoning).toContain("矛盾")
+			expect(result.reasoning).toContain("任务完全未完成。存在严重问题需要修复。")
+			expect(result.hasCriticalIssues).toBe(true)
+			expect(result.criticalIssues).toContain("裁判响应格式矛盾：Decision和JSON结果不一致")
 		})
 
 		it("should handle 'not approved' in Decision field", async () => {
@@ -641,6 +644,120 @@ Reasoning: Need more information to make a decision.`
 
 			// Should default to false for safety
 			expect(result.approved).toBe(false)
+		})
+
+		it("should detect contradiction and reject when Decision says approved but JSON says rejected", async () => {
+			// Test the new contradiction detection logic
+			const contradictionResponse = `# ✅ Judge Approval
+Decision: Task completion approved
+
+Reasoning: \`\`\`json
+{
+"approved": false,
+"reasoning": "任务完全未完成。存在严重问题需要修复。",
+"suggestions": ["完成所有必需的功能", "修复代码错误"]
+}
+\`\`\``
+
+			const mockHandler = {
+				createMessage: vi.fn(async function* () {
+					yield { type: "text", text: contradictionResponse }
+				}),
+			}
+
+			judgeService.setApiHandler(mockHandler as any)
+			const result = await judgeService.judgeCompletion(mockTaskContext, "Task completed")
+
+			// Should detect contradiction and reject with critical issue
+			expect(result.approved).toBe(false)
+			expect(result.reasoning).toContain("矛盾")
+			expect(result.hasCriticalIssues).toBe(true)
+			expect(result.criticalIssues).toContain("裁判响应格式矛盾：Decision和JSON结果不一致")
+		})
+
+		it("should not trigger contradiction detection for consistent rejection", async () => {
+			// Test that consistent rejection doesn't trigger contradiction logic
+			const consistentRejection = `# ❌ Judge Rejection
+Decision: Task completion rejected
+
+Reasoning: \`\`\`json
+{
+"approved": false,
+"reasoning": "任务未完成。",
+"missingItems": ["测试缺失"]
+}
+\`\`\``
+
+			const mockHandler = {
+				createMessage: vi.fn(async function* () {
+					yield { type: "text", text: consistentRejection }
+				}),
+			}
+
+			judgeService.setApiHandler(mockHandler as any)
+			const result = await judgeService.judgeCompletion(mockTaskContext, "Task completed")
+
+			// Should be rejected but NOT marked as contradiction
+			expect(result.approved).toBe(false)
+			expect(result.reasoning).toBe("任务未完成。")
+			expect(result.reasoning).not.toContain("矛盾")
+		})
+
+		it("should not trigger contradiction for consistent approval", async () => {
+			// Test that consistent approval doesn't trigger contradiction logic
+			const consistentApproval = `# ✅ Judge Approval
+Decision: Task completion approved
+
+Reasoning: \`\`\`json
+{
+"approved": true,
+"reasoning": "任务已完成。",
+"overall_score": 8
+}
+\`\`\``
+
+			const mockHandler = {
+				createMessage: vi.fn(async function* () {
+					yield { type: "text", text: consistentApproval }
+				}),
+			}
+
+			judgeService.setApiHandler(mockHandler as any)
+			const result = await judgeService.judgeCompletion(mockTaskContext, "Task completed")
+
+			// Should be approved and NOT marked as contradiction
+			expect(result.approved).toBe(true)
+			expect(result.reasoning).toBe("任务已完成。")
+			expect(result.reasoning).not.toContain("矛盾")
+		})
+
+		it("should handle 'not approved' in Decision without triggering contradiction", async () => {
+			// Test that "not approved" is correctly parsed and doesn't trigger contradiction
+			const notApprovedWithJson = `# Judge Review
+Decision: Task completion not approved
+
+Reasoning: \`\`\`json
+{
+"approved": false,
+"reasoning": "Requirements not met.",
+"missingItems": ["Tests", "Documentation"]
+}
+\`\`\``
+
+			const mockHandler = {
+				createMessage: vi.fn(async function* () {
+					yield { type: "text", text: notApprovedWithJson }
+				}),
+			}
+
+			judgeService.setApiHandler(mockHandler as any)
+			const result = await judgeService.judgeCompletion(mockTaskContext, "Task completed")
+
+			// Should be rejected without contradiction warning
+			expect(result.approved).toBe(false)
+			expect(result.reasoning).toBe("Requirements not met.")
+			expect(result.reasoning).not.toContain("矛盾")
+			expect(result.missingItems).toHaveLength(2)
 		})
 	})
 })

@@ -3734,6 +3734,20 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	async handleJudgeRejection(judgeResult: JudgeResult): Promise<boolean> {
 		const config = await this.getJudgeConfig()
 
+		// 统计最近的裁判拒绝次数（检查最近5次attempt_completion）
+		const recentRejectionCount = this.clineMessages
+			.slice(-50) // 检查最近50条消息
+			.filter((m) => {
+				// 查找包含 Judge Feedback 且 Decision rejected 的消息
+				return (
+					m.type === "say" &&
+					m.say === "text" &&
+					m.text &&
+					m.text.includes("Judge Feedback") &&
+					m.text.includes("Task completion rejected")
+				)
+			}).length
+
 		// 构建裁判反馈消息
 		let feedback = `## 🧑‍⚖️ Judge Feedback\n\n`
 		feedback += `**Decision**: Task completion rejected\n\n`
@@ -3787,6 +3801,39 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			)
 
 			// 强制返回false，不给用户选择权
+			return false
+		}
+
+		// 检查是否多次拒绝但没有解决问题（阈值：3次）
+		if (recentRejectionCount >= 3) {
+			console.log(
+				`[Task#handleJudgeRejection] Multiple rejections detected (${recentRejectionCount} times). Converting judge to user suggestion.`,
+			)
+
+			// 显示裁判反馈
+			await this.say("text", feedback, undefined, false, undefined, undefined, {
+				isNonInteractive: false,
+			})
+
+			// 裁判转换为用户身份，建议继续任务
+			await this.say(
+				"text",
+				`\n\n---\n\n💡 **系统建议**：裁判已多次拒绝任务完成（${recentRejectionCount}次），但问题似乎没有得到有效解决。\n\n` +
+					`**建议采取以下行动之一**：\n` +
+					`1. **继续当前任务** - 如果你认为裁判的反馈不够具体或不适用，可以选择继续完善任务\n` +
+					`2. **调整任务范围** - 考虑是否需要重新定义任务目标或降低完成标准\n` +
+					`3. **请求人工干预** - 如果遇到困难，可以寻求人工帮助来明确任务要求\n\n` +
+					`请告诉我你想如何继续，或者提供更具体的指导。`,
+				undefined,
+				false,
+				undefined,
+				undefined,
+				{
+					isNonInteractive: false,
+				},
+			)
+
+			// 直接返回 false，让用户提供反馈后继续工作
 			return false
 		}
 
