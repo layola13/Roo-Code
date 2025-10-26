@@ -9,7 +9,17 @@ export function buildJudgePrompt(
 	attemptResult: string,
 	detailLevel: JudgeDetailLevel,
 ): string {
-	const { originalTask, conversationHistory, toolCalls, fileChanges, currentMode, gitStatus } = taskContext
+	const {
+		originalTask,
+		conversationHistory,
+		toolCalls,
+		fileChanges,
+		currentMode,
+		gitStatus,
+		isSubtask,
+		parentTaskDescription,
+		rootTaskDescription,
+	} = taskContext
 
 	// 提取对话历史的摘要
 	const conversationSummary = summarizeConversationHistory(conversationHistory)
@@ -48,7 +58,27 @@ ${recentUserFeedback}
 **重要提示**: 如果用户在对话过程中提出了新的需求或修改了原有需求，请以最新的用户需求为准进行评判，而不是仅仅关注最初的任务描述。`
 		: ""
 
+	// 子任务特殊说明部分
+	const subtaskSection = isSubtask
+		? `
+## ⚠️ 重要：这是一个子任务（Subtask）
+
+**当前任务是一个阶段性子任务，不是完整的主任务。**
+
+### 子任务评判原则：
+1. **聚焦当前子任务的目标**：不要期望完成整个主任务的所有要求
+2. **阶段性完成即可**：子任务只需要完成其被分配的具体部分
+3. **上下文理解**：理解子任务在整体任务中的位置和作用
+4. **适度宽松**：相比主任务，对子任务的完整性要求应该更加灵活
+
+${rootTaskDescription ? `### 根任务（Root Task）上下文：\n${rootTaskDescription}\n` : ""}
+${parentTaskDescription ? `### 父任务（Parent Task）上下文：\n${parentTaskDescription}\n` : ""}
+
+**当前子任务的范围**：请基于上述上下文理解，这个子任务只需要完成主任务的一个特定部分。`
+		: ""
+
 	return `你是一个严格但灵活的任务审查员（Judge）。请根据以下信息判断任务是否真正完成。
+${subtaskSection}
 
 ## 初始任务描述
 
@@ -77,13 +107,13 @@ ${attemptResult}
 
 ## 评判标准
 
-请根据以下标准逐项评估：
+${isSubtask ? "**⚠️ 子任务评判标准**：请注意，这是一个子任务，评判时应该：\n- 关注子任务本身的目标，而不是整个主任务\n- 允许部分功能未实现（如果不在子任务范围内）\n- 重点验证子任务声称完成的部分是否真正完成\n\n" : ""}请根据以下标准逐项评估：
 
 ### 1. 需求匹配度 (Requirement Alignment)
-- **最重要**: 是否满足用户最新提出的需求？（如果有需求变更，以最新需求为准）
-- 初始任务的核心要求是否被满足？
-- 是否有明显的遗漏？
-- 所有用户明确要求的功能是否都已实现？
+- **最重要**: 是否满足${isSubtask ? "子任务" : ""}用户最新提出的需求？（如果有需求变更，以最新需求为准）
+- ${isSubtask ? "子任务的具体目标" : "初始任务的核心要求"}是否被满足？
+- ${isSubtask ? "在子任务范围内" : ""}是否有明显的遗漏？
+- ${isSubtask ? "子任务声称要完成的功能" : "所有用户明确要求的功能"}是否都已实现？
 
 ### 2. 实际改动验证 (Actual Changes Verification)
 - **关键检查点**: 如果声称修改了文件，Git状态中是否真的显示了这些文件的改动？
@@ -138,19 +168,30 @@ ${detailInstructions}
 
 ## 评判原则
 
-1. **灵活性优先**: 如果用户在对话中修改了需求，以最新的需求为准，不要死板地坚持初始任务
+${
+	isSubtask
+		? `**🎯 子任务特殊原则**：
+1. **范围聚焦**: 只评估子任务声称要完成的部分，不要求完成整个主任务
+2. **阶段性认可**: 如果子任务完成了其被分配的特定目标，即使主任务未完成也应批准
+3. **上下文理解**: 基于根任务和父任务的上下文，理解这是一个阶段性工作
+4. **避免过度要求**: 不要因为缺少主任务的其他部分而拒绝子任务
+
+**通用原则**：
+`
+		: ""
+}1. **灵活性优先**: 如果用户在对话中修改了需求，以最新的需求为准，不要死板地坚持初始任务
 2. **验证实际改动**: 优先参考Git状态来验证文件是否真正被修改，而不是仅凭声明
-3. **批准适度**: 如果任务基本完成但有小问题，可以批准并在 suggestions 中提出改进建议
+3. **批准适度**: 如果${isSubtask ? "子任务" : "任务"}基本完成但有小问题，可以批准并在 suggestions 中提出改进建议
 4. **严格对待关键问题**: 如果有以下严重问题必须拒绝：
    - 声称修改文件但Git显示无改动
    - 明显违背用户最新要求
    - 有严重的逻辑错误或安全问题
 5. **具体建议**: 提供可操作的具体建议，而非笼统的评价
 6. **评分范围**: 0-10分，其中：
-   - 0-3: 严重不足，完全未完成
+   - 0-3: 严重不足，完全未完成${isSubtask ? "子任务目标" : ""}
    - 4-6: 有明显问题或遗漏
    - 7-8: 基本合格但有改进空间
-   - 9-10: 优秀，完全满足要求
+   - 9-10: 优秀，完全满足${isSubtask ? "子任务" : ""}要求
 
 请现在开始评判。`
 }

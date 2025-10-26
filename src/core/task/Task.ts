@@ -3714,6 +3714,30 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			gitStatusInfo = undefined
 		}
 
+		// 检查是否为子任务
+		const isSubtask = !!this.parentTaskId
+		let parentTaskDescription: string | undefined
+		let rootTaskDescription: string | undefined
+
+		if (isSubtask) {
+			// 获取父任务描述
+			if (this.parentTask) {
+				parentTaskDescription = this.parentTask.metadata.task || ""
+			}
+
+			// 获取根任务描述
+			const rootTask = this.rootTask || this.parentTask
+			if (rootTask) {
+				rootTaskDescription = rootTask.metadata.task || ""
+			}
+
+			console.log(
+				`[Task#invokeJudge] Invoking judge for subtask. ` +
+					`Root task: ${rootTaskDescription ? rootTaskDescription.substring(0, 50) + "..." : "N/A"}, ` +
+					`Parent task: ${parentTaskDescription ? parentTaskDescription.substring(0, 50) + "..." : "N/A"}`,
+			)
+		}
+
 		// 构建任务上下文
 		const taskContext: import("../judge/types").TaskContext = {
 			originalTask: enhancedTaskDescription,
@@ -3722,6 +3746,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			fileChanges: this.getFileChangeHistory(),
 			currentMode: await this.getTaskMode(),
 			gitStatus: gitStatusInfo,
+			isSubtask,
+			parentTaskDescription,
+			rootTaskDescription,
 		}
 
 		return await this.judgeService.judgeCompletion(taskContext, attemptResult)
