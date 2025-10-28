@@ -121,6 +121,9 @@ const TaskHeader = ({
 
 	const hasTodos = todos && Array.isArray(todos) && todos.length > 0
 
+	// 判断是否为子任务
+	const isSubtask = !!(task as any).parentTaskId || !!currentTaskItem?.parentTaskId
+
 	return (
 		<div className="pt-2 pb-0 px-3">
 			{showLongRunningTaskMessage && !isTaskComplete && (
@@ -139,6 +142,8 @@ const TaskHeader = ({
 					"text-vscode-foreground/80 hover:text-vscode-foreground",
 					"shadow-sm shadow-black/30 rounded-md",
 					hasTodos && "border-b-0",
+					// 子任务添加特殊样式：边框和背景色
+					isSubtask && "border-2 border-vscode-charts-blue/40 bg-vscode-input-background/70",
 				)}
 				onClick={(e) => {
 					// Don't expand if clicking on buttons or interactive elements
@@ -165,9 +170,24 @@ const TaskHeader = ({
 				<div className="flex justify-between items-center gap-0">
 					<div className="flex items-center select-none grow min-w-0">
 						<div className="whitespace-nowrap overflow-hidden text-ellipsis grow min-w-0">
-							{isTaskExpanded && <span className="font-bold">{t("chat:task.title")}</span>}
+							{isTaskExpanded && (
+								<div className="flex items-center gap-2">
+									{isSubtask && (
+										<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-vscode-charts-blue/20 text-vscode-charts-blue border border-vscode-charts-blue/40">
+											<span className="codicon codicon-symbol-method mr-1" />
+											子任务
+										</span>
+									)}
+									<span className="font-bold">{isSubtask ? "" : t("chat:task.title")}</span>
+								</div>
+							)}
 							{!isTaskExpanded && (
-								<div>
+								<div className="flex items-center gap-2">
+									{isSubtask && (
+										<span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-vscode-charts-blue/20 text-vscode-charts-blue border border-vscode-charts-blue/40 shrink-0">
+											<span className="codicon codicon-symbol-method text-xs" />
+										</span>
+									)}
 									<span className="font-bold mr-1">{t("chat:task.title")}</span>
 									<Mention text={task.text} />
 								</div>

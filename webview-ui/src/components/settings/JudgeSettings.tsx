@@ -26,6 +26,7 @@ export const JudgeSettings = ({
 	const judgeAllowUserOverride = apiConfiguration?.judgeAllowUserOverride ?? true
 	const judgeBlockOnCriticalIssues = apiConfiguration?.judgeBlockOnCriticalIssues ?? true
 	const judgeModelConfigId = apiConfiguration?.judgeModelConfigId ?? ""
+	const judgeDisableForSubtasks = apiConfiguration?.judgeDisableForSubtasks ?? true
 
 	// DEBUG: Log current value
 	useEffect(() => {
@@ -160,6 +161,21 @@ export const JudgeSettings = ({
 							</VSCodeCheckbox>
 							<div className="text-vscode-descriptionForeground text-sm mt-1">
 								{t("settings:experimental.judgeMode.blockOnCriticalIssuesDesc")}
+							</div>
+						</div>
+
+						{/* Disable for Subtasks */}
+						<div>
+							<VSCodeCheckbox
+								checked={judgeDisableForSubtasks}
+								onChange={(e: any) =>
+									setApiConfigurationField?.("judgeDisableForSubtasks", e.target.checked)
+								}
+								data-testid="judge-disable-subtasks-checkbox">
+								<span className="font-medium">子任务禁用裁判模式</span>
+							</VSCodeCheckbox>
+							<div className="text-vscode-descriptionForeground text-sm mt-1">
+								启用后，子任务将不会使用裁判模式进行验证。推荐启用，因为子任务通常是主任务的子步骤，无需额外验证。
 							</div>
 						</div>
 					</>

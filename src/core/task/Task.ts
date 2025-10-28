@@ -3504,6 +3504,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			const state = await this.providerRef.deref()?.getState()
 			const judgeConfig = state?.judgeConfig
 
+			// 如果有独立的 judgeConfig，使用它
 			if (judgeConfig) {
 				// 确保配置包含所有必需字段，使用DEFAULT_JUDGE_CONFIG作为默认值
 				return {
@@ -3512,7 +3513,39 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				}
 			}
 
-			return DEFAULT_JUDGE_CONFIG
+			// 否则从 apiConfiguration 中构建配置
+			const apiConfig = state?.apiConfiguration || {}
+
+			// 🔧 修复：只有在能获取完整的 profile 时才设置 modelConfig
+			let modelConfig: ProviderSettings | undefined = undefined
+			if (apiConfig.judgeModelConfigId) {
+				const provider = this.providerRef.deref()
+				if (provider) {
+					try {
+						const profile = await provider.providerSettingsManager.getProfile({
+							id: apiConfig.judgeModelConfigId,
+						})
+						// 只有当 profile 完整且包含 apiProvider 时才使用
+						if (profile && profile.apiProvider) {
+							modelConfig = profile
+						}
+					} catch (error) {
+						console.warn("[Task#getJudgeConfig] Failed to get judge model profile:", error)
+						// 获取失败时 modelConfig 保持 undefined，将使用主模型
+					}
+				}
+			}
+
+			return {
+				enabled: apiConfig.judgeEnabled ?? DEFAULT_JUDGE_CONFIG.enabled,
+				mode: apiConfig.judgeMode ?? DEFAULT_JUDGE_CONFIG.mode,
+				detailLevel: apiConfig.judgeDetailLevel ?? DEFAULT_JUDGE_CONFIG.detailLevel,
+				allowUserOverride: apiConfig.judgeAllowUserOverride ?? DEFAULT_JUDGE_CONFIG.allowUserOverride,
+				blockOnCriticalIssues:
+					apiConfig.judgeBlockOnCriticalIssues ?? DEFAULT_JUDGE_CONFIG.blockOnCriticalIssues,
+				disableForSubtasks: apiConfig.judgeDisableForSubtasks ?? DEFAULT_JUDGE_CONFIG.disableForSubtasks,
+				modelConfig,
+			}
 		} catch (error) {
 			console.error("[Task#getJudgeConfig] Error getting judge config:", error)
 			return DEFAULT_JUDGE_CONFIG
@@ -3526,6 +3559,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const judgeConfig = await this.getJudgeConfig()
 
 		if (!judgeConfig.enabled) {
+			return false
+		}
+
+		// 检查是否为子任务且配置了禁用裁判
+		const isSubtask = !!this.parentTaskId
+		if (isSubtask && (judgeConfig.disableForSubtasks ?? true)) {
+			console.log(`[Task#${this.taskId}] Subtask detected, judge mode disabled for subtasks`)
 			return false
 		}
 

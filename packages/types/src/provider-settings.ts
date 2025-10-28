@@ -189,6 +189,7 @@ const baseProviderSettingsSchema = z.object({
 	judgeAllowUserOverride: z.boolean().optional(),
 	judgeBlockOnCriticalIssues: z.boolean().optional(),
 	judgeModelConfigId: z.string().optional(), // ID of a separate API configuration to use for judge
+	judgeDisableForSubtasks: z.boolean().optional(), // Whether to disable judge mode for subtasks (default: true)
 })
 
 // Several of the providers share common model config properties.

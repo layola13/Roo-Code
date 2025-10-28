@@ -31,6 +31,8 @@ export interface JudgeConfig {
 	allowUserOverride: boolean
 	/** 当存在严重问题时，是否强制禁止用户覆盖（即使allowUserOverride为true） */
 	blockOnCriticalIssues: boolean
+	/** 是否对子任务禁用裁判模式（默认为true，即子任务不使用裁判） */
+	disableForSubtasks?: boolean
 }
 
 /**
@@ -42,6 +44,7 @@ export const DEFAULT_JUDGE_CONFIG: JudgeConfig = {
 	detailLevel: "detailed",
 	allowUserOverride: true,
 	blockOnCriticalIssues: true, // 默认启用严重问题强制拦截
+	disableForSubtasks: true, // 默认子任务不使用裁判
 }
 
 /**
