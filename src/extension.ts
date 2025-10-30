@@ -97,6 +97,30 @@ export async function activate(context: vscode.ExtensionContext) {
 		context.globalState.update("allowedCommands", defaultCommands)
 	}
 
+	// Get default command execution timeout from configuration.
+	const defaultCommandExecutionTimeout = vscode.workspace
+		.getConfiguration(Package.name)
+		.get<number>("commandExecutionTimeout")
+	console.log(`[Extension Activation] VSCode config commandExecutionTimeout: ${defaultCommandExecutionTimeout}`)
+
+	const currentGlobalStateTimeout = context.globalState.get("commandExecutionTimeout")
+	console.log(`[Extension Activation] GlobalState commandExecutionTimeout: ${currentGlobalStateTimeout}`)
+
+	// Initialize command execution timeout in global state if not already set.
+	if (
+		context.globalState.get("commandExecutionTimeout") === undefined &&
+		defaultCommandExecutionTimeout !== undefined
+	) {
+		await context.globalState.update("commandExecutionTimeout", defaultCommandExecutionTimeout)
+		console.log(
+			`[Extension Activation] Initialized GlobalState commandExecutionTimeout to: ${defaultCommandExecutionTimeout}`,
+		)
+	} else {
+		console.log(
+			`[Extension Activation] Skipping initialization - GlobalState: ${currentGlobalStateTimeout}, VSCode config: ${defaultCommandExecutionTimeout}`,
+		)
+	}
+
 	const contextProxy = await ContextProxy.getInstance(context)
 
 	// Initialize code index managers for all workspace folders.

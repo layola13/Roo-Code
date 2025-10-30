@@ -148,6 +148,7 @@ export interface WebviewMessage {
 		| "autoCloseIdleTerminals"
 		| "terminalAutoContinueEnabled"
 		| "terminalAutoContinueTimeout"
+		| "commandExecutionTimeout"
 		| "mcpEnabled"
 		| "enableMcpServerCreation"
 		| "remoteControlEnabled"

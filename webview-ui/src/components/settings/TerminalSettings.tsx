@@ -31,6 +31,7 @@ type TerminalSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	autoCloseIdleTerminals?: boolean
 	terminalAutoContinueEnabled?: boolean
 	terminalAutoContinueTimeout?: number
+	commandExecutionTimeout?: number
 	setCachedStateField: SetCachedStateField<
 		| "terminalOutputLineLimit"
 		| "terminalOutputCharacterLimit"
@@ -46,6 +47,7 @@ type TerminalSettingsProps = HTMLAttributes<HTMLDivElement> & {
 		| "autoCloseIdleTerminals"
 		| "terminalAutoContinueEnabled"
 		| "terminalAutoContinueTimeout"
+		| "commandExecutionTimeout"
 	>
 }
 
@@ -64,6 +66,7 @@ export const TerminalSettings = ({
 	autoCloseIdleTerminals,
 	terminalAutoContinueEnabled,
 	terminalAutoContinueTimeout,
+	commandExecutionTimeout,
 	setCachedStateField,
 	className,
 	...props
@@ -242,6 +245,25 @@ export const TerminalSettings = ({
 								</div>
 							</div>
 						)}
+						<div>
+							<label className="block font-medium mb-1">
+								{t("settings:terminal.commandExecutionTimeout.label")}
+							</label>
+							<div className="flex items-center gap-2">
+								<Slider
+									min={0}
+									max={600}
+									step={10}
+									value={[commandExecutionTimeout ?? 60]}
+									onValueChange={([value]) => setCachedStateField("commandExecutionTimeout", value)}
+									data-testid="command-execution-timeout-slider"
+								/>
+								<span className="w-10">{commandExecutionTimeout ?? 60}s</span>
+							</div>
+							<div className="text-vscode-descriptionForeground text-sm mt-1">
+								{t("settings:terminal.commandExecutionTimeout.description")}
+							</div>
+						</div>
 					</div>
 				</div>
 

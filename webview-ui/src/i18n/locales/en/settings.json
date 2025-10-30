@@ -704,6 +704,10 @@
 			"label": "Auto-continue timeout",
 			"description": "Time in seconds to wait before automatically force-continuing after command timeout. Execution will automatically continue when countdown ends."
 		},
+		"commandExecutionTimeout": {
+			"label": "Command execution timeout",
+			"description": "Maximum time to wait for command execution to complete. Set to 0 for no timeout (1-600s, default: 60s)"
+		},
 		"powershellCounter": {
 			"label": "Enable PowerShell counter workaround",
 			"description": "When enabled, adds a counter to PowerShell commands to ensure proper command execution. This helps with PowerShell terminals that might have issues with command output capture. <0>Learn more</0>"

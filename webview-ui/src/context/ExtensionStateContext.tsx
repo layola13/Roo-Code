@@ -167,6 +167,12 @@ export interface ExtensionStateContextType extends ExtensionState {
 	setTerminalCompressProgressBar: (value: boolean) => void
 	autoCloseIdleTerminals?: boolean
 	setAutoCloseIdleTerminals: (value: boolean) => void
+	terminalAutoContinueEnabled?: boolean
+	setTerminalAutoContinueEnabled: (value: boolean) => void
+	terminalAutoContinueTimeout?: number
+	setTerminalAutoContinueTimeout: (value: number) => void
+	commandExecutionTimeout?: number
+	setCommandExecutionTimeout: (value: number) => void
 	setHistoryPreviewCollapsed: (value: boolean) => void
 	setReasoningBlockCollapsed: (value: boolean) => void
 	autoCondenseContext: boolean
@@ -272,6 +278,9 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		terminalZdotdir: false, // Default ZDOTDIR handling setting
 		terminalCompressProgressBar: true, // Default to compress progress bar output
 		autoCloseIdleTerminals: true, // Default to auto-close idle terminals
+		terminalAutoContinueEnabled: false, // Default to disabled
+		terminalAutoContinueTimeout: 60, // Default 60 seconds
+		commandExecutionTimeout: 60, // Default 60 seconds
 		historyPreviewCollapsed: false, // Initialize the new state (default to expanded)
 		reasoningBlockCollapsed: true, // Default to collapsed
 		cloudUserInfo: null,
@@ -570,6 +579,12 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 			setState((prevState) => ({ ...prevState, terminalCompressProgressBar: value })),
 		setAutoCloseIdleTerminals: (value) =>
 			setState((prevState) => ({ ...prevState, autoCloseIdleTerminals: value })),
+		setTerminalAutoContinueEnabled: (value) =>
+			setState((prevState) => ({ ...prevState, terminalAutoContinueEnabled: value })),
+		setTerminalAutoContinueTimeout: (value) =>
+			setState((prevState) => ({ ...prevState, terminalAutoContinueTimeout: value })),
+		setCommandExecutionTimeout: (value) =>
+			setState((prevState) => ({ ...prevState, commandExecutionTimeout: value })),
 		togglePinnedApiConfig: (configId) =>
 			setState((prevState) => {
 				const currentPinned = prevState.pinnedApiConfigs || {}

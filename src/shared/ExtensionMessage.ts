@@ -281,6 +281,7 @@ export type ExtensionState = Pick<
 	| "autoCloseIdleTerminals"
 	| "terminalAutoContinueEnabled"
 	| "terminalAutoContinueTimeout"
+	| "commandExecutionTimeout"
 	| "diagnosticsEnabled"
 	| "diffEnabled"
 	| "fuzzyMatchThreshold"

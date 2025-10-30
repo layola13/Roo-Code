@@ -700,6 +700,10 @@
 			"label": "自动强制继续超时时间",
 			"description": "命令超时后等待自动强制继续的时间(秒)。倒计时结束后将自动继续执行。"
 		},
+		"commandExecutionTimeout": {
+			"label": "命令执行超时时间",
+			"description": "终端命令执行的最大等待时间。设置为 0 表示不限制超时时间（1-600秒，默认：60秒）"
+		},
 		"powershellCounter": {
 			"label": "启用 PowerShell 计数器解决方案",
 			"description": "启用后，会在 PowerShell 命令中添加计数器以确保命令正确执行。这有助于解决可能存在输出捕获问题的 PowerShell 终端。 <0>了解更多</0>"

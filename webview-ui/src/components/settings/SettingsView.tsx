@@ -176,6 +176,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		terminalZdotdir,
 		terminalAutoContinueEnabled,
 		terminalAutoContinueTimeout,
+		commandExecutionTimeout,
 		writeDelayMs,
 		showRooIgnoredFiles,
 		remoteBrowserEnabled,
@@ -379,6 +380,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			vscode.postMessage({ type: "autoCloseIdleTerminals", bool: autoCloseIdleTerminals })
 			vscode.postMessage({ type: "terminalAutoContinueEnabled", bool: terminalAutoContinueEnabled ?? false })
 			vscode.postMessage({ type: "terminalAutoContinueTimeout", value: terminalAutoContinueTimeout ?? 60 })
+			vscode.postMessage({ type: "commandExecutionTimeout", value: commandExecutionTimeout ?? 60 })
 			vscode.postMessage({ type: "mcpEnabled", bool: mcpEnabled })
 			vscode.postMessage({ type: "alwaysApproveResubmit", bool: alwaysApproveResubmit })
 			vscode.postMessage({ type: "requestDelaySeconds", value: requestDelaySeconds })
@@ -809,7 +811,8 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 							autoCloseIdleTerminals={autoCloseIdleTerminals}
 							terminalAutoContinueEnabled={terminalAutoContinueEnabled}
 							terminalAutoContinueTimeout={terminalAutoContinueTimeout}
-							setCachedStateField={setCachedStateField}
+							commandExecutionTimeout={commandExecutionTimeout}
+							setCachedStateField={setCachedStateField as any}
 						/>
 					)}
 

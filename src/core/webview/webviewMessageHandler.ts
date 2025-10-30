@@ -1517,6 +1517,33 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("autoCloseIdleTerminals", message.bool)
 			await provider.postStateToWebview()
 			break
+		case "terminalAutoContinueEnabled":
+			await updateGlobalState("terminalAutoContinueEnabled", message.bool)
+			// Also update workspace settings for persistence
+			await vscode.workspace
+				.getConfiguration(Package.name)
+				.update("terminalAutoContinueEnabled", message.bool, vscode.ConfigurationTarget.Global)
+			await provider.postStateToWebview()
+			break
+		case "terminalAutoContinueTimeout":
+			await updateGlobalState("terminalAutoContinueTimeout", message.value)
+			// Also update workspace settings for persistence
+			await vscode.workspace
+				.getConfiguration(Package.name)
+				.update("terminalAutoContinueTimeout", message.value, vscode.ConfigurationTarget.Global)
+			await provider.postStateToWebview()
+			break
+		case "commandExecutionTimeout":
+			await updateGlobalState("commandExecutionTimeout", message.value)
+			// Also update workspace settings for persistence
+			await vscode.workspace
+				.getConfiguration(Package.name)
+				.update("commandExecutionTimeout", message.value, vscode.ConfigurationTarget.Global)
+			await provider.postStateToWebview()
+			if (message.value !== undefined) {
+				Terminal.setCommandExecutionTimeout(message.value)
+			}
+			break
 		case "mode":
 			await provider.handleModeSwitch(message.text as Mode)
 			break

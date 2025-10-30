@@ -298,7 +298,7 @@ export const EVALS_SETTINGS: RooCodeSettings = {
 	followupAutoApproveTimeoutMs: 0,
 	allowedCommands: ["*"],
 	commandApprovalFreeMode: true,
-	commandExecutionTimeout: 20,
+	commandExecutionTimeout: 60,
 	commandTimeoutAllowlist: [],
 	preventCompletionWithOpenTodos: false,
 

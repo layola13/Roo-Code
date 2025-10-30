@@ -169,40 +169,91 @@ export class TerminalProcess extends BaseTerminalProcess {
 		 * - OSC 633 ; E ; <commandline> [; <nonce>] ST - Explicitly set command line with optional nonce
 		 */
 
-		// Process stream data
-		for await (let data of stream) {
-			// Check for command output start marker
-			if (!commandOutputStarted) {
-				preOutput += data
-				const match = this.matchAfterVsceStartMarkers(data)
+		// Create timeout promise for command execution
+		const commandExecutionTimeout = Terminal.getCommandExecutionTimeout()
+		const timeoutPromise =
+			commandExecutionTimeout > 0
+				? new Promise<never>((_, reject) =>
+						setTimeout(
+							() =>
+								reject(new Error(`Command execution timeout after ${commandExecutionTimeout} seconds`)),
+							commandExecutionTimeout * 1000,
+						),
+					)
+				: new Promise<never>(() => {}) // Never resolves if timeout is 0 (disabled)
 
-				if (match !== undefined) {
-					commandOutputStarted = true
-					data = match
-					this.fullOutput = "" // Reset fullOutput when command actually starts
-					this.emit("line", "") // Trigger UI to proceed
-				} else {
-					continue
-				}
-			}
+		// Process stream data with timeout
+		try {
+			await Promise.race([
+				(async () => {
+					for await (let data of stream) {
+						// Check for command output start marker
+						if (!commandOutputStarted) {
+							preOutput += data
+							const match = this.matchAfterVsceStartMarkers(data)
 
-			// Command output started, accumulate data without filtering.
-			// notice to future programmers: do not add escape sequence
-			// filtering here: fullOutput cannot change in length (see getUnretrievedOutput),
-			// and chunks may not be complete so you cannot rely on detecting or removing escape sequences mid-stream.
-			this.fullOutput += data
+							if (match !== undefined) {
+								commandOutputStarted = true
+								data = match
+								this.fullOutput = "" // Reset fullOutput when command actually starts
+								this.emit("line", "") // Trigger UI to proceed
+							} else {
+								continue
+							}
+						}
 
-			// For non-immediately returning commands we want to show loading spinner
-			// right away but this wouldn't happen until it emits a line break, so
-			// as soon as we get any output we emit to let webview know to show spinner
-			const now = Date.now()
+						// Command output started, accumulate data without filtering.
+						// notice to future programmers: do not add escape sequence
+						// filtering here: fullOutput cannot change in length (see getUnretrievedOutput),
+						// and chunks may not be complete so you cannot rely on detecting or removing escape sequences mid-stream.
+						this.fullOutput += data
 
-			if (this.isListening && (now - this.lastEmitTime_ms > 100 || this.lastEmitTime_ms === 0)) {
+						// For non-immediately returning commands we want to show loading spinner
+						// right away but this wouldn't happen until it emits a line break, so
+						// as soon as we get any output we emit to let webview know to show spinner
+						const now = Date.now()
+
+						if (this.isListening && (now - this.lastEmitTime_ms > 100 || this.lastEmitTime_ms === 0)) {
+							this.emitRemainingBufferIfListening()
+							this.lastEmitTime_ms = now
+						}
+
+						this.startHotTimer(data)
+					}
+				})(),
+				timeoutPromise,
+			])
+		} catch (error) {
+			// Command execution timeout occurred
+			if (error instanceof Error && error.message.includes("timeout")) {
+				console.warn(`[Terminal Process] ${error.message}`)
+
+				// Send SIGINT to terminate the command
+				this.terminal.terminal.sendText("\x03")
+
+				// Emit remaining buffer
 				this.emitRemainingBufferIfListening()
-				this.lastEmitTime_ms = now
+
+				// Append timeout message to output
+				const timeoutMessage = `\n\n<Command execution timeout after ${commandExecutionTimeout} seconds. The command was automatically terminated.>`
+				this.fullOutput += timeoutMessage
+				this.emit("line", timeoutMessage)
+
+				// Set streamClosed
+				this.terminal.setActiveStream(undefined)
+
+				// Stop hot timer
+				this.stopHotTimer()
+
+				// Emit completed with timeout message
+				this.emit("completed", this.removeEscapeSequences(this.fullOutput))
+				this.emit("continue")
+
+				return
 			}
 
-			this.startHotTimer(data)
+			// Re-throw other errors
+			throw error
 		}
 
 		// Set streamClosed immediately after stream ends.
