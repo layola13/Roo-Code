@@ -3326,6 +3326,16 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				return
 			}
 
+			// Check if this is a specific error that should trigger 30-second countdown retry
+			const errorMessage = error.message || ""
+			const shouldUseCountdownRetry =
+				errorMessage.includes("API流式转换失败") ||
+				errorMessage.includes("API 请求失败") ||
+				errorMessage.includes("API请求失败") ||
+				errorMessage.includes("terminated") ||
+				errorMessage.toLowerCase().includes("stream") ||
+				errorMessage.toLowerCase().includes("connection")
+
 			// note that this api_req_failed ask is unique in that we only present this option if the api hasn't streamed any content yet (ie it fails on the first chunk due), as it would allow them to hit a retry button. However if the api failed mid-stream, it could be in any arbitrary state where some tools may have executed, so that error is handled differently and requires cancelling the task entirely.
 			if (autoApprovalEnabled && alwaysApproveResubmit) {
 				let errorMsg
@@ -3338,30 +3348,43 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					errorMsg = "Unknown error"
 				}
 
-				const baseDelay = requestDelaySeconds || 5
-				let exponentialDelay = Math.min(
-					Math.ceil(baseDelay * Math.pow(2, retryAttempt)),
-					MAX_EXPONENTIAL_BACKOFF_SECONDS,
-				)
-
-				// If the error is a 429, and the error details contain a retry delay, use that delay instead of exponential backoff
-				if (error.status === 429) {
-					const geminiRetryDetails = error.errorDetails?.find(
-						(detail: any) => detail["@type"] === "type.googleapis.com/google.rpc.RetryInfo",
+				// Use 30 seconds for countdown retry errors, exponential backoff for others
+				let finalDelay: number
+				if (shouldUseCountdownRetry) {
+					// Fixed 30-second delay for specific streaming/connection errors
+					finalDelay = 30
+				} else {
+					const baseDelay = requestDelaySeconds || 5
+					let exponentialDelay = Math.min(
+						Math.ceil(baseDelay * Math.pow(2, retryAttempt)),
+						MAX_EXPONENTIAL_BACKOFF_SECONDS,
 					)
-					if (geminiRetryDetails) {
-						const match = geminiRetryDetails?.retryDelay?.match(/^(\d+)s$/)
-						if (match) {
-							exponentialDelay = Number(match[1]) + 1
+
+					// If the error is a 429, and the error details contain a retry delay, use that delay instead of exponential backoff
+					if (error.status === 429) {
+						const geminiRetryDetails = error.errorDetails?.find(
+							(detail: any) => detail["@type"] === "type.googleapis.com/google.rpc.RetryInfo",
+						)
+						if (geminiRetryDetails) {
+							const match = geminiRetryDetails?.retryDelay?.match(/^(\d+)s$/)
+							if (match) {
+								exponentialDelay = Number(match[1]) + 1
+							}
 						}
 					}
+
+					// Wait for the greater of the exponential delay or the rate limit delay
+					finalDelay = Math.max(exponentialDelay, rateLimitDelay)
 				}
 
-				// Wait for the greater of the exponential delay or the rate limit delay
-				const finalDelay = Math.max(exponentialDelay, rateLimitDelay)
-
-				// Show countdown timer with exponential backoff
+				// Show countdown timer
 				for (let i = finalDelay; i > 0; i--) {
+					// Check if user wants to cancel retry
+					if (this.abort) {
+						console.log(`[Task#${this.taskId}] User cancelled retry countdown`)
+						throw new Error("Retry cancelled by user")
+					}
+
 					await this.say(
 						"api_req_retry_delayed",
 						`${errorMsg}\n\nRetry attempt ${retryAttempt + 1}\nRetrying in ${i} seconds...`,

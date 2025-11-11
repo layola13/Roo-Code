@@ -424,5 +424,11 @@
 		"problems": "Problems",
 		"terminal": "Terminal",
 		"url": "Paste URL to fetch contents"
+	},
+	"apiRetry": {
+		"errorDetected": "API Request Failed - Will Retry",
+		"willRetryIn": "Retrying in {{seconds}} seconds",
+		"cancelRetry": "Cancel Retry",
+		"clickToCancel": "Click button above to cancel retry"
 	}
 }

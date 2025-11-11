@@ -64,6 +64,7 @@ import {
 	MessageCircle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ApiRetryCountdown } from "./ApiRetryCountdown"
 
 interface ChatRowProps {
 	message: ClineMessage
@@ -264,8 +265,37 @@ export const ChatRowContent = ({
 						style={{ color: successColor, marginBottom: "-1.5px" }}></span>,
 					<span style={{ color: successColor, fontWeight: "bold" }}>{t("chat:taskCompleted")}</span>,
 				]
-			case "api_req_retry_delayed":
+			case "api_req_retry_delayed": {
+				// Parse the retry message to extract error and countdown
+				const retryText = message.text || ""
+				const countdownMatch = retryText.match(/Retrying in (\d+) seconds/)
+				const countdown = countdownMatch ? parseInt(countdownMatch[1], 10) : 0
+
+				// Extract error message (everything before "Retry attempt")
+				const errorMatch = retryText.match(/^([\s\S]*?)(?:\n\nRetry attempt|$)/)
+				const errorMessage = errorMatch ? errorMatch[1].trim() : retryText
+
+				// Only show the countdown component if this is the last message and countdown is active
+				if (isLast && countdown > 0) {
+					return [
+						null,
+						<ApiRetryCountdown
+							key="retry-countdown"
+							errorMessage={errorMessage}
+							initialCountdown={countdown}
+							onRetry={() => {
+								// Retry will happen automatically when countdown reaches 0
+								console.log("Retry triggered by countdown completion")
+							}}
+							onCancel={() => {
+								// Send abort message to backend
+								vscode.postMessage({ type: "cancelTask" })
+							}}
+						/>,
+					]
+				}
 				return []
+			}
 			case "api_req_started":
 				const getIconSpan = (iconName: string, color: string) => (
 					<div
@@ -336,6 +366,7 @@ export const ChatRowContent = ({
 		apiRequestFailedMessage,
 		t,
 		isExpanded,
+		isLast,
 	])
 
 	const headerStyle: React.CSSProperties = {
