@@ -1667,6 +1667,42 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		this.isInitialized = true
 
+		// 🔄 API 错误恢复倒计时功能
+		// 当任务因 api_error 中断时，在显示恢复按钮前先进行 30 秒倒计时
+		if (resumeReason === "api_error") {
+			console.log(`[Task#resumeTaskFromHistory] ⏳ Starting 30-second countdown for API error recovery`)
+			const countdownSeconds = 30
+
+			// 显示倒计时消息
+			for (let i = countdownSeconds; i > 0; i--) {
+				// 检查用户是否取消倒计时
+				if (this.abort) {
+					console.log(`[Task#resumeTaskFromHistory] ❌ Countdown cancelled by user`)
+					throw new Error("API error recovery countdown cancelled by user")
+				}
+
+				// 更新倒计时消息
+				await this.say(
+					"text",
+					`⚠️ **API 错误检测到，正在自动重试...** \n\n**倒计时：${i} 秒**`,
+					undefined,
+					true, // partial - 使用 partial 模式实现消息更新
+				)
+
+				await delay(1000)
+			}
+
+			// 倒计时完成，显示最终消息
+			await this.say(
+				"text",
+				`🚀 **自动重试开始** \n\nAPI 错误恢复倒计时已完成，正在重新启动任务...`,
+				undefined,
+				false, // 完成 partial 消息
+			)
+
+			console.log(`[Task#resumeTaskFromHistory] ✅ Countdown completed, proceeding with task resume`)
+		}
+
 		const { response, text, images } = await this.ask(askType, undefined, false, undefined, undefined, resumeReason) // Calls `postStateToWebview`.
 
 		let responseText: string | undefined
@@ -2362,6 +2398,15 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					const iterator = stream[Symbol.asyncIterator]()
 					let item = await iterator.next()
 					while (!item.done) {
+						// 在每次循环开始时立即检查abort标志
+						if (this.abort) {
+							console.log(`[Task#${this.taskId}] Abort detected at start of chunk processing loop`)
+							if (!this.abandoned) {
+								await abortStream("user_cancelled")
+							}
+							break
+						}
+
 						const chunk = item.value
 						item = await iterator.next()
 						if (!chunk) {
