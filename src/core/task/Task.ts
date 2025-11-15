@@ -303,6 +303,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	// Task Bridge
 	enableBridge: boolean
 
+	// API Error Retry Mechanism
+	private apiErrorRetryCount: number = 0
+	private readonly MAX_API_ERROR_RETRIES = 3
+	private readonly API_ERROR_RETRY_DELAY_SECONDS = 30
+
 	// Message Queue Service
 	public readonly messageQueueService: MessageQueueService
 	private messageQueueStateChangedHandler: (() => void) | undefined
@@ -1667,43 +1672,101 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		this.isInitialized = true
 
-		// 🔄 API 错误恢复倒计时功能
-		// 当任务因 api_error 中断时，在显示恢复按钮前先进行 30 秒倒计时
+		// 🔄 API 错误恢复倒计时功能 - 支持多次重试
+		// 当任务因 api_error 中断时，在显示恢复按钮前先进行倒计时
+		let autoRetryResponse: ClineAskResponse = "yesButtonClicked" // 默认自动批准
+		let autoRetryText: string | undefined
+		let autoRetryImages: string[] | undefined
+
 		if (resumeReason === "api_error") {
-			console.log(`[Task#resumeTaskFromHistory] ⏳ Starting 30-second countdown for API error recovery`)
-			const countdownSeconds = 30
-
-			// 显示倒计时消息
-			for (let i = countdownSeconds; i > 0; i--) {
-				// 检查用户是否取消倒计时
-				if (this.abort) {
-					console.log(`[Task#resumeTaskFromHistory] ❌ Countdown cancelled by user`)
-					throw new Error("API error recovery countdown cancelled by user")
-				}
-
-				// 更新倒计时消息
-				await this.say(
-					"text",
-					`⚠️ **API 错误检测到，正在自动重试...** \n\n**倒计时：${i} 秒**`,
-					undefined,
-					true, // partial - 使用 partial 模式实现消息更新
+			// 检查是否超过最大重试次数
+			if (this.apiErrorRetryCount >= this.MAX_API_ERROR_RETRIES) {
+				console.log(
+					`[Task#resumeTaskFromHistory] ❌ Maximum retry attempts (${this.MAX_API_ERROR_RETRIES}) reached`,
 				)
 
-				await delay(1000)
+				// 显示重试次数已达上限的消息
+				await this.say(
+					"text",
+					`⛔ **已达到最大重试次数** \n\n` +
+						`已尝试自动重试 ${this.MAX_API_ERROR_RETRIES} 次，但API错误仍然存在。\n\n` +
+						`**建议操作：**\n` +
+						`1. 检查网络连接状态\n` +
+						`2. 检查API配置和密钥\n` +
+						`3. 稍后再试\n` +
+						`4. 联系技术支持`,
+					undefined,
+					false,
+				)
+
+				// 重置计数器，询问用户是否继续
+				this.apiErrorRetryCount = 0
+				const askResult = await this.ask(askType, undefined, false, undefined, undefined, resumeReason)
+				autoRetryResponse = askResult.response
+				autoRetryText = askResult.text
+				autoRetryImages = askResult.images
+			} else {
+				// 未达到最大重试次数，执行自动重试
+				this.apiErrorRetryCount++
+
+				console.log(
+					`[Task#resumeTaskFromHistory] 🔄 API错误自动重试 - 第 ${this.apiErrorRetryCount}/${this.MAX_API_ERROR_RETRIES} 次`,
+				)
+
+				const countdownSeconds = this.API_ERROR_RETRY_DELAY_SECONDS
+
+				// 显示倒计时消息
+				for (let i = countdownSeconds; i > 0; i--) {
+					// 检查用户是否取消倒计时
+					if (this.abort) {
+						console.log(`[Task#resumeTaskFromHistory] ❌ Countdown cancelled by user`)
+						this.apiErrorRetryCount = 0 // 重置计数器
+						throw new Error("API error recovery countdown cancelled by user")
+					}
+
+					// 更新倒计时消息，显示重试进度
+					await this.say(
+						"text",
+						`⚠️ **API 错误检测到，正在自动重试...** \n\n` +
+							`**重试进度：第 ${this.apiErrorRetryCount}/${this.MAX_API_ERROR_RETRIES} 次**\n\n` +
+							`**倒计时：${i} 秒**\n\n` +
+							`_提示：您可以随时中止任务以取消自动重试_`,
+						undefined,
+						true, // partial - 使用 partial 模式实现消息更新
+					)
+
+					await delay(1000)
+				}
+
+				// 倒计时完成，显示最终消息
+				await this.say(
+					"text",
+					`🚀 **自动重试开始（第 ${this.apiErrorRetryCount}/${this.MAX_API_ERROR_RETRIES} 次）** \n\n` +
+						`API 错误恢复倒计时已完成，正在重新启动任务...\n\n` +
+						`_如果重试失败，系统将${this.apiErrorRetryCount < this.MAX_API_ERROR_RETRIES ? `继续尝试（剩余 ${this.MAX_API_ERROR_RETRIES - this.apiErrorRetryCount} 次）` : "询问您如何继续"}_`,
+					undefined,
+					false, // 完成 partial 消息
+				)
+
+				console.log(
+					`[Task#resumeTaskFromHistory] ✅ Countdown completed, auto-approving task resume (attempt ${this.apiErrorRetryCount}/${this.MAX_API_ERROR_RETRIES})`,
+				)
+
+				// ✅ 关键修复：自动批准恢复，不等待用户交互
+				// 直接使用 yesButtonClicked 响应，跳过 ask 步骤
 			}
-
-			// 倒计时完成，显示最终消息
-			await this.say(
-				"text",
-				`🚀 **自动重试开始** \n\nAPI 错误恢复倒计时已完成，正在重新启动任务...`,
-				undefined,
-				false, // 完成 partial 消息
-			)
-
-			console.log(`[Task#resumeTaskFromHistory] ✅ Countdown completed, proceeding with task resume`)
+		} else {
+			// 非 API 错误的情况，正常显示恢复询问
+			const askResult = await this.ask(askType, undefined, false, undefined, undefined, resumeReason)
+			autoRetryResponse = askResult.response
+			autoRetryText = askResult.text
+			autoRetryImages = askResult.images
 		}
 
-		const { response, text, images } = await this.ask(askType, undefined, false, undefined, undefined, resumeReason) // Calls `postStateToWebview`.
+		// 使用自动批准的响应或用户选择的响应
+		const response = autoRetryResponse
+		const text = autoRetryText
+		const images = autoRetryImages
 
 		let responseText: string | undefined
 		let responseImages: string[] | undefined
@@ -1881,6 +1944,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		// Task resuming from history item.
 		await this.initiateTaskLoop(newUserContent)
+
+		// ✅ 任务成功恢复后，重置API错误重试计数器
+		// 这样如果后续再次遇到API错误，可以重新开始计数
+		this.apiErrorRetryCount = 0
+		console.log(`[Task#resumeTaskFromHistory] ✅ Task resumed successfully, retry counter reset`)
 	}
 
 	public async abortTask(isAbandoned = false) {
