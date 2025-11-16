@@ -212,6 +212,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		qdrantUrl,
 		qdrantCollectionName,
 		commandApprovalFreeMode,
+		// enableSmartFileRead, // Temporarily disabled
 	} = cachedState
 
 	const apiConfiguration = useMemo(() => cachedState.apiConfiguration ?? {}, [cachedState.apiConfiguration])
@@ -426,6 +427,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 				text: openRouterImageGenerationSelectedModel,
 			})
 			vscode.postMessage({ type: "commandApprovalFreeMode", bool: commandApprovalFreeMode ?? true })
+			// vscode.postMessage({ type: "enableSmartFileRead", bool: enableSmartFileRead ?? true }) // Temporarily disabled
 			setChangeDetected(false)
 		}
 	}
@@ -790,6 +792,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 							redisUrl={redisUrl}
 							qdrantUrl={qdrantUrl}
 							qdrantCollectionName={qdrantCollectionName}
+							// enableSmartFileRead={enableSmartFileRead} // Temporarily disabled
 							setCachedStateField={setCachedStateField}
 						/>
 					)}

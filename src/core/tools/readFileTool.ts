@@ -23,6 +23,8 @@ import {
 	ImageMemoryTracker,
 } from "./helpers/imageHelpers"
 import { checkFileSizeForRead, checkBatchFileSizeForRead } from "./helpers/fileSizeHelpers"
+// TODO: Uncomment when smartFileRead is fully implemented
+// import { smartFileRead } from "./helpers/smartFileRead"
 
 export function getReadFileToolDescription(blockName: string, blockParams: any): string {
 	// Handle both single path and multiple files via args
@@ -464,7 +466,10 @@ export async function readFileTool(
 			maxReadFileLine = -1,
 			maxImageFileSize = DEFAULT_MAX_IMAGE_FILE_SIZE_MB,
 			maxTotalImageSize = DEFAULT_MAX_TOTAL_IMAGE_SIZE_MB,
+			// TODO: Uncomment when enableSmartFileRead is fully implemented
+			// enableSmartFileRead = true,
 		} = state ?? {}
+		const enableSmartFileRead = false // Temporarily disabled until implementation is complete
 
 		// Track if we need to prepend batch warning
 		let shouldPrependBatchWarning = false
@@ -485,6 +490,30 @@ export async function readFileTool(
 			// Process approved files
 			try {
 				const [totalLines, isBinary] = await Promise.all([countFileLines(fullPath), isBinaryFile(fullPath)])
+
+				// TODO: Re-enable when smartFileRead is fully implemented
+				// Apply smart file read logic if enabled (only for non-binary, non-range reads)
+				// if (
+				// 	enableSmartFileRead &&
+				// 	!isBinary &&
+				// 	(!fileResult.lineRanges || fileResult.lineRanges.length === 0)
+				// ) {
+				// 	const smartReadResult = await smartFileRead({
+				// 		fullPath,
+				// 		totalLines,
+				// 		cline,
+				// 		currentMaxReadFileLine: maxReadFileLine,
+				// 	})
+
+				// 	if (smartReadResult.usedSmartRead) {
+				// 		// Smart read was applied, use the result directly
+				// 		updateFileResult(relPath, {
+				// 			xmlContent: smartReadResult.xmlContent,
+				// 		})
+				// 		continue
+				// 	}
+				// 	// If smart read was not used, continue with normal processing
+				// }
 
 				// Handle binary files (but allow specific file types that extractTextFromFile can handle)
 				if (isBinary) {

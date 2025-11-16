@@ -1686,6 +1686,11 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("maxConcurrentFileReads", valueToSave)
 			await provider.postStateToWebview()
 			break
+		// Temporarily disabled until smartFileRead is fully implemented
+		// case "enableSmartFileRead":
+		// 	await updateGlobalState("enableSmartFileRead", message.bool ?? true)
+		// 	await provider.postStateToWebview()
+		// 	break
 		case "includeDiagnosticMessages":
 			// Only apply default if the value is truly undefined (not false)
 			const includeValue = message.bool !== undefined ? message.bool : true

@@ -408,5 +408,194 @@ describe("attemptCompletionTool", () => {
 				expect.stringContaining("Cannot complete task while there are incomplete todos"),
 			)
 		})
+
+		describe("judge approval validation", () => {
+			beforeEach(() => {
+				// Setup task with judge methods
+				mockTask.shouldInvokeJudge = vi.fn().mockResolvedValue(true)
+				mockTask.invokeJudge = vi.fn()
+				mockTask.handleJudgeRejection = vi.fn()
+				mockTask.say = vi.fn().mockResolvedValue(undefined)
+				mockTask.ask = vi.fn().mockResolvedValue({ response: "yesButtonClicked" })
+				mockTask.clineMessages = []
+				mockTask.emit = vi.fn()
+				mockTask.getTokenUsage = vi.fn().mockReturnValue({})
+				mockTask.toolUsage = {}
+				// Use Object.defineProperty to set readonly property
+				Object.defineProperty(mockTask, "taskId", {
+					value: "test-task-id",
+					writable: false,
+					configurable: true,
+				})
+			})
+
+			it("should reject completion when judge returns approved: false", async () => {
+				const block: AttemptCompletionToolUse = {
+					type: "tool_use",
+					name: "attempt_completion",
+					params: { result: "Task completed successfully" },
+					partial: false,
+				}
+
+				// Mock judge rejection
+				vi.mocked(mockTask.invokeJudge!).mockResolvedValue({
+					approved: false,
+					reasoning: "任务完全未完成。存在严重问题需要修复。",
+					missingItems: ["缺失测试"],
+					suggestions: [],
+					hasCriticalIssues: true,
+					criticalIssues: ["没有运行测试"],
+				})
+
+				// User chooses not to force complete
+				vi.mocked(mockTask.handleJudgeRejection!).mockResolvedValue(false)
+
+				await attemptCompletionTool(
+					mockTask as Task,
+					block,
+					mockAskApproval,
+					mockHandleError,
+					mockPushToolResult,
+					mockRemoveClosingTag,
+					mockToolDescription,
+					mockAskFinishSubTaskApproval,
+				)
+
+				// Should reject the completion
+				expect(mockTask.invokeJudge).toHaveBeenCalled()
+				expect(mockTask.handleJudgeRejection).toHaveBeenCalled()
+				expect(mockPushToolResult).toHaveBeenCalledWith(
+					expect.stringContaining("Task completion rejected by judge"),
+				)
+				expect(mockPushToolResult).toHaveBeenCalledWith(expect.stringContaining("没有运行测试"))
+			})
+
+			it("should NOT show approval message when approved is strictly false", async () => {
+				const block: AttemptCompletionToolUse = {
+					type: "tool_use",
+					name: "attempt_completion",
+					params: { result: "Task completed successfully" },
+					partial: false,
+				}
+
+				// Mock judge with approved: false (the bug scenario)
+				vi.mocked(mockTask.invokeJudge!).mockResolvedValue({
+					approved: false, // 🔴 This is false
+					reasoning: "任务完全未完成。存在严重问题需要修复。",
+					missingItems: [],
+					suggestions: [],
+					hasCriticalIssues: true,
+					criticalIssues: ["严重问题"],
+				})
+
+				// User chooses not to force complete
+				vi.mocked(mockTask.handleJudgeRejection!).mockResolvedValue(false)
+
+				await attemptCompletionTool(
+					mockTask as Task,
+					block,
+					mockAskApproval,
+					mockHandleError,
+					mockPushToolResult,
+					mockRemoveClosingTag,
+					mockToolDescription,
+					mockAskFinishSubTaskApproval,
+				)
+
+				// Should NOT display "✅ Judge Approval" message
+				expect(mockTask.say).not.toHaveBeenCalledWith(
+					"text",
+					expect.stringContaining("✅ Judge Approval"),
+					expect.anything(),
+					expect.anything(),
+					expect.anything(),
+					expect.anything(),
+					expect.anything(),
+				)
+
+				// Should call handleJudgeRejection
+				expect(mockTask.handleJudgeRejection).toHaveBeenCalled()
+			})
+
+			it("should handle non-boolean approved values as rejection", async () => {
+				const block: AttemptCompletionToolUse = {
+					type: "tool_use",
+					name: "attempt_completion",
+					params: { result: "Task completed successfully" },
+					partial: false,
+				}
+
+				// Mock judge with non-boolean approved value
+				vi.mocked(mockTask.invokeJudge!).mockResolvedValue({
+					approved: "true" as any, // 🔴 String instead of boolean
+					reasoning: "任务完成",
+					missingItems: [],
+					suggestions: [],
+					hasCriticalIssues: false,
+				})
+
+				// User chooses not to force complete
+				vi.mocked(mockTask.handleJudgeRejection!).mockResolvedValue(false)
+
+				await attemptCompletionTool(
+					mockTask as Task,
+					block,
+					mockAskApproval,
+					mockHandleError,
+					mockPushToolResult,
+					mockRemoveClosingTag,
+					mockToolDescription,
+					mockAskFinishSubTaskApproval,
+				)
+
+				// Should treat non-boolean as rejection
+				expect(mockTask.handleJudgeRejection).toHaveBeenCalled()
+				expect(mockPushToolResult).toHaveBeenCalledWith(expect.stringContaining("rejected"))
+			})
+
+			it("should show approval message only when approved is strictly true", async () => {
+				const block: AttemptCompletionToolUse = {
+					type: "tool_use",
+					name: "attempt_completion",
+					params: { result: "Task completed successfully" },
+					partial: false,
+				}
+
+				// Mock judge with approved: true
+				vi.mocked(mockTask.invokeJudge!).mockResolvedValue({
+					approved: true, // ✅ Strictly true
+					reasoning: "任务完成符合要求",
+					missingItems: [],
+					suggestions: ["建议添加更多测试"],
+					hasCriticalIssues: false,
+					overallScore: 9,
+				})
+
+				await attemptCompletionTool(
+					mockTask as Task,
+					block,
+					mockAskApproval,
+					mockHandleError,
+					mockPushToolResult,
+					mockRemoveClosingTag,
+					mockToolDescription,
+					mockAskFinishSubTaskApproval,
+				)
+
+				// Should display "✅ Judge Approval" message
+				expect(mockTask.say).toHaveBeenCalledWith(
+					"text",
+					expect.stringContaining("✅ Judge Approval"),
+					undefined,
+					false,
+					undefined,
+					undefined,
+					expect.objectContaining({ isNonInteractive: true }),
+				)
+
+				// Should NOT call handleJudgeRejection
+				expect(mockTask.handleJudgeRejection).not.toHaveBeenCalled()
+			})
+		})
 	})
 })

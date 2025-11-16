@@ -134,6 +134,11 @@ export const globalSettingsSchema = z.object({
 	maxImageFileSize: z.number().optional(),
 	maxTotalImageSize: z.number().optional(),
 
+	// Smart file read settings
+	smartFileReadEnabled: z.boolean().optional(),
+	smartFileReadThreshold: z.number().optional(),
+	smartFileReadSafetyFactor: z.number().optional(),
+
 	terminalOutputLineLimit: z.number().optional(),
 	terminalOutputCharacterLimit: z.number().optional(),
 	terminalShellIntegrationTimeout: z.number().optional(),
@@ -337,6 +342,10 @@ export const EVALS_SETTINGS: RooCodeSettings = {
 	maxWorkspaceFiles: 200,
 	showRooIgnoredFiles: true,
 	maxReadFileLine: -1, // -1 to enable full file reading.
+
+	smartFileReadEnabled: true,
+	smartFileReadThreshold: 75,
+	smartFileReadSafetyFactor: 1.2,
 
 	includeDiagnosticMessages: true,
 	maxDiagnosticMessages: 50,

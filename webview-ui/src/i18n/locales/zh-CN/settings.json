@@ -580,6 +580,10 @@
 			"lines": "行",
 			"always_full_read": "始终读取整个文件"
 		},
+		"smartFileRead": {
+			"label": "启用智能文件读取",
+			"description": "启用后，系统将根据当前上下文使用情况和文件大小智能决定读取策略。当上下文接近限制时，自动使用AST摘要模式代替完整读取，有效节省token使用量。"
+		},
 		"maxConcurrentFileReads": {
 			"label": "并发文件读取限制",
 			"description": "read_file 工具可以同时处理的最大文件数。较高的值可能会加快读取多个小文件的速度，但会增加内存使用量。"

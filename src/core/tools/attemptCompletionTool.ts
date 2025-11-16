@@ -108,8 +108,17 @@ export async function attemptCompletionTool(
 
 				const judgeResult = await cline.invokeJudge(result)
 
-				if (!judgeResult.approved) {
-					// Judge rejected the completion
+				// 🔴 关键修复：严格验证 approved 必须为 true
+				// 只有 approved === true 才算批准，其他任何值（false、undefined、null、字符串等）都视为拒绝
+				if (judgeResult.approved !== true) {
+					// 记录所有非 true 的情况
+					console.log("[attemptCompletionTool] Judge rejected or invalid approval:", {
+						approved: judgeResult.approved,
+						type: typeof judgeResult.approved,
+						reasoning: judgeResult.reasoning?.substring(0, 100),
+					})
+
+					// Judge rejected the completion or approval is invalid
 					const shouldForceComplete = await cline.handleJudgeRejection(judgeResult)
 
 					if (!shouldForceComplete) {
@@ -141,6 +150,12 @@ export async function attemptCompletionTool(
 						}
 
 						errorMessage += "\nJudge's Reasoning: " + judgeResult.reasoning
+
+						// 如果 approved 值异常（不是 false 也不是 true），添加额外说明
+						if (judgeResult.approved !== false) {
+							errorMessage +=
+								"\n\n⚠️ Note: The judge's approval status was ambiguous or invalid. Task is rejected for safety."
+						}
 
 						// Push detailed error to AI
 						pushToolResult(formatResponse.toolError(errorMessage))
@@ -174,7 +189,9 @@ export async function attemptCompletionTool(
 						isNonInteractive: true,
 					})
 				} else {
-					// Judge approved - show approval message
+					// ✅ Judge approved - approved === true (strictly verified)
+					console.log("[attemptCompletionTool] Judge approved task completion")
+
 					let approvalMessage = `## ✅ Judge Approval\n\n`
 					approvalMessage += `**Decision**: Task completion approved\n\n`
 					approvalMessage += `**Reasoning**: ${judgeResult.reasoning}\n\n`

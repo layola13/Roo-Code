@@ -40,6 +40,7 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	redisUrl?: string
 	qdrantUrl?: string
 	qdrantCollectionName?: string
+	// enableSmartFileRead?: boolean // Temporarily disabled
 	setCachedStateField: SetCachedStateField<
 		| "autoCondenseContext"
 		| "autoCondenseContextPercent"
@@ -65,6 +66,7 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 		| "redisUrl"
 		| "qdrantUrl"
 		| "qdrantCollectionName"
+		// | "enableSmartFileRead" // Temporarily disabled
 	>
 }
 
@@ -95,6 +97,7 @@ export const ContextManagementSettings = ({
 	redisUrl,
 	qdrantUrl,
 	qdrantCollectionName,
+	// enableSmartFileRead, // Temporarily disabled
 	className,
 	...props
 }: ContextManagementSettingsProps) => {
@@ -275,6 +278,22 @@ export const ContextManagementSettings = ({
 						{t("settings:contextManagement.maxReadFile.description")}
 					</div>
 				</div>
+
+				{/* Temporarily disabled until smartFileRead is fully implemented
+				<div>
+					<VSCodeCheckbox
+						checked={enableSmartFileRead ?? true}
+						onChange={(e: any) => setCachedStateField("enableSmartFileRead", e.target.checked)}
+						data-testid="enable-smart-file-read-checkbox">
+						<label className="block font-medium mb-1">
+							{t("settings:contextManagement.smartFileRead.label")}
+						</label>
+					</VSCodeCheckbox>
+					<div className="text-vscode-descriptionForeground text-sm mt-1 mb-3">
+						{t("settings:contextManagement.smartFileRead.description")}
+					</div>
+				</div>
+				*/}
 
 				<div>
 					<div className="flex flex-col gap-2">
