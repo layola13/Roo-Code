@@ -36,11 +36,10 @@ const result = await summarizeConversation(
 // src/core/sliding-window/index.ts
 export async function truncateConversationIfNeeded(options: TruncateOptions): Promise<TruncateResult> {
 	// ... 逻辑
-	const result =
-		await summarizeConversation()
-		// ... 其他参数
-		// ❌ 没有 conversationMemory 参数
-		// ❌ 没有 useMemoryEnhancement 参数
+	const result = await summarizeConversation()
+	// ... 其他参数
+	// ❌ 没有 conversationMemory 参数
+	// ❌ 没有 useMemoryEnhancement 参数
 }
 ```
 

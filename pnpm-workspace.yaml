@@ -4,3 +4,4 @@ packages:
     - "cli"
     - "apps/*"
     - "packages/*"
+    - "backend-server"

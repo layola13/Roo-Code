@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Analytics Dashboard</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#1d4ed8",
+              "background-light": "#f8fafc",
+              "background-dark": "#020617",
+            },
+            fontFamily: {
+              display: ["Inter", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.75rem",
+            },
+          },
+        },
+      };
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings:
+        'FILL' 0,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 24
+      }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-800 dark:text-slate-200">
+<div class="min-h-screen" id="root">
+<header class="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800">
+<div class="px-4 py-3 flex items-center justify-between">
+<div class="flex items-center space-x-2">
+<img alt="App logo" class="w-7 h-7" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCdBGT_oDI9bdy2RypQl6O6diFCoKeuT_4wfwhnPw72HIKfk6TOLFWiRQjUHCmxAk5WfkDbxaisk8ckhLDXDCBjvfjUlx9UdxkC1nN7Zu2UiFvMYepLeMusSdVn6Ay_nCmEaxsHZlr8nU2kbWSWM7DnWp2GMES8IxZX3d3cELF8kXH0YUzfiJ31eSZuQR0QwPl6V8vA91KGwY3CNsy2FMMkDvwqcXZjodPy9Wf7HWBh7G6imDWtz_kzw3sBFwtX6MXMZd9E_Zt-El8Y"/>
+<span class="text-lg font-semibold text-slate-900 dark:text-white">Analytics</span>
+</div>
+<div class="flex items-center space-x-3">
+<button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-400 text-2xl">
+                        notifications
+                        </span>
+</button>
+<img alt="User avatar" class="w-8 h-8 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAiOrxpuGiWlUlYUzhtpnuRfybUtP8D4ReXUP91xir1oZ-RJ87KKNsV7ag0N-QpcsLJGyE22GYSq1RUabngWxLPfVenZGe3K0jZaSREjOd_CYl-klARqCWl4WRjpR8Gi2MdNAAINMSutDcvKp88RYxcAnp6pNmdgEAsuLE-QFO6rtzZFiu6-4nqY6fLsJvK8mYC0eMV15cSQaOLxcbwu9mbngZUX74odvIsxXya11QiMAWQEXloNU9zcknljeVM1IJd_hukOrJQgQSO"/>
+</div>
+</div>
+<div class="px-4 pb-3">
+<nav class="flex items-center space-x-2">
+<a class="px-3 py-1.5 text-sm font-medium rounded-md text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800" href="#">Home</a>
+<a class="px-3 py-1.5 text-sm font-medium rounded-md bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" href="#">Analytics</a>
+<a class="px-3 py-1.5 text-sm font-medium rounded-md text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800" href="#">Upgrade</a>
+</nav>
+</div>
+</header>
+<main class="p-4 space-y-6">
+<details class="bg-white dark:bg-slate-900 rounded-lg shadow-sm overflow-hidden">
+<summary class="flex items-center justify-between p-4 cursor-pointer">
+<h2 class="text-lg font-semibold text-slate-900 dark:text-white">Filters</h2>
+<span class="material-symbols-outlined text-slate-500 dark:text-slate-400 transition-transform duration-300">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 dark:border-slate-800 p-4 space-y-4">
+<div>
+<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="task-sources">All task sources</label>
+<select class="w-full bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 rounded-md shadow-sm focus:ring-primary focus:border-primary text-slate-900 dark:text-slate-100" id="task-sources">
+<option>All</option>
+</select>
+</div>
+<div>
+<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="creator">Any Creator</label>
+<select class="w-full bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 rounded-md shadow-sm focus:ring-primary focus:border-primary text-slate-900 dark:text-slate-100" id="creator">
+<option>All</option>
+</select>
+</div>
+<div>
+<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="repo">Any Repo</label>
+<select class="w-full bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 rounded-md shadow-sm focus:ring-primary focus:border-primary text-slate-900 dark:text-slate-100" id="repo">
+<option>All</option>
+</select>
+</div>
+<div>
+<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="time-range">Time Range</label>
+<select class="w-full bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 rounded-md shadow-sm focus:ring-primary focus:border-primary text-slate-900 dark:text-slate-100" id="time-range">
+<option>Last 7 Days</option>
+<option>Last 30 Days</option>
+<option>All Time</option>
+</select>
+</div>
+</div>
+</details>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm">
+<p class="text-sm text-slate-500 dark:text-slate-400">Creators</p>
+<p class="text-2xl font-semibold text-slate-900 dark:text-white">1</p>
+</div>
+<div class="bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm">
+<p class="text-sm text-slate-500 dark:text-slate-400">Tasks</p>
+<p class="text-2xl font-semibold text-slate-900 dark:text-white">408</p>
+</div>
+<div class="bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm">
+<p class="text-sm text-slate-500 dark:text-slate-400">Tokens</p>
+<p class="text-2xl font-semibold text-slate-900 dark:text-white">1.1B</p>
+</div>
+<div class="bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm">
+<p class="text-sm text-slate-500 dark:text-slate-400">Inference</p>
+<p class="text-2xl font-semibold text-primary">$513.90</p>
+</div>
+<div class="col-span-2 bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm">
+<p class="text-sm text-slate-500 dark:text-slate-400">Cloud Usage</p>
+<p class="text-2xl font-semibold text-slate-900 dark:text-white">0.00h</p>
+</div>
+</div>
+<div class="bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm">
+<div class="mb-4">
+<div class="flex border border-slate-200 dark:border-slate-700 rounded-md p-0.5">
+<button class="flex-1 py-1.5 text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded">Tokens</button>
+<button class="flex-1 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 rounded">Inference</button>
+<button class="flex-1 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 rounded">Cloud Usage</button>
+<button class="flex-1 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 rounded">Tasks</button>
+</div>
+</div>
+<div>
+<img alt="Bar chart showing token usage from Nov 10 to Nov 17" class="w-full h-auto" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwmNf7dRW1Lc9cH41xBAxL8AXCppvdw5x2UppH7inquW1djpkRPYufwpozA0h88-HDWtshzeIEP01OT1bEHhkqIcEvcruZrvYqQduLRtG1vyIZ2S5HMAvqbl3tuZ80GDRWZSvlmthrC4i31JQLnGn47aV6P629Va9fCukLzk2aS7tVmduPm_Zn7m0oArrV3yKBsGzTwkPXUW_zG5B6JhtihlJ6oCb82lBx35KyOKGpZg9v4oEMNpT0gQ9151Ce9czm_vBVuDaVlVhL"/>
+</div>
+</div>
+<div class="bg-white dark:bg-slate-900 rounded-lg shadow-sm overflow-hidden">
+<div class="p-4">
+<div class="flex border border-slate-200 dark:border-slate-700 rounded-md p-0.5">
+<button class="flex-1 py-1.5 text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded">Creators</button>
+<button class="flex-1 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 rounded">Models</button>
+<button class="flex-1 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 rounded">Repositories</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-sm text-left">
+<thead class="bg-slate-50 dark:bg-slate-800/50">
+<tr>
+<th class="px-4 py-3 font-medium text-slate-600 dark:text-slate-400" scope="col">Creator</th>
+<th class="px-4 py-3 font-medium text-slate-600 dark:text-slate-400" scope="col">Tasks</th>
+<th class="px-4 py-3 font-medium text-slate-600 dark:text-slate-400" scope="col">Tokens</th>
+<th class="px-4 py-3 font-medium text-slate-600 dark:text-slate-400" scope="col">Last Event</th>
+</tr>
+</thead>
+<tbody>
+<tr class="border-t border-slate-200 dark:border-slate-800">
+<td class="px-4 py-4 whitespace-nowrap text-slate-800 dark:text-slate-200">HiYang Chan</td>
+<td class="px-4 py-4 whitespace-nowrap text-slate-500 dark:text-slate-400">408</td>
+<td class="px-4 py-4 whitespace-nowrap text-slate-500 dark:text-slate-400">1.1B</td>
+<td class="px-4 py-4 whitespace-nowrap text-slate-500 dark:text-slate-400">about 19 hours ago</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</main>
+</div>
+
+</body></html>

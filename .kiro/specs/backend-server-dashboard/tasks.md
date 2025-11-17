@@ -1,0 +1,530 @@
+# Implementation Plan
+
+- [ ]   1. 初始化项目结构和基础配置
+
+    - 创建 monorepo 结构，包含 backend 和 dashboard 两个子项目
+    - 配置 TypeScript、ESLint、Prettier
+    - 添加 @roo-code/types 作为依赖（workspace:^）
+    - 创建 .env.example 文件定义所有环境变量
+    - 设置 package.json scripts（dev、build、test）
+    - 配置 TypeScript 以正确导入 @roo-code/types
+    - _Requirements: 所有需求的基础_
+
+- [ ]   2. 配置数据库和 ORM
+
+    - [ ] 2.1 配置 MySQL 连接和 TypeORM
+        - 创建 src/config/database.ts 配置数据库连接
+        - 配置 TypeORM DataSource 和连接池
+        - 实现数据库连接健康检查
+        - _Requirements: 9.1-9.8_
+    - [ ] 2.2 创建所有 TypeORM 实体
+        - 实现 User 实体（id, email, passwordHash, name, settings）
+        - 实现 Organization 实体（id, name, settings）
+        - 实现 OrganizationMembership 实体（userId, organizationId, role）
+        - 实现 Task 实体（id, userId, organizationId, metadata）
+        - 实现 TaskMessage 实体（id, taskId, type, content）
+        - 实现 Share 实体（id, taskId, shareUrl, visibility）
+        - 实现 TelemetryEvent 实体（id, userId, organizationId, eventType, eventData）
+        - _Requirements: 9.1-9.8_
+    - [ ] 2.3 创建数据库迁移脚本
+        - 使用 TypeORM migration 生成初始化迁移
+        - 创建索引优化查询性能
+        - 编写迁移执行脚本
+        - _Requirements: 9.8_
+
+- [ ]   3. 配置 Redis 和缓存工具
+
+    - [ ] 3.1 配置 Redis 连接
+        - 创建 src/config/redis.ts 配置 Redis 客户端
+        - 实现 Redis 连接健康检查
+        - 配置连接重试机制
+        - _Requirements: 10.1-10.6_
+    - [ ] 3.2 实现缓存工具函数
+        - 创建 src/utils/cache.ts 封装 Redis 操作
+        - 实现 get、set、del、exists 等基础方法
+        - 实现带 TTL 的缓存设置
+        - 实现批量操作（pipeline）
+        - _Requirements: 10.1-10.6_
+
+- [ ]   4. 实现认证服务
+
+    - [ ] 4.1 实现 JWT 工具函数
+        - 创建 src/utils/jwt.ts 封装 JWT 操作
+        - 使用 @roo-code/types 的 JWTPayload 类型
+        - 实现 generateToken 生成符合 JWTPayload 结构的 token（包含 v, r.u, r.o, r.t 字段）
+        - 实现 verifyToken 验证 token 有效性并返回 JWTPayload
+        - 实现 decodeToken 解析 token payload
+        - 实现 generateJobToken 生成 job token（r.t = 'cj'）
+        - _Requirements: 1.1-1.7_
+    - [ ] 4.2 实现 AuthService
+        - 创建 src/services/AuthService.ts
+        - 导入 @roo-code/types 的 JWTPayload, CloudUserInfo, CloudOrganizationMembership
+        - 实现 login 方法（验证凭证、生成符合 JWTPayload 的 token、存储会话到 Redis）
+        - 实现 verifyToken 方法（验证 token、检查 Redis 会话、返回 JWTPayload）
+        - 实现 refreshToken 方法（验证 refresh token、生成新 token）
+        - 实现 logout 方法（删除 Redis 会话和 refresh token）
+        - 实现 switchOrganization 方法（生成新 token 包含新组织 ID）
+        - 实现 generateJobToken 方法（生成 CI/CD 用 token，r.t = 'cj'）
+        - 实现 getOrganizationMemberships 方法（返回 CloudOrganizationMembership[]）
+        - _Requirements: 1.1-1.7_
+    - [ ] 4.3 实现认证中间件
+        - 创建 src/middleware/auth.ts
+        - 实现 authenticate 中间件验证 JWT token
+        - 从 Authorization header 提取 token
+        - 验证 token 并将用户信息附加到 req.user
+        - 处理 token 过期和无效情况
+        - _Requirements: 1.2-1.3_
+    - [ ] 4.4 实现用户注册功能
+        - 在 AuthService 中实现 register 方法
+        - 验证邮箱格式和密码强度
+        - 检查邮箱是否已存在
+        - 使用 bcrypt 哈希密码
+        - 创建用户记录并生成 token
+        - 在 AuthController 中实现 POST /api/auth/register 端点
+        - _Requirements: 1.1_
+
+- [ ]   5. 实现组织管理服务
+
+    - [ ] 5.1 实现 OrganizationService
+        - 创建 src/services/OrganizationService.ts
+        - 实现 createOrganization 方法（创建组织、添加创建者为 owner）
+        - 实现 getUserOrganizations 方法（查询用户所属组织列表）
+        - 实现 addMember 方法（添加成员到组织）
+        - 实现 removeMember 方法（从组织移除成员）
+        - 实现 updateSettings 方法（更新组织设置、清除缓存）
+        - 实现 getSettings 方法（从缓存或数据库获取设置）
+        - 实现 validateAllowList 方法（验证邮箱白名单）
+        - _Requirements: 2.1-2.5_
+    - [ ] 5.2 实现组织相关的 Controller
+        - 创建 src/controllers/OrganizationController.ts
+        - 实现 GET /api/organizations 获取用户组织列表
+        - 实现 POST /api/organizations 创建组织
+        - 实现 GET /api/organizations/:id 获取组织详情
+        - 实现 PUT /api/organizations/:id 更新组织设置
+        - 实现 GET /api/organizations/:id/members 获取成员列表
+        - 实现 POST /api/organizations/:id/members 添加成员
+        - 实现 DELETE /api/organizations/:id/members/:userId 移除成员
+        - _Requirements: 2.1-2.5, 11.4_
+
+- [ ]   6. 实现任务管理服务
+
+    - [ ] 6.1 实现 TaskService
+        - 创建 src/services/TaskService.ts
+        - 实现 createTask 方法（创建任务记录）
+        - 实现 getTask 方法（获取任务详情、使用缓存）
+        - 实现 getUserTasks 方法（分页查询用户任务）
+        - 实现 addMessage 方法（添加任务消息）
+        - 实现 getMessages 方法（获取任务消息列表）
+        - 实现 backfillMessages 方法（批量插入历史消息）
+        - _Requirements: 3.1-3.5_
+    - [ ] 6.2 实现任务相关的 Controller
+        - 创建 src/controllers/TaskController.ts
+        - 实现 GET /api/tasks 获取任务列表（支持分页、排序）
+        - 实现 POST /api/tasks 创建新任务
+        - 实现 GET /api/tasks/:id 获取任务详情
+        - 实现 GET /api/tasks/:id/messages 获取任务消息
+        - 实现 POST /api/tasks/:id/messages 添加任务消息
+        - 实现 POST /api/tasks/:id/backfill 回填历史消息
+        - _Requirements: 3.1-3.5, 11.4_
+
+- [ ]   7. 实现遥测服务
+
+    - [ ] 7.1 实现 TelemetryService
+        - 创建 src/services/TelemetryService.ts
+        - 实现 captureEvent 方法（记录单个事件）
+        - 实现 captureBatch 方法（批量记录事件、使用事务）
+        - 实现 getStats 方法（获取统计数据、使用缓存）
+        - 实现 getUserActivity 方法（查询用户活动）
+        - 实现统计数据聚合逻辑
+        - _Requirements: 6.1-6.5_
+    - [ ] 7.2 实现遥测相关的 Controller
+        - 创建 src/controllers/TelemetryController.ts
+        - 实现 POST /api/telemetry/events 提交单个事件
+        - 实现 POST /api/telemetry/batch 批量提交事件
+        - 实现 GET /api/telemetry/stats 获取统计数据
+        - 使用 Zod 验证事件数据格式
+        - _Requirements: 6.1-6.3, 11.9_
+
+- [ ]   8. 实现任务共享服务
+
+    - [ ] 8.1 实现 ShareService
+        - 创建 src/services/ShareService.ts
+        - 实现 createShare 方法（创建共享记录、生成唯一 URL）
+        - 实现 getSharedTask 方法（获取共享任务、验证权限）
+        - 实现 validateAccess 方法（验证访问权限）
+        - 实现 deleteShare 方法（删除共享记录）
+        - 实现短链接生成算法
+        - _Requirements: 5.1-5.5_
+    - [ ] 8.2 实现共享相关的 Controller
+        - 创建 src/controllers/ShareController.ts
+        - 实现 POST /api/extension/share 创建任务共享
+        - 实现 GET /api/share/:shareUrl 访问共享任务
+        - 实现 DELETE /api/share/:shareUrl 删除共享
+        - 处理任务不存在的情况（返回 404）
+        - _Requirements: 5.1-5.5, 11.7_
+
+- [ ]   9. 实现用户设置服务
+
+    - [ ] 9.1 实现 SettingsService
+        - 创建 src/services/SettingsService.ts
+        - 实现 getUserSettings 方法（从缓存或数据库获取）
+        - 实现 updateUserSettings 方法（更新设置、清除缓存）
+        - 实现 getMergedSettings 方法（合并组织和用户设置）
+        - 实现 getUserFeatures 方法（获取功能开关）
+        - _Requirements: 7.1-7.5_
+    - [ ] 9.2 实现设置相关的 Controller
+        - 创建 src/controllers/SettingsController.ts
+        - 实现 GET /api/settings 获取用户设置
+        - 实现 PUT /api/settings 更新用户设置
+        - 实现 GET /api/settings/features 获取功能开关
+        - 使用 Zod 验证设置数据
+        - _Requirements: 7.1-7.5, 11.5-11.6_
+
+- [ ]   10. 实现 Socket.IO 实时通信
+
+    - [ ] 10.1 实现 SocketBridge
+        - 创建 src/socket/SocketBridge.ts
+        - 实现 initialize 方法（初始化 Socket.IO 服务器）
+        - 实现连接认证（验证 JWT token）
+        - 实现 emitToUser 方法（向特定用户推送消息）
+        - 实现 emitToOrganization 方法（向组织所有在线用户推送）
+        - 实现 getOnlineUsers 方法（从 Redis 获取在线用户）
+        - 在 Redis 中维护用户-socket 映射
+        - 实现心跳机制更新在线状态
+        - _Requirements: 4.1-4.5_
+    - [ ] 10.2 实现 Socket 事件处理器
+        - 创建 src/socket/handlers/ 目录
+        - 实现 connection 事件处理（验证、记录连接）
+        - 实现 disconnect 事件处理（清理 Redis 记录）
+        - 实现 heartbeat 事件处理（更新在线状态）
+        - 集成到各个 Service 中触发实时推送
+        - _Requirements: 4.1-4.5_
+    - [ ] 10.3 实现 Bridge Config API
+        - 在 AuthController 中实现 GET /api/extension/bridge/config
+        - 返回 Socket.IO 连接配置（URL、token）
+        - _Requirements: 4.1, 11.8_
+    - [ ] 10.4 实现类型系统整合
+        - 导入 @roo-code/types 中的所有相关类型
+        - 使用 extensionInstanceSchema、extensionTaskSchema 等进行数据验证
+        - 确保 Socket 事件使用 ExtensionSocketEvents 和 TaskSocketEvents 枚举
+        - 使用 ExtensionBridgeEvent 和 TaskBridgeEvent 类型定义事件
+        - _Requirements: 4.1-4.5, 类型安全_
+
+- [ ] 10.5 实现 SSE (Server-Sent Events) 支持
+
+    - [ ] 10.5.1 实现 SSE 基础设施
+        - 创建 src/sse/SSEManager.ts 管理 SSE 连接
+        - 实现 SSE 连接注册和清理
+        - 实现心跳机制保持连接
+        - 实现断线重连支持（event ID）
+        - _Requirements: 4.1-4.5_
+    - [ ] 10.5.2 实现任务事件流端点
+        - 实现 GET /api/tasks/:taskId/events（单个任务事件流）
+        - 实现 GET /api/users/:userId/task-events（用户所有任务事件流）
+        - 实现 GET /api/organizations/:orgId/task-events（组织任务事件流）
+        - 验证用户权限
+        - 使用 ExtensionBridgeEvent 类型发送事件
+        - _Requirements: 4.1-4.5_
+    - [ ] 10.5.3 集成 SSE 与 Socket.IO
+        - 在 SocketBridge 中触发 SSE 事件
+        - 确保 Socket.IO 和 SSE 事件同步
+        - 实现事件去重机制
+        - _Requirements: 4.1-4.5_
+
+- [ ]   11. 实现 API 路由和中间件
+
+    - [ ] 11.1 配置 Express 应用
+        - 创建 src/app.ts 配置 Express
+        - 配置 CORS（允许的源、方法、headers）
+        - 配置 body parser（JSON、URL encoded）
+        - 配置 compression（gzip）
+        - 配置 helmet（安全 headers）
+        - _Requirements: 11.1-11.10_
+    - [ ] 11.2 实现请求日志中间件
+        - 创建 src/middleware/logger.ts
+        - 记录请求信息（时间戳、方法、路径、用户 ID）
+        - 记录响应信息（状态码、响应时间）
+        - 使用结构化日志格式
+        - _Requirements: 12.5_
+    - [ ] 11.3 实现错误处理中间件
+        - 创建 src/middleware/errorHandler.ts
+        - 定义错误类（AppError、AuthenticationError、NotFoundError 等）
+        - 实现全局错误处理器
+        - 返回标准错误响应格式
+        - 记录错误日志（不暴露敏感信息给客户端）
+        - _Requirements: 12.1-12.4_
+    - [ ] 11.4 实现请求验证中间件
+        - 创建 src/middleware/validation.ts
+        - 使用 Zod 创建验证 schemas
+        - 实现 validateBody、validateQuery、validateParams 中间件
+        - 返回详细的验证错误信息
+        - _Requirements: 12.1_
+    - [ ] 11.5 实现限流中间件
+        - 使用 express-rate-limit 配置限流
+        - API 限流: 100 请求/分钟/IP
+        - 登录限流: 5 次失败后锁定 15 分钟
+        - 使用 Redis 存储限流计数
+        - _Requirements: 安全考虑_
+    - [ ] 11.6 配置所有路由
+        - 创建 src/routes/ 下的所有路由文件
+        - 在 app.ts 中注册所有路由
+        - 配置路由前缀 /api
+        - 应用认证中间件到需要保护的路由
+        - _Requirements: 11.1-11.10_
+
+- [ ]   12. 实现服务器入口和健康检查
+
+    - [ ] 12.1 实现服务器启动逻辑
+        - 创建 src/server.ts
+        - 初始化数据库连接
+        - 初始化 Redis 连接
+        - 启动 Express 服务器
+        - 启动 Socket.IO 服务器
+        - 实现优雅关闭（graceful shutdown）
+        - _Requirements: 所有需求的基础_
+    - [ ] 12.2 实现健康检查端点
+        - 实现 GET /health 端点
+        - 检查数据库连接状态
+        - 检查 Redis 连接状态
+        - 返回服务状态和版本信息
+        - _Requirements: 监控需求_
+    - [ ] 12.3 创建数据库种子数据
+        - 创建 src/seeds/ 目录
+        - 编写种子数据脚本创建测试用户
+        - 编写种子数据脚本创建测试组织
+        - 编写种子数据脚本创建测试任务和消息
+        - 添加 npm script 执行种子数据
+        - _Requirements: 开发和测试需求_
+    - [ ] 12.4 集成 Swagger/OpenAPI 文档
+        - 安装 swagger-jsdoc 和 swagger-ui-express
+        - 创建 OpenAPI 规范文件
+        - 为所有 API 端点添加 JSDoc 注释
+        - 配置 Swagger UI 路由 /api-docs
+        - 生成 API 文档 JSON 文件
+        - _Requirements: API 文档需求_
+
+- [ ]   13. 初始化 Next.js Dashboard 项目
+
+    - [ ] 13.1 创建 Next.js 项目结构
+        - 在 dashboard/ 目录初始化 Next.js 项目（App Router）
+        - 配置 TypeScript、ESLint、Tailwind CSS
+        - 安装 UI 库（Ant Design 或 shadcn/ui）
+        - 配置 next.config.js（API proxy、环境变量）
+        - _Requirements: 8.1-8.5_
+    - [ ] 13.2 创建 API 客户端
+        - 创建 src/lib/api.ts 封装 API 调用
+        - 实现 fetch wrapper 处理认证 token
+        - 实现错误处理和重试逻辑
+        - 配置 API base URL
+        - _Requirements: 8.1-8.5_
+    - [ ] 13.3 实现认证逻辑
+        - 创建登录页面 app/login/page.tsx
+        - 实现 JWT token 存储（localStorage 或 cookie）
+        - 实现认证状态管理（Context 或 Zustand）
+        - 实现路由保护（middleware.ts）
+        - _Requirements: 8.1_
+
+- [ ]   14. 实现 Dashboard 布局和导航
+
+    - [ ] 14.1 创建 Dashboard 布局
+        - 创建 app/(dashboard)/layout.tsx
+        - 实现 Sidebar 组件（导航菜单）
+        - 实现 Header 组件（用户信息、登出）
+        - 实现响应式布局
+        - _Requirements: 8.1_
+    - [ ] 14.2 实现导航组件
+        - 创建 Sidebar 组件显示菜单项
+        - 实现路由高亮显示
+        - 实现菜单折叠功能
+        - _Requirements: 8.1_
+
+- [ ]   15. 实现 Dashboard Overview 页面（数据看板）
+
+    - [ ] 15.1 创建 Overview 页面基础结构
+        - 创建 app/(dashboard)/page.tsx
+        - 实现统计卡片组件（StatCard）
+        - 实现响应式网格布局
+        - _Requirements: 8.1_
+    - [ ] 15.2 实现统计数据获取
+        - 创建 API 端点 GET /api/dashboard/stats
+        - 实现统计数据聚合（用户数、组织数、任务数、Token 使用量、成本）
+        - 实现 7天/30天 趋势数据计算
+        - 使用 Redis 缓存统计数据（TTL: 5分钟）
+        - _Requirements: 8.1, 8.3_
+    - [ ] 15.3 实现数据可视化图表
+        - 安装 Recharts 图表库
+        - 实现 Token 使用量趋势图（LineChart）
+        - 实现活跃用户趋势图（BarChart）
+        - 实现成本分析图表
+        - 实现实时在线用户数显示
+        - _Requirements: 8.1, 8.3_
+    - [ ] 15.4 实现最近任务列表
+        - 创建 RecentTasksList 组件
+        - 显示最近 10 个任务
+        - 显示任务状态、创建者、Token 使用量
+        - 实现点击跳转到任务详情
+        - _Requirements: 8.1_
+
+- [ ]   16. 实现用户管理页面
+
+    - [ ] 16.1 创建用户列表页面
+        - 创建 app/(dashboard)/users/page.tsx
+        - 实现用户列表表格（分页、排序）
+        - 实现搜索和筛选功能
+        - 从后端 API 获取用户数据
+        - _Requirements: 8.2_
+    - [ ] 16.2 实现用户详情弹窗
+        - 创建用户详情 Modal 组件
+        - 显示用户基本信息
+        - 显示用户所属组织
+        - 显示用户活动统计
+        - _Requirements: 8.2_
+
+- [ ]   17. 实现组织管理页面
+
+    - [ ] 17.1 创建组织列表页面
+        - 创建 app/(dashboard)/organizations/page.tsx
+        - 实现组织列表表格
+        - 实现搜索功能
+        - 从后端 API 获取组织数据
+        - _Requirements: 8.3_
+    - [ ] 17.2 实现组织详情和设置
+        - 创建组织详情页面
+        - 显示组织信息和设置
+        - 实现成员管理（添加、移除成员）
+        - 实现组织设置编辑
+        - _Requirements: 8.3_
+
+- [ ]   18. 实现任务浏览页面（任务看板）
+
+    - [ ] 18.1 创建任务列表页面
+        - 创建 app/(dashboard)/tasks/page.tsx
+        - 实现任务列表表格（分页、排序）
+        - 实现多维度筛选器（状态、创建者、组织、时间范围）
+        - 从后端 API 获取任务数据
+        - 显示任务关键信息（ID、状态、Token、成本、创建时间）
+        - 实现 TaskStatusBadge 组件显示任务状态
+        - _Requirements: 8.4_
+    - [ ] 18.2 实现任务详情页面基础结构
+        - 创建 app/(dashboard)/tasks/[taskId]/page.tsx
+        - 实现任务头部信息卡片
+        - 显示任务统计（Token 使用量、成本、消息数、持续时间）
+        - 实现任务状态实时更新
+        - _Requirements: 8.4_
+    - [ ] 18.3 实现实时任务监控功能（Socket.IO）
+        - 在 Dashboard 中集成 Socket.IO 客户端
+        - 创建 useSocket hook 管理 Socket 连接
+        - 连接到后端 Socket.IO 服务器
+        - 订阅 extension:relayed_event 事件
+        - 监听任务状态变更事件（task_started、task_completed、task_aborted）
+        - 实时更新任务列表中的任务状态
+        - 实现新任务通知提示
+        - _Requirements: 4.1-4.5, 8.4_
+    - [ ] 18.4 实现实时对话查看器（SSE）
+        - 创建 MessageBubble 组件显示单条消息
+        - 使用 EventSource API 订阅任务事件流
+        - 订阅 GET /api/tasks/:taskId/events SSE 端点
+        - 监听 message 事件实时接收新消息
+        - 实时追加新消息到对话列表
+        - 实现自动滚动到最新消息
+        - 处理消息更新（partial 消息）
+        - _Requirements: 4.1-4.5, 8.4_
+    - [ ] 18.5 实现富文本消息渲染
+        - 安装 react-markdown 和 syntax-highlighter
+        - 实现 Markdown 渲染支持
+        - 实现代码块语法高亮
+        - 实现图片显示（支持 base64 和 URL）
+        - 实现消息类型标识（Ask/Say 类型）
+        - 区分用户消息和 AI 响应的样式
+        - 显示工具调用消息（command、tool、browser_action 等）
+        - _Requirements: 8.4_
+    - [ ] 18.6 实现消息时间线和导航
+        - 实现消息时间戳显示
+        - 实现消息搜索功能
+        - 实现跳转到特定消息
+        - 实现消息导出功能（JSON/Markdown）
+        - _Requirements: 8.4_
+    - [ ] 18.7 实现 Token 使用可视化
+        - 创建 TokenUsageChart 组件
+        - 显示每条消息的 Token 使用量
+        - 显示累计 Token 使用趋势
+        - 显示成本分析
+        - 区分 input/output/cache tokens
+        - _Requirements: 8.4_
+
+- [ ]   19. 实现遥测分析页面
+
+    - [ ] 19.1 创建遥测数据页面
+        - 创建 app/(dashboard)/telemetry/page.tsx
+        - 实现事件类型分布饼图
+        - 实现用户活动热力图
+        - 从后端 API 获取遥测统计
+        - _Requirements: 8.5_
+    - [ ] 19.2 实现自定义查询功能
+        - 实现查询构建器组件
+        - 支持按时间范围、事件类型、用户筛选
+        - 显示查询结果表格
+        - _Requirements: 8.5_
+
+- [ ]   20. 实现系统设置页面
+
+    - 创建 app/(dashboard)/settings/page.tsx
+    - 实现系统配置表单
+    - 实现缓存管理功能（清除缓存）
+    - 实现日志查看功能
+    - _Requirements: 8.6_
+
+- [ ]   21. 配置 Docker 和部署
+
+    - [ ] 21.1 创建 Backend Dockerfile
+        - 创建 backend/Dockerfile
+        - 配置多阶段构建（build + production）
+        - 优化镜像大小
+        - _Requirements: 部署需求_
+    - [ ] 21.2 创建 Dashboard Dockerfile
+        - 创建 dashboard/Dockerfile
+        - 配置 Next.js 生产构建
+        - 配置环境变量
+        - _Requirements: 部署需求_
+    - [ ] 21.3 创建 Docker Compose 配置
+        - 创建 docker-compose.yml
+        - 配置 MySQL、Redis、Backend、Dashboard 服务
+        - 配置网络和数据卷
+        - 配置环境变量
+        - _Requirements: 部署需求_
+    - [ ] 21.4 创建部署文档
+        - 编写 README.md 说明如何运行项目
+        - 编写环境变量配置说明
+        - 编写数据库迁移说明
+        - 编写生产部署指南
+        - _Requirements: 部署需求_
+
+- [ ]\* 22. 编写测试
+
+    - [ ]\* 22.1 编写 Service 单元测试
+        - 为 AuthService 编写测试
+        - 为 OrganizationService 编写测试
+        - 为 TaskService 编写测试
+        - 为 TelemetryService 编写测试
+        - 为 ShareService 编写测试
+        - 为 SettingsService 编写测试
+        - 使用 Jest 和 mock 数据库
+        - _Requirements: 测试策略_
+    - [ ]\* 22.2 编写 API 集成测试
+        - 为认证 API 编写测试
+        - 为组织 API 编写测试
+        - 为任务 API 编写测试
+        - 为遥测 API 编写测试
+        - 为共享 API 编写测试
+        - 使用测试数据库
+        - _Requirements: 测试策略_
+    - [ ]\* 22.3 编写 Socket.IO 测试
+        - 测试连接认证
+        - 测试消息推送
+        - 测试在线状态管理
+        - _Requirements: 测试策略_
+    - [ ]\* 22.4 编写 Dashboard E2E 测试
+        - 使用 Playwright 测试登录流程
+        - 测试用户管理页面
+        - 测试任务浏览页面
+        - _Requirements: 测试策略_
