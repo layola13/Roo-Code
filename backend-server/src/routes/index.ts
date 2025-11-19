@@ -5,6 +5,7 @@ import { organizationRouter } from "./organization.routes.js"
 import { telemetryRouter } from "./telemetry.routes.js"
 import { settingsRouter } from "./settings.routes.js"
 import { shareRouter } from "./share.routes.js"
+import { dashboardRouter } from "./dashboard.routes.js"
 import sseRoutes from "./sse.routes.js"
 import { logger } from "../utils/logger.js"
 import { isProduction } from "../config/env.js"
@@ -36,6 +37,7 @@ export function createApiRouter(): Router {
 	v1Router.use("/telemetry", telemetryRouter)
 	v1Router.use("/settings", settingsRouter)
 	v1Router.use("/shares", shareRouter)
+	v1Router.use("/dashboard", dashboardRouter)
 	v1Router.use("/sse", sseRoutes)
 
 	// 挂载 v1 路由
@@ -55,6 +57,7 @@ export function createApiRouter(): Router {
 					telemetry: "/api/v1/telemetry",
 					settings: "/api/v1/settings",
 					shares: "/api/v1/shares",
+					dashboard: "/api/v1/dashboard",
 					sse: "/api/v1/sse",
 				},
 				docs: "/api/docs",

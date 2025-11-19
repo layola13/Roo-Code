@@ -14,7 +14,6 @@ export class Share {
 	taskId!: string
 
 	@Column({ type: "varchar", length: 255, unique: true, name: "share_url" })
-	@Index()
 	shareUrl!: string
 
 	@Column({ type: "enum", enum: ["public", "organization"] })

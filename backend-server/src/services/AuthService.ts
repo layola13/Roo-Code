@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt"
+import bcrypt from "bcryptjs"
 import { nanoid } from "nanoid"
 import { AppDataSource } from "../config/database.js"
 import { User } from "../entities/User.js"

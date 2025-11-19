@@ -276,6 +276,66 @@ export const dashboardAPI = {
 			}>
 		}>("/api/dashboard/stats")
 	},
+
+	async getOverview(organizationId?: string) {
+		const query = organizationId ? `?organizationId=${organizationId}` : ""
+		return fetchAPI<{
+			totalApiCalls: number
+			totalTokens: number
+			totalCost: number
+			activeUsers: number
+		}>(`/api/v1/dashboard/overview${query}`)
+	},
+
+	async getTokenUsage(days: number = 7, organizationId?: string) {
+		const params = new URLSearchParams({ days: String(days) })
+		if (organizationId) {
+			params.append("organizationId", organizationId)
+		}
+		return fetchAPI<
+			Array<{
+				date: string
+				inputTokens: number
+				outputTokens: number
+				totalTokens: number
+			}>
+		>(`/api/v1/dashboard/token-usage?${params.toString()}`)
+	},
+
+	async getCostAnalysis(days: number = 7, organizationId?: string) {
+		const params = new URLSearchParams({ days: String(days) })
+		if (organizationId) {
+			params.append("organizationId", organizationId)
+		}
+		return fetchAPI<
+			Array<{
+				date: string
+				modelCosts: Record<string, number>
+				totalCost: number
+			}>
+		>(`/api/v1/dashboard/cost-analysis?${params.toString()}`)
+	},
+
+	async getTopStats(organizationId?: string) {
+		const query = organizationId ? `?organizationId=${organizationId}` : ""
+		return fetchAPI<{
+			topCreators: Array<{
+				name: string
+				value: number
+				percentage: number
+			}>
+			topModels: Array<{
+				name: string
+				value: number
+				percentage: number
+			}>
+			topRepositories: Array<{
+				name: string
+				value: number
+				percentage: number
+			}>
+		}>(`/api/v1/dashboard/top-stats${query}`)
+	},
 }
 
 // Users API (for admin dashboard)

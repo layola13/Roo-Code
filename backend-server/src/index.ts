@@ -177,10 +177,13 @@ async function initializeServices() {
 
 	// 初始化数据库
 	try {
+		console.log("🔄 正在连接数据库...")
 		logger.info("Connecting to database...")
 		await initializeDatabase()
+		console.log("✅ 数据库连接成功")
 		logger.info("✅ Database connected successfully")
 	} catch (error) {
+		console.error("❌ 数据库连接失败:", error)
 		logger.error("❌ Database connection failed", { error })
 		// 不抛出错误，允许服务器继续启动（用于开发环境）
 		if (isProduction) {
@@ -190,10 +193,13 @@ async function initializeServices() {
 
 	// 初始化 Redis
 	try {
+		console.log("🔄 正在连接 Redis...")
 		logger.info("Connecting to Redis...")
 		await initializeRedis()
+		console.log("✅ Redis 连接测试成功")
 		logger.info("✅ Redis connected successfully")
 	} catch (error) {
+		console.error("❌ Redis 连接失败:", error)
 		logger.error("❌ Redis connection failed", { error })
 		// 不抛出错误，允许服务器继续启动（用于开发环境）
 		if (isProduction) {

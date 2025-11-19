@@ -66,6 +66,17 @@
 			"brace-expansion": ">=2.0.2",
 			"form-data": ">=4.0.4",
 			"bluebird": ">=3.7.2"
-		}
+		},
+		"ignoredBuiltDependencies": [
+			"@tailwindcss/oxide",
+			"@vscode/vsce-sign",
+			"bcrypt",
+			"better-sqlite3",
+			"core-js",
+			"esbuild",
+			"keytar",
+			"puppeteer-chromium-resolver",
+			"sharp"
+		]
 	}
 }

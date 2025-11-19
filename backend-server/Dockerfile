@@ -10,10 +10,10 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # 复制 package 文件
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json ./
 
 # 安装依赖（仅生产依赖）
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --prod --no-frozen-lockfile
 
 # ============================================
 # Stage 2: Builder
@@ -26,10 +26,10 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # 复制 package 文件
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json ./
 
 # 安装所有依赖（包括开发依赖）
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # 复制源代码和配置文件
 COPY tsconfig.json ./

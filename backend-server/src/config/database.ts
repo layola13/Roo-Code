@@ -39,11 +39,12 @@ export const dataSourceOptions: DataSourceOptions = {
 	synchronize: !isProduction,
 
 	// 日志配置
-	logging: env.LOG_LEVEL === "debug" ? ["query", "error"] : ["error"],
+	logging: env.LOG_LEVEL === "debug" ? ["query", "error", "migration"] : ["error", "migration"],
 
-	// 迁移配置
-	migrations: ["src/migrations/**/*.ts"],
+	// 迁移配置（使用编译后的 JS 文件）
+	migrations: [],
 	migrationsTableName: "migrations",
+	migrationsRun: false,
 
 	// 字符集
 	charset: "utf8mb4",

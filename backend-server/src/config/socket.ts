@@ -98,6 +98,34 @@ export const SocketEvents = {
 } as const
 
 /**
+ * Extension Bridge Events（扩展桥接事件）
+ * 用于 VSCode Extension 与后端服务器之间的通信
+ */
+export enum ExtensionSocketEvents {
+	CONNECTED = "extension:connected",
+	REGISTER = "extension:register",
+	UNREGISTER = "extension:unregister",
+	HEARTBEAT = "extension:heartbeat",
+	EVENT = "extension:event",
+	RELAYED_EVENT = "extension:relayed_event",
+	COMMAND = "extension:command",
+	RELAYED_COMMAND = "extension:relayed_command",
+}
+
+/**
+ * Task Socket Events（任务级别事件）
+ * 用于任务房间内的实时通信
+ */
+export enum TaskSocketEvents {
+	JOIN = "task:join",
+	LEAVE = "task:leave",
+	EVENT = "task:event",
+	RELAYED_EVENT = "task:relayed_event",
+	COMMAND = "task:command",
+	RELAYED_COMMAND = "task:relayed_command",
+}
+
+/**
  * Socket.IO 房间名称生成器
  */
 export const SocketRooms = {

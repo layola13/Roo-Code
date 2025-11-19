@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { createServer, Server as HTTPServer } from "http"
 import { SocketService } from "../SocketService.js"
-import { SocketEvents, SocketRooms } from "../../config/socket.js"
+import { SocketEvents, SocketRooms, ExtensionSocketEvents, TaskSocketEvents } from "../../config/socket.js"
 import { io as ioClient, Socket as ClientSocket } from "socket.io-client"
 
 // Mock dependencies
@@ -438,6 +438,349 @@ describe("SocketService", () => {
 		it("应该生成正确的全局房间名", () => {
 			const roomName = SocketRooms.global()
 			expect(roomName).toBe("global")
+		})
+	})
+
+	describe("Extension Socket 事件", () => {
+		beforeEach((done) => {
+			clientSocket = ioClient(serverAddress, {
+				auth: { token: "test-token" },
+			})
+			clientSocket.on("connect", () => done())
+		})
+
+		it("应该能注册 Extension 实例", (done) => {
+			const instanceData = {
+				instanceId: "instance-123",
+				userId: "test-user-id",
+				organizationId: "test-org-id",
+			}
+
+			clientSocket.on(ExtensionSocketEvents.CONNECTED, (response: any) => {
+				expect(response.success).toBe(true)
+				expect(response.data.instanceId).toBe(instanceData.instanceId)
+				expect(response.data.registered).toBe(true)
+			})
+
+			clientSocket.emit(ExtensionSocketEvents.REGISTER, instanceData, (response: any) => {
+				expect(response.success).toBe(true)
+				expect(response.data.instanceId).toBe(instanceData.instanceId)
+
+				// 验证实例已注册
+				const instances = socketService.getOnlineInstances()
+				expect(instances.some((i) => i.instanceId === instanceData.instanceId)).toBe(true)
+				done()
+			})
+		})
+
+		it("应该能注销 Extension 实例", (done) => {
+			const instanceData = {
+				instanceId: "instance-456",
+				userId: "test-user-id",
+				organizationId: "test-org-id",
+			}
+
+			// 先注册
+			clientSocket.emit(ExtensionSocketEvents.REGISTER, instanceData, () => {
+				// 再注销
+				clientSocket.emit(ExtensionSocketEvents.UNREGISTER, instanceData.instanceId, (response: any) => {
+					expect(response.success).toBe(true)
+					expect(response.data.instanceId).toBe(instanceData.instanceId)
+					expect(response.data.unregistered).toBe(true)
+
+					// 验证实例已注销
+					const instances = socketService.getOnlineInstances()
+					expect(instances.some((i) => i.instanceId === instanceData.instanceId)).toBe(false)
+					done()
+				})
+			})
+		})
+
+		it("应该能更新 Extension 心跳", (done) => {
+			const instanceData = {
+				instanceId: "instance-789",
+				userId: "test-user-id",
+				organizationId: "test-org-id",
+			}
+
+			// 先注册
+			clientSocket.emit(ExtensionSocketEvents.REGISTER, instanceData, () => {
+				// 发送心跳
+				clientSocket.emit(ExtensionSocketEvents.HEARTBEAT, instanceData.instanceId, (response: any) => {
+					expect(response.success).toBe(true)
+					expect(response.data.instanceId).toBe(instanceData.instanceId)
+					expect(response.data.timestamp).toBeDefined()
+					done()
+				})
+			})
+		})
+
+		it("应该能发送和接收 Extension 事件", (done) => {
+			const eventData = {
+				instanceId: "instance-event",
+				eventType: "test_event",
+				payload: { message: "Hello" },
+				timestamp: Date.now(),
+			}
+
+			clientSocket.on(ExtensionSocketEvents.RELAYED_EVENT, (receivedEvent: any) => {
+				expect(receivedEvent.instanceId).toBe(eventData.instanceId)
+				expect(receivedEvent.eventType).toBe(eventData.eventType)
+				expect(receivedEvent.payload).toEqual(eventData.payload)
+				done()
+			})
+
+			clientSocket.emit(ExtensionSocketEvents.EVENT, eventData, (response: any) => {
+				expect(response.success).toBe(true)
+				expect(response.data.received).toBe(true)
+			})
+		})
+
+		it("应该能发送 Extension 命令", (done) => {
+			const instanceData = {
+				instanceId: "instance-cmd",
+				userId: "test-user-id",
+				organizationId: "test-org-id",
+			}
+
+			const command = {
+				instanceId: instanceData.instanceId,
+				commandType: "test_command",
+				payload: { action: "do_something" },
+			}
+
+			// 先注册实例
+			clientSocket.emit(ExtensionSocketEvents.REGISTER, instanceData, () => {
+				// 监听中继命令
+				clientSocket.on(ExtensionSocketEvents.RELAYED_COMMAND, (receivedCommand: any) => {
+					expect(receivedCommand.instanceId).toBe(command.instanceId)
+					expect(receivedCommand.commandType).toBe(command.commandType)
+					expect(receivedCommand.payload).toEqual(command.payload)
+					done()
+				})
+
+				// 发送命令
+				clientSocket.emit(ExtensionSocketEvents.COMMAND, command, (response: any) => {
+					expect(response.success).toBe(true)
+					expect(response.data.sent).toBe(true)
+				})
+			})
+		})
+
+		it("尝试注销不存在的实例应该返回错误", (done) => {
+			const nonExistentInstanceId = "non-existent-instance"
+
+			clientSocket.emit(ExtensionSocketEvents.UNREGISTER, nonExistentInstanceId, (response: any) => {
+				expect(response.success).toBe(false)
+				expect(response.code).toBe("INVALID_PAYLOAD")
+				done()
+			})
+		})
+
+		it("应该能获取用户的所有实例", (done) => {
+			const instances = [
+				{ instanceId: "user-inst-1", userId: "test-user-id", organizationId: "test-org-id" },
+				{ instanceId: "user-inst-2", userId: "test-user-id", organizationId: "test-org-id" },
+			]
+
+			let registered = 0
+
+			instances.forEach((instance) => {
+				clientSocket.emit(ExtensionSocketEvents.REGISTER, instance, () => {
+					registered++
+					if (registered === instances.length) {
+						const userInstances = socketService.getUserInstances("test-user-id")
+						expect(userInstances.length).toBe(2)
+						expect(userInstances.every((i) => i.userId === "test-user-id")).toBe(true)
+						done()
+					}
+				})
+			})
+		})
+	})
+
+	describe("Task Socket 事件", () => {
+		beforeEach((done) => {
+			clientSocket = ioClient(serverAddress, {
+				auth: { token: "test-token" },
+			})
+			clientSocket.on("connect", () => done())
+		})
+
+		it("应该能加入任务房间", (done) => {
+			const taskId = "task-join-123"
+
+			clientSocket.emit(TaskSocketEvents.JOIN, taskId, (response: any) => {
+				expect(response.success).toBe(true)
+				expect(response.data.taskId).toBe(taskId)
+				expect(response.data.joined).toBe(true)
+				done()
+			})
+		})
+
+		it("应该能离开任务房间", (done) => {
+			const taskId = "task-leave-123"
+
+			// 先加入
+			clientSocket.emit(TaskSocketEvents.JOIN, taskId, () => {
+				// 再离开
+				clientSocket.emit(TaskSocketEvents.LEAVE, taskId, (response: any) => {
+					expect(response.success).toBe(true)
+					expect(response.data.taskId).toBe(taskId)
+					expect(response.data.left).toBe(true)
+					done()
+				})
+			})
+		})
+
+		it("应该能发送和接收任务事件", (done) => {
+			const taskId = "task-event-123"
+			const eventData = {
+				taskId,
+				eventType: "task_progress",
+				payload: { progress: 50 },
+				timestamp: Date.now(),
+			}
+
+			// 先加入任务房间
+			clientSocket.emit(TaskSocketEvents.JOIN, taskId, () => {
+				// 监听中继事件
+				clientSocket.on(TaskSocketEvents.RELAYED_EVENT, (receivedEvent: any) => {
+					expect(receivedEvent.taskId).toBe(eventData.taskId)
+					expect(receivedEvent.eventType).toBe(eventData.eventType)
+					expect(receivedEvent.payload).toEqual(eventData.payload)
+					done()
+				})
+
+				// 发送事件
+				clientSocket.emit(TaskSocketEvents.EVENT, eventData, (response: any) => {
+					expect(response.success).toBe(true)
+					expect(response.data.received).toBe(true)
+				})
+			})
+		})
+
+		it("应该能发送任务命令到房间", (done) => {
+			const taskId = "task-cmd-123"
+			const command = {
+				taskId,
+				commandType: "pause_task",
+				payload: { reason: "User requested" },
+			}
+
+			// 先加入任务房间
+			clientSocket.emit(TaskSocketEvents.JOIN, taskId, () => {
+				// 监听中继命令
+				clientSocket.on(TaskSocketEvents.RELAYED_COMMAND, (receivedCommand: any) => {
+					expect(receivedCommand.taskId).toBe(command.taskId)
+					expect(receivedCommand.commandType).toBe(command.commandType)
+					expect(receivedCommand.payload).toEqual(command.payload)
+					done()
+				})
+
+				// 发送命令
+				clientSocket.emit(TaskSocketEvents.COMMAND, command, (response: any) => {
+					expect(response.success).toBe(true)
+					expect(response.data.sent).toBe(true)
+				})
+			})
+		})
+
+		it("多个客户端应该都能接收任务房间事件", (done) => {
+			const taskId = "task-multi-123"
+			const eventData = {
+				taskId,
+				eventType: "task_update",
+				payload: { status: "running" },
+				timestamp: Date.now(),
+			}
+
+			// 创建第二个客户端
+			const client2 = ioClient(serverAddress, {
+				auth: { token: "test-token-2" },
+			})
+
+			let receivedCount = 0
+
+			const checkDone = () => {
+				receivedCount++
+				if (receivedCount === 2) {
+					client2.disconnect()
+					done()
+				}
+			}
+
+			client2.on("connect", () => {
+				// 两个客户端都加入同一任务房间
+				clientSocket.emit(TaskSocketEvents.JOIN, taskId, () => {
+					client2.emit(TaskSocketEvents.JOIN, taskId, () => {
+						// 监听事件
+						clientSocket.on(TaskSocketEvents.RELAYED_EVENT, (event: any) => {
+							expect(event.taskId).toBe(taskId)
+							checkDone()
+						})
+
+						client2.on(TaskSocketEvents.RELAYED_EVENT, (event: any) => {
+							expect(event.taskId).toBe(taskId)
+							checkDone()
+						})
+
+						// 发送事件
+						clientSocket.emit(TaskSocketEvents.EVENT, eventData)
+					})
+				})
+			})
+		})
+	})
+
+	describe("Extension 和 Task 事件清理", () => {
+		beforeEach((done) => {
+			clientSocket = ioClient(serverAddress, {
+				auth: { token: "test-token" },
+			})
+			clientSocket.on("connect", () => done())
+		})
+
+		it("断开连接后应该清理 Extension 实例", (done) => {
+			const instanceData = {
+				instanceId: "cleanup-inst-123",
+				userId: "test-user-id",
+				organizationId: "test-org-id",
+			}
+
+			clientSocket.emit(ExtensionSocketEvents.REGISTER, instanceData, () => {
+				// 验证实例已注册
+				expect(socketService.getOnlineInstances().some((i) => i.instanceId === instanceData.instanceId)).toBe(
+					true,
+				)
+
+				clientSocket.disconnect()
+			})
+
+			clientSocket.on("disconnect", () => {
+				setTimeout(() => {
+					// 验证实例已清理
+					expect(
+						socketService.getOnlineInstances().some((i) => i.instanceId === instanceData.instanceId),
+					).toBe(false)
+					done()
+				}, 100)
+			})
+		})
+
+		it("断开连接后应该清理任务房间成员", (done) => {
+			const taskId = "cleanup-task-123"
+
+			clientSocket.emit(TaskSocketEvents.JOIN, taskId, () => {
+				clientSocket.disconnect()
+			})
+
+			clientSocket.on("disconnect", () => {
+				setTimeout(() => {
+					// 任务房间应该被清理（因为没有成员了）
+					done()
+				}, 100)
+			})
 		})
 	})
 

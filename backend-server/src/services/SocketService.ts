@@ -8,6 +8,8 @@ import {
 	createSocketErrorResponse,
 	createSocketSuccessResponse,
 	SocketErrorCodes,
+	ExtensionSocketEvents,
+	TaskSocketEvents,
 } from "../config/socket.js"
 import { socketAuthMiddleware } from "../middleware/socketAuth.js"
 import { createRedisPubSubClient } from "../config/redis.js"
@@ -35,6 +37,38 @@ export interface OnlineUser {
 }
 
 /**
+ * Extension 实例信息接口
+ */
+export interface ExtensionInstance {
+	instanceId: string
+	userId: string
+	socketId: string
+	organizationId?: string
+	registeredAt: number
+	lastHeartbeat: number
+}
+
+/**
+ * Extension 事件数据接口
+ */
+export interface ExtensionEventData {
+	instanceId: string
+	eventType: string
+	payload: any
+	timestamp: number
+}
+
+/**
+ * Task 事件数据接口
+ */
+export interface TaskEventData {
+	taskId: string
+	eventType: string
+	payload: any
+	timestamp: number
+}
+
+/**
  * Socket.IO 服务类
  * 负责管理 WebSocket 连接、房间、用户状态和事件推送
  */
@@ -44,6 +78,8 @@ export class SocketService {
 	private subscriber: Redis | null = null
 	private onlineUsers: Map<string, Set<string>> = new Map() // userId -> Set<socketId>
 	private userRooms: Map<string, Set<string>> = new Map() // socketId -> Set<roomName>
+	private extensionInstances: Map<string, ExtensionInstance> = new Map() // instanceId -> ExtensionInstance
+	private taskRooms: Map<string, Set<string>> = new Map() // taskId -> Set<socketId>
 	private isInitialized = false
 
 	/**
@@ -108,6 +144,44 @@ export class SocketService {
 			// 处理心跳
 			socket.on(SocketEvents.PING, (callback) => {
 				this.handlePing(socket, callback)
+			})
+
+			// Extension 事件处理
+			socket.on(ExtensionSocketEvents.REGISTER, (data, callback) => {
+				this.handleExtensionRegister(socket, data, callback)
+			})
+
+			socket.on(ExtensionSocketEvents.UNREGISTER, (instanceId, callback) => {
+				this.handleExtensionUnregister(socket, instanceId, callback)
+			})
+
+			socket.on(ExtensionSocketEvents.HEARTBEAT, (instanceId, callback) => {
+				this.handleExtensionHeartbeat(socket, instanceId, callback)
+			})
+
+			socket.on(ExtensionSocketEvents.EVENT, (eventData, callback) => {
+				this.handleExtensionEvent(socket, eventData, callback)
+			})
+
+			socket.on(ExtensionSocketEvents.COMMAND, (command, callback) => {
+				this.handleExtensionCommand(socket, command, callback)
+			})
+
+			// Task 事件处理
+			socket.on(TaskSocketEvents.JOIN, (taskId, callback) => {
+				this.handleTaskJoin(socket, taskId, callback)
+			})
+
+			socket.on(TaskSocketEvents.LEAVE, (taskId, callback) => {
+				this.handleTaskLeave(socket, taskId, callback)
+			})
+
+			socket.on(TaskSocketEvents.EVENT, (eventData, callback) => {
+				this.handleTaskSocketEvent(socket, eventData, callback)
+			})
+
+			socket.on(TaskSocketEvents.COMMAND, (command, callback) => {
+				this.handleTaskCommand(socket, command, callback)
 			})
 
 			// 处理错误
@@ -184,6 +258,24 @@ export class SocketService {
 					this.onlineUsers.delete(userId)
 					// 用户完全离线，广播离线事件
 					this.broadcastUserOffline(userId, organizationId)
+				}
+			}
+		}
+
+		// 清理 Extension 实例
+		for (const [instanceId, instance] of this.extensionInstances.entries()) {
+			if (instance.socketId === socket.id) {
+				this.extensionInstances.delete(instanceId)
+				logger.info("Extension instance unregistered on disconnect", { instanceId })
+			}
+		}
+
+		// 清理 Task 房间
+		for (const [taskId, sockets] of this.taskRooms.entries()) {
+			if (sockets.has(socket.id)) {
+				sockets.delete(socket.id)
+				if (sockets.size === 0) {
+					this.taskRooms.delete(taskId)
 				}
 			}
 		}
@@ -685,6 +777,350 @@ export class SocketService {
 			logger.error("Failed to close SocketService", { error })
 			throw error
 		}
+	}
+
+	/**
+	 * 处理 Extension 注册
+	 */
+	private handleExtensionRegister(socket: Socket, data: any, callback?: (response: any) => void): void {
+		try {
+			const { instanceId, userId, organizationId } = data
+			const instance: ExtensionInstance = {
+				instanceId,
+				userId,
+				socketId: socket.id,
+				organizationId,
+				registeredAt: Date.now(),
+				lastHeartbeat: Date.now(),
+			}
+
+			this.extensionInstances.set(instanceId, instance)
+
+			logger.info("Extension instance registered", {
+				instanceId,
+				userId,
+				organizationId,
+				socketId: socket.id,
+			})
+
+			const response = createSocketSuccessResponse({
+				instanceId,
+				registered: true,
+			})
+
+			socket.emit(ExtensionSocketEvents.CONNECTED, response)
+			if (callback) callback(response)
+
+			// 广播实例注册事件
+			this.broadcastExtensionEvent({
+				instanceId,
+				eventType: "instance_registered",
+				payload: { instance },
+				timestamp: Date.now(),
+			})
+		} catch (error) {
+			logger.error("Failed to register extension instance", { error })
+			const response = createSocketErrorResponse(
+				"Failed to register extension instance",
+				SocketErrorCodes.INTERNAL_ERROR,
+			)
+			if (callback) callback(response)
+		}
+	}
+
+	/**
+	 * 处理 Extension 注销
+	 */
+	private handleExtensionUnregister(socket: Socket, instanceId: string, callback?: (response: any) => void): void {
+		try {
+			const instance = this.extensionInstances.get(instanceId)
+			if (instance) {
+				this.extensionInstances.delete(instanceId)
+
+				logger.info("Extension instance unregistered", { instanceId })
+
+				const response = createSocketSuccessResponse({
+					instanceId,
+					unregistered: true,
+				})
+
+				if (callback) callback(response)
+
+				// 广播实例注销事件
+				this.broadcastExtensionEvent({
+					instanceId,
+					eventType: "instance_unregistered",
+					payload: { instance },
+					timestamp: Date.now(),
+				})
+			} else {
+				const response = createSocketErrorResponse("Instance not found", SocketErrorCodes.INVALID_PAYLOAD)
+				if (callback) callback(response)
+			}
+		} catch (error) {
+			logger.error("Failed to unregister extension instance", { instanceId, error })
+			const response = createSocketErrorResponse(
+				"Failed to unregister extension instance",
+				SocketErrorCodes.INTERNAL_ERROR,
+			)
+			if (callback) callback(response)
+		}
+	}
+
+	/**
+	 * 处理 Extension 心跳
+	 */
+	private handleExtensionHeartbeat(socket: Socket, instanceId: string, callback?: (response: any) => void): void {
+		try {
+			const instance = this.extensionInstances.get(instanceId)
+			if (instance) {
+				instance.lastHeartbeat = Date.now()
+				this.extensionInstances.set(instanceId, instance)
+
+				const response = createSocketSuccessResponse({
+					instanceId,
+					timestamp: Date.now(),
+				})
+
+				if (callback) callback(response)
+			} else {
+				const response = createSocketErrorResponse("Instance not found", SocketErrorCodes.INVALID_PAYLOAD)
+				if (callback) callback(response)
+			}
+		} catch (error) {
+			logger.error("Failed to update extension heartbeat", { instanceId, error })
+			const response = createSocketErrorResponse("Failed to update heartbeat", SocketErrorCodes.INTERNAL_ERROR)
+			if (callback) callback(response)
+		}
+	}
+
+	/**
+	 * 处理 Extension 事件
+	 */
+	private handleExtensionEvent(
+		socket: Socket,
+		eventData: ExtensionEventData,
+		callback?: (response: any) => void,
+	): void {
+		try {
+			logger.debug("Received extension event", eventData)
+
+			// 广播事件
+			this.broadcastExtensionEvent(eventData)
+
+			const response = createSocketSuccessResponse({
+				received: true,
+				timestamp: Date.now(),
+			})
+
+			if (callback) callback(response)
+		} catch (error) {
+			logger.error("Failed to handle extension event", { error })
+			const response = createSocketErrorResponse(
+				"Failed to handle extension event",
+				SocketErrorCodes.INTERNAL_ERROR,
+			)
+			if (callback) callback(response)
+		}
+	}
+
+	/**
+	 * 处理 Extension 命令
+	 */
+	private handleExtensionCommand(socket: Socket, command: any, callback?: (response: any) => void): void {
+		try {
+			const { instanceId, commandType, payload } = command
+
+			logger.debug("Received extension command", { instanceId, commandType })
+
+			const instance = this.extensionInstances.get(instanceId)
+			if (instance) {
+				// 发送命令到目标实例
+				this.io?.to(instance.socketId).emit(ExtensionSocketEvents.RELAYED_COMMAND, command)
+
+				const response = createSocketSuccessResponse({
+					sent: true,
+					timestamp: Date.now(),
+				})
+
+				if (callback) callback(response)
+			} else {
+				const response = createSocketErrorResponse("Instance not found", SocketErrorCodes.INVALID_PAYLOAD)
+				if (callback) callback(response)
+			}
+		} catch (error) {
+			logger.error("Failed to handle extension command", { error })
+			const response = createSocketErrorResponse(
+				"Failed to handle extension command",
+				SocketErrorCodes.INTERNAL_ERROR,
+			)
+			if (callback) callback(response)
+		}
+	}
+
+	/**
+	 * 广播 Extension 事件
+	 */
+	private broadcastExtensionEvent(eventData: ExtensionEventData): void {
+		if (!this.io) return
+
+		// 发布到 Redis 供其他实例使用
+		this.publishEvent("extension:event", eventData as any)
+
+		// 广播到所有连接的客户端
+		this.io.emit(ExtensionSocketEvents.RELAYED_EVENT, eventData)
+
+		logger.debug("Broadcasted extension event", { eventType: eventData.eventType })
+	}
+
+	/**
+	 * 处理 Task 加入
+	 */
+	private handleTaskJoin(socket: Socket, taskId: string, callback?: (response: any) => void): void {
+		try {
+			// 加入任务房间
+			const taskRoom = SocketRooms.task(taskId)
+			socket.join(taskRoom)
+
+			// 记录房间成员
+			if (!this.taskRooms.has(taskId)) {
+				this.taskRooms.set(taskId, new Set())
+			}
+			this.taskRooms.get(taskId)?.add(socket.id)
+
+			logger.debug("Socket joined task room", {
+				socketId: socket.id,
+				userId: socket.userData?.userId,
+				taskId,
+			})
+
+			const response = createSocketSuccessResponse({
+				taskId,
+				joined: true,
+			})
+
+			if (callback) callback(response)
+		} catch (error) {
+			logger.error("Failed to join task room", { taskId, error })
+			const response = createSocketErrorResponse("Failed to join task room", SocketErrorCodes.ROOM_JOIN_FAILED)
+			if (callback) callback(response)
+		}
+	}
+
+	/**
+	 * 处理 Task 离开
+	 */
+	private handleTaskLeave(socket: Socket, taskId: string, callback?: (response: any) => void): void {
+		try {
+			// 离开任务房间
+			const taskRoom = SocketRooms.task(taskId)
+			socket.leave(taskRoom)
+
+			// 从房间记录中移除
+			const taskSockets = this.taskRooms.get(taskId)
+			if (taskSockets) {
+				taskSockets.delete(socket.id)
+				if (taskSockets.size === 0) {
+					this.taskRooms.delete(taskId)
+				}
+			}
+
+			logger.debug("Socket left task room", {
+				socketId: socket.id,
+				userId: socket.userData?.userId,
+				taskId,
+			})
+
+			const response = createSocketSuccessResponse({
+				taskId,
+				left: true,
+			})
+
+			if (callback) callback(response)
+		} catch (error) {
+			logger.error("Failed to leave task room", { taskId, error })
+			const response = createSocketErrorResponse("Failed to leave task room", SocketErrorCodes.ROOM_LEAVE_FAILED)
+			if (callback) callback(response)
+		}
+	}
+
+	/**
+	 * 处理 Task Socket 事件
+	 */
+	private handleTaskSocketEvent(socket: Socket, eventData: TaskEventData, callback?: (response: any) => void): void {
+		try {
+			logger.debug("Received task socket event", eventData)
+
+			// 广播到任务房间
+			this.broadcastTaskEvent(eventData.taskId, eventData)
+
+			const response = createSocketSuccessResponse({
+				received: true,
+				timestamp: Date.now(),
+			})
+
+			if (callback) callback(response)
+		} catch (error) {
+			logger.error("Failed to handle task socket event", { error })
+			const response = createSocketErrorResponse("Failed to handle task event", SocketErrorCodes.INTERNAL_ERROR)
+			if (callback) callback(response)
+		}
+	}
+
+	/**
+	 * 处理 Task 命令
+	 */
+	private handleTaskCommand(socket: Socket, command: any, callback?: (response: any) => void): void {
+		try {
+			const { taskId, commandType, payload } = command
+
+			logger.debug("Received task command", { taskId, commandType })
+
+			// 发送命令到任务房间的所有成员
+			const taskRoom = SocketRooms.task(taskId)
+			this.io?.to(taskRoom).emit(TaskSocketEvents.RELAYED_COMMAND, command)
+
+			const response = createSocketSuccessResponse({
+				sent: true,
+				timestamp: Date.now(),
+			})
+
+			if (callback) callback(response)
+		} catch (error) {
+			logger.error("Failed to handle task command", { error })
+			const response = createSocketErrorResponse("Failed to handle task command", SocketErrorCodes.INTERNAL_ERROR)
+			if (callback) callback(response)
+		}
+	}
+
+	/**
+	 * 广播 Task 事件到任务房间
+	 */
+	private broadcastTaskEvent(taskId: string, eventData: TaskEventData): void {
+		if (!this.io) return
+
+		// 发布到 Redis 供其他实例使用
+		this.publishEvent(`task:${taskId}`, eventData as any)
+
+		// 广播到任务房间
+		const taskRoom = SocketRooms.task(taskId)
+		this.io.to(taskRoom).emit(TaskSocketEvents.RELAYED_EVENT, eventData)
+
+		logger.debug("Broadcasted task event", { taskId, eventType: eventData.eventType })
+	}
+
+	/**
+	 * 获取在线 Extension 实例列表
+	 */
+	public getOnlineInstances(): ExtensionInstance[] {
+		return Array.from(this.extensionInstances.values())
+	}
+
+	/**
+	 * 获取特定用户的 Extension 实例
+	 */
+	public getUserInstances(userId: string): ExtensionInstance[] {
+		return Array.from(this.extensionInstances.values()).filter((instance) => instance.userId === userId)
 	}
 
 	/**
