@@ -33,7 +33,11 @@ const fsPromises = vi.hoisted(() => ({
 	readFile: vi.fn(),
 	stat: vi.fn().mockResolvedValue({ size: 1024 }),
 }))
-vi.mock("fs/promises", () => fsPromises)
+vi.mock("fs/promises", () => ({
+	...fsPromises,
+	stat: fsPromises.stat,
+	readFile: fsPromises.readFile,
+}))
 
 // Mock input content for tests
 let mockInputContent = ""
@@ -1664,6 +1668,346 @@ describe("read_file tool with image support", () => {
 			expect(imagePart).toBeDefined()
 			expect(imagePart.source.media_type).toBe("image/png")
 			expect(imagePart.source.data).toBe("")
+		})
+	})
+})
+
+describe("read_file tool with 180KB limit and 1500 line range limit", () => {
+	const testFilePath = "test/large-file.txt"
+	const absoluteFilePath = "/test/large-file.txt"
+
+	const mockedCountFileLines = vi.mocked(countFileLines)
+	const mockedExtractTextFromFile = vi.mocked(extractTextFromFile)
+	const mockedIsBinaryFile = vi.mocked(isBinaryFile)
+	const mockedPathResolve = vi.mocked(path.resolve)
+	const mockedReadLines = vi.mocked(readLines)
+
+	let mockCline: any
+	let mockProvider: any
+	let toolResult: ToolResponse | undefined
+
+	beforeEach(() => {
+		// Clear specific mocks
+		mockedCountFileLines.mockClear()
+		mockedExtractTextFromFile.mockClear()
+		mockedIsBinaryFile.mockClear()
+		mockedPathResolve.mockClear()
+		mockedReadLines.mockClear()
+		fsPromises.stat.mockClear()
+		toolResultMock.mockClear()
+
+		// Use shared mock setup function
+		const mocks = createMockCline()
+		mockCline = mocks.mockCline
+		mockProvider = mocks.mockProvider
+
+		// Disable image support for these tests
+		setImageSupport(mockCline, false)
+
+		mockedPathResolve.mockReturnValue(absoluteFilePath)
+		mockedIsBinaryFile.mockResolvedValue(false)
+		mockProvider.getState.mockResolvedValue({ maxReadFileLine: -1 })
+
+		// CRITICAL: Reset fsPromises.stat with default value after mockClear
+		fsPromises.stat.mockResolvedValue({ size: 1024 } as any)
+
+		toolResult = undefined
+	})
+
+	async function executeReadFileTool(
+		params: { args?: string } = {},
+		options: {
+			fileSize?: number
+			totalLines?: number
+			lineRange?: { start: string; end: string }
+		} = {},
+	): Promise<ToolResponse | undefined> {
+		const fileSize = options.fileSize ?? 1024
+		const totalLines = options.totalLines ?? 100
+
+		// Mock file size - CRITICAL: Clear and reset to ensure consistent behavior
+		fsPromises.stat.mockClear()
+		fsPromises.stat.mockResolvedValue({ size: fileSize } as any)
+		mockedCountFileLines.mockResolvedValue(totalLines)
+
+		// Build args content
+		let argsContent = `<file><path>${testFilePath}</path>`
+		if (options.lineRange) {
+			argsContent += `<line_range>${options.lineRange.start}-${options.lineRange.end}</line_range>`
+		}
+		argsContent += `</file>`
+
+		const toolUse: ReadFileToolUse = {
+			type: "tool_use",
+			name: "read_file",
+			params: { args: argsContent, ...params },
+			partial: false,
+		}
+
+		await readFileTool(
+			mockCline,
+			toolUse,
+			mockCline.ask,
+			vi.fn(),
+			(result: ToolResponse) => {
+				toolResult = result
+			},
+			(_: ToolParamName, content?: string) => content ?? "",
+		)
+
+		return toolResult
+	}
+
+	describe("180KB file size limit", () => {
+		it("should allow reading files under 180KB without line_range", async () => {
+			// Setup - file under 180KB
+			const fileSize = 179 * 1024 // 179KB
+			mockedExtractTextFromFile.mockResolvedValue("File content")
+
+			// Execute
+			const result = await executeReadFileTool({}, { fileSize, totalLines: 100 })
+
+			// Verify - should succeed
+			expect(result).toContain(`<file><path>${testFilePath}</path>`)
+			expect(result).not.toContain("exceeds 180 KB")
+		})
+
+		it("should block reading files over 180KB without line_range", async () => {
+			// Setup - file over 180KB (181KB)
+			const fileSize = 181 * 1024
+
+			// Mock extractTextFromFile to throw if called (it shouldn't be)
+			mockedExtractTextFromFile.mockRejectedValue(
+				new Error("Should not call extractTextFromFile for large files without line_range"),
+			)
+
+			// Execute
+			const result = await executeReadFileTool({}, { fileSize, totalLines: 5000 })
+
+			// Verify - should return error
+			expect(result).toContain("exceeds 180 KB limit")
+			expect(result).toContain("You MUST use line_range")
+			expect(result).toContain("list_code_definition_names")
+			expect(result).toContain("<error>")
+
+			// Verify extractTextFromFile was NOT called
+			expect(mockedExtractTextFromFile).not.toHaveBeenCalled()
+		})
+
+		it("should allow reading files over 180KB with valid line_range", async () => {
+			// Setup - file over 180KB but with line_range
+			const fileSize = 200 * 1024
+			mockedReadLines.mockResolvedValue("Line 1\nLine 2\nLine 3")
+
+			// Execute
+			const result = await executeReadFileTool(
+				{},
+				{
+					fileSize,
+					totalLines: 5000,
+					lineRange: { start: "1", end: "100" },
+				},
+			)
+
+			// Verify - should succeed
+			expect(result).toContain(`<file><path>${testFilePath}</path>`)
+			expect(result).toContain(`<content lines="1-100">`)
+			expect(result).not.toContain("exceeds 180 KB")
+		})
+
+		it("should show file size in KB in error message", async () => {
+			// Setup - 250KB file
+			const fileSize = 250 * 1024
+
+			// Mock extractTextFromFile to throw if called (it shouldn't be)
+			mockedExtractTextFromFile.mockRejectedValue(
+				new Error("Should not call extractTextFromFile for large files without line_range"),
+			)
+
+			// Execute
+			const result = await executeReadFileTool({}, { fileSize, totalLines: 5000 })
+
+			// Verify - error message shows size in KB
+			expect(result).toMatch(/File size \(250 KB\)/)
+			expect(result).toContain("exceeds 180 KB limit")
+
+			// Verify extractTextFromFile was NOT called
+			expect(mockedExtractTextFromFile).not.toHaveBeenCalled()
+		})
+	})
+
+	describe("1500 line range limit", () => {
+		it("should allow line_range of exactly 1500 lines", async () => {
+			// Setup
+			const fileSize = 200 * 1024
+			mockedReadLines.mockResolvedValue("Line content...")
+
+			// Execute - exactly 1500 lines
+			const result = await executeReadFileTool(
+				{},
+				{
+					fileSize,
+					totalLines: 5000,
+					lineRange: { start: "1", end: "1500" },
+				},
+			)
+
+			// Verify - should succeed
+			expect(result).toContain(`<file><path>${testFilePath}</path>`)
+			expect(result).toContain(`<content lines="1-1500">`)
+			expect(result).not.toContain("Line range too large")
+		})
+
+		it("should block line_range over 1500 lines", async () => {
+			// Setup
+			const fileSize = 200 * 1024
+
+			// Execute - 1501 lines (over limit)
+			const result = await executeReadFileTool(
+				{},
+				{
+					fileSize,
+					totalLines: 5000,
+					lineRange: { start: "1", end: "1501" },
+				},
+			)
+
+			// Verify - should return error
+			expect(result).toContain("Line range too large")
+			expect(result).toContain("1501 lines requested")
+			expect(result).toContain("maximum is 1500 lines")
+			expect(result).toContain("<error>")
+		})
+
+		it("should block line_range with 2000 lines", async () => {
+			// Setup
+			const fileSize = 200 * 1024
+
+			// Execute - 2000 lines (way over limit)
+			const result = await executeReadFileTool(
+				{},
+				{
+					fileSize,
+					totalLines: 5000,
+					lineRange: { start: "1000", end: "3000" },
+				},
+			)
+
+			// Verify - should return error with correct count
+			expect(result).toContain("Line range too large")
+			expect(result).toContain("2001 lines requested")
+			expect(result).toContain("maximum is 1500 lines")
+		})
+
+		it("should allow multiple line_ranges within limit", async () => {
+			// Setup - file with multiple ranges, each under 1500
+			const fileSize = 200 * 1024
+			const argsContent = `<file><path>${testFilePath}</path><line_range>1-1000</line_range><line_range>2000-2500</line_range></file>`
+
+			mockedReadLines.mockResolvedValue("Line content...")
+
+			const toolUse: ReadFileToolUse = {
+				type: "tool_use",
+				name: "read_file",
+				params: { args: argsContent },
+				partial: false,
+			}
+
+			fsPromises.stat.mockResolvedValue({ size: fileSize } as any)
+			mockedCountFileLines.mockResolvedValue(5000)
+
+			await readFileTool(
+				mockCline,
+				toolUse,
+				mockCline.ask,
+				vi.fn(),
+				(result: ToolResponse) => {
+					toolResult = result
+				},
+				(_: ToolParamName, content?: string) => content ?? "",
+			)
+
+			// Verify - both ranges should be processed
+			expect(toolResult).toContain(`<content lines="1-1000">`)
+			expect(toolResult).toContain(`<content lines="2000-2500">`)
+			expect(toolResult).not.toContain("Line range too large")
+		})
+	})
+
+	describe("Combined 180KB and 1500 line limits", () => {
+		it("should enforce both 180KB and 1500 line limits", async () => {
+			// Setup - large file with oversized range
+			const fileSize = 200 * 1024
+
+			// Execute - file over 180KB with line_range over 1500
+			const result = await executeReadFileTool(
+				{},
+				{
+					fileSize,
+					totalLines: 5000,
+					lineRange: { start: "1", end: "2000" },
+				},
+			)
+
+			// Verify - should fail on line range limit
+			expect(result).toContain("Line range too large")
+			expect(result).toContain("2000 lines requested")
+		})
+
+		it("should allow large file with valid line_range", async () => {
+			// Setup - 500KB file with valid 1000 line range
+			const fileSize = 500 * 1024
+			mockedReadLines.mockResolvedValue("Line content...")
+
+			// Execute
+			const result = await executeReadFileTool(
+				{},
+				{
+					fileSize,
+					totalLines: 10000,
+					lineRange: { start: "5000", end: "6000" },
+				},
+			)
+
+			// Verify - should succeed
+			expect(result).toContain(`<file><path>${testFilePath}</path>`)
+			expect(result).toContain(`<content lines="5000-6000">`)
+			expect(result).not.toContain("exceeds 180 KB")
+			expect(result).not.toContain("Line range too large")
+		})
+	})
+
+	describe("Edge cases", () => {
+		it("should allow file exactly at 180KB without line_range", async () => {
+			// Setup - exactly 180KB
+			const fileSize = 180 * 1024
+			mockedExtractTextFromFile.mockResolvedValue("File content")
+
+			// Execute
+			const result = await executeReadFileTool({}, { fileSize, totalLines: 100 })
+
+			// Verify - should succeed (not over the limit)
+			expect(result).toContain(`<file><path>${testFilePath}</path>`)
+			expect(result).not.toContain("exceeds 180 KB")
+		})
+
+		it("should block file at 180KB + 1 byte without line_range", async () => {
+			// Setup - 180KB + 1 byte
+			const fileSize = 180 * 1024 + 1
+
+			// Mock extractTextFromFile to throw if called (it shouldn't be)
+			mockedExtractTextFromFile.mockRejectedValue(
+				new Error("Should not call extractTextFromFile for large files without line_range"),
+			)
+
+			// Execute
+			const result = await executeReadFileTool({}, { fileSize, totalLines: 5000 })
+
+			// Verify - should fail
+			expect(result).toContain("exceeds 180 KB limit")
+
+			// Verify extractTextFromFile was NOT called
+			expect(mockedExtractTextFromFile).not.toHaveBeenCalled()
 		})
 	})
 })

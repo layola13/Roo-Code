@@ -9,6 +9,12 @@ Description: Request to read the contents of ${isMultipleReadsEnabled ? "one or 
 
 ${isMultipleReadsEnabled ? `**IMPORTANT: You can read a maximum of ${maxConcurrentReads} files in a single request.** If you need to read more files, use multiple sequential read_file requests.` : "**IMPORTANT: Multiple file reads are currently disabled. You can only read one file at a time.**"}
 
+**CRITICAL File Size Rules:**
+- Files larger than 180 KB (184,320 bytes) MUST be read using line_range
+- Each line_range can read a maximum of 1500 lines
+- For large files: use list_code_definition_names first to understand file structure, then read specific sections
+- Example for large files: <line_range>1-1000</line_range><line_range>2000-2500</line_range>
+
 ${args.partialReadsEnabled ? `By specifying line ranges, you can efficiently read specific portions of large files without loading the entire file into memory.` : ""}
 Parameters:
 - args: Contains one or more file elements, where each file contains:

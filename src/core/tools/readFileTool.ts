@@ -1,5 +1,6 @@
 import path from "path"
 import { isBinaryFile } from "isbinaryfile"
+import { stat } from "fs/promises"
 
 import { Task } from "../task/Task"
 import { ClineSayTool } from "../../shared/ExtensionMessage"
@@ -22,7 +23,12 @@ import {
 	processImageFile,
 	ImageMemoryTracker,
 } from "./helpers/imageHelpers"
-import { checkFileSizeForRead, checkBatchFileSizeForRead } from "./helpers/fileSizeHelpers"
+import {
+	checkFileSizeForRead,
+	checkBatchFileSizeForRead,
+	FILE_SIZE_LIMITS,
+	validateLineRange,
+} from "./helpers/fileSizeHelpers"
 // TODO: Uncomment when smartFileRead is fully implemented
 // import { smartFileRead } from "./helpers/smartFileRead"
 
@@ -489,7 +495,31 @@ export async function readFileTool(
 
 			// Process approved files
 			try {
-				const [totalLines, isBinary] = await Promise.all([countFileLines(fullPath), isBinaryFile(fullPath)])
+				// Validate line ranges first if specified
+				if (fileResult.lineRanges && fileResult.lineRanges.length > 0) {
+					let hasInvalidRange = false
+					for (const range of fileResult.lineRanges) {
+						const validation = validateLineRange(range.start, range.end)
+						if (!validation.isValid) {
+							updateFileResult(relPath, {
+								status: "error",
+								error: validation.errorMessage,
+								xmlContent: `<file><path>${relPath}</path><error>${validation.errorMessage}</error></file>`,
+							})
+							await handleError(`reading file ${relPath}`, new Error(validation.errorMessage || ""))
+							hasInvalidRange = true
+							break
+						}
+					}
+					if (hasInvalidRange) continue
+				}
+
+				const [totalLines, isBinary, stats] = await Promise.all([
+					countFileLines(fullPath),
+					isBinaryFile(fullPath),
+					stat(fullPath),
+				])
+				const fileSize = stats.size
 
 				// TODO: Re-enable when smartFileRead is fully implemented
 				// Apply smart file read logic if enabled (only for non-binary, non-range reads)
@@ -585,6 +615,23 @@ export async function readFileTool(
 						})
 						continue
 					}
+				}
+
+				// Check if file exceeds 180KB and requires line_range (only for non-binary files)
+				// This check must happen BEFORE any file reading logic (maxReadFileLine or extractTextFromFile)
+				if (
+					fileSize > FILE_SIZE_LIMITS.FORCE_LINE_RANGE_BYTES &&
+					(!fileResult.lineRanges || fileResult.lineRanges.length === 0)
+				) {
+					const errorMsg = `File size (${Math.round(fileSize / 1024)} KB) exceeds 180 KB limit. You MUST use line_range to read specific sections. Use list_code_definition_names first to understand file structure, then read relevant sections with line_range (max ${FILE_SIZE_LIMITS.MAX_LINES_PER_READ} lines per range).`
+
+					updateFileResult(relPath, {
+						status: "error",
+						error: errorMsg,
+						xmlContent: `<file><path>${relPath}</path><error>${errorMsg}</error></file>`,
+					})
+					await handleError(`reading file ${relPath}`, new Error(errorMsg))
+					continue
 				}
 
 				// Handle range reads (bypass maxReadFileLine)

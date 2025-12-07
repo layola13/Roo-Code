@@ -12,6 +12,12 @@ export const FILE_SIZE_LIMITS = {
 	BATCH_TOTAL_WARNING_BYTES: 500 * 1024, // 500 KB - show warning for batch
 	BATCH_TOTAL_MAX_BYTES: 2 * 1024 * 1024, // 2 MB - hard limit for batch total
 
+	// Force line_range usage threshold
+	FORCE_LINE_RANGE_BYTES: 180 * 1024, // 180 KB - must use line_range for files larger than this
+
+	// Line range limits
+	MAX_LINES_PER_READ: 1500, // Maximum lines that can be read in a single line_range
+
 	// Token estimation (rough approximation: 1 token ≈ 4 bytes)
 	BYTES_PER_TOKEN: 4,
 } as const
@@ -163,6 +169,31 @@ export async function checkBatchFileSizeForRead(filePaths: string[]): Promise<Ba
 		shouldWarn: false,
 		shouldBlock: false,
 	}
+}
+
+/**
+ * Validate line range constraints
+ * @param startLine - Starting line number (1-based)
+ * @param endLine - Ending line number (1-based, inclusive)
+ * @returns Validation result with error message if invalid
+ */
+export function validateLineRange(
+	startLine: number,
+	endLine: number,
+): {
+	isValid: boolean
+	errorMessage?: string
+} {
+	const lineCount = endLine - startLine + 1
+
+	if (lineCount > FILE_SIZE_LIMITS.MAX_LINES_PER_READ) {
+		return {
+			isValid: false,
+			errorMessage: `Line range too large: ${lineCount} lines requested, but maximum is ${FILE_SIZE_LIMITS.MAX_LINES_PER_READ} lines per read. Please split into smaller ranges.`,
+		}
+	}
+
+	return { isValid: true }
 }
 
 /**
