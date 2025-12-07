@@ -32,6 +32,7 @@ import { updateTodoListTool } from "../tools/updateTodoListTool"
 import { runSlashCommandTool } from "../tools/runSlashCommandTool"
 import { generateImageTool } from "../tools/generateImageTool"
 import { useSubagentTool } from "../tools/useSubagentTool"
+import { getSplitFileToolDescription, splitFileTool } from "../tools/splitFileTool"
 
 import { formatResponse } from "../prompts/responses"
 import { validateToolUse } from "../tools/validateToolUse"
@@ -169,6 +170,8 @@ export async function presentAssistantMessage(cline: Task) {
 						} else {
 							return getReadFileToolDescription(block.name, block.params)
 						}
+					case "split_file":
+						return getSplitFileToolDescription(block.name, block.params)
 					case "fetch_instructions":
 						return `[${block.name} for '${block.params.task}']`
 					case "write_to_file":
@@ -577,6 +580,9 @@ export async function presentAssistantMessage(cline: Task) {
 						pushToolResult,
 						removeClosingTag,
 					)
+					break
+				case "split_file":
+					await splitFileTool(cline, block, askApproval, handleError, pushToolResult, removeClosingTag)
 					break
 			}
 

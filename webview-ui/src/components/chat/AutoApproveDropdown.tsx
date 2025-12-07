@@ -36,6 +36,7 @@ export const AutoApproveDropdown = ({ disabled = false, triggerClassName = "" }:
 		setAlwaysAllowFollowupQuestions,
 		setAlwaysAllowUpdateTodoList,
 		setAlwaysAllowParseAst,
+		setAlwaysAllowSplitFile,
 	} = useExtensionState()
 
 	const baseToggles = useAutoApprovalToggles()
@@ -88,6 +89,9 @@ export const AutoApproveDropdown = ({ disabled = false, triggerClassName = "" }:
 				case "alwaysAllowParseAst":
 					setAlwaysAllowParseAst(value)
 					break
+				case "alwaysAllowSplitFile":
+					setAlwaysAllowSplitFile(value)
+					break
 			}
 
 			// If enabling any option, ensure autoApprovalEnabled is true
@@ -109,6 +113,7 @@ export const AutoApproveDropdown = ({ disabled = false, triggerClassName = "" }:
 			setAlwaysAllowFollowupQuestions,
 			setAlwaysAllowUpdateTodoList,
 			setAlwaysAllowParseAst,
+			setAlwaysAllowSplitFile,
 			setAutoApprovalEnabled,
 		],
 	)

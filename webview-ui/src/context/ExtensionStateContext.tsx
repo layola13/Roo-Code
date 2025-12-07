@@ -91,6 +91,8 @@ export interface ExtensionStateContextType extends ExtensionState {
 	setAlwaysAllowModeSwitch: (value: boolean) => void
 	setAlwaysAllowSubtasks: (value: boolean) => void
 	setAlwaysAllowParseAst: (value: boolean) => void
+	alwaysAllowSplitFile?: boolean
+	setAlwaysAllowSplitFile: (value: boolean) => void
 	setBrowserToolEnabled: (value: boolean) => void
 	setShowRooIgnoredFiles: (value: boolean) => void
 	setShowAnnouncement: (value: boolean) => void
@@ -518,6 +520,8 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		setAlwaysAllowSubtasks: (value) => setState((prevState) => ({ ...prevState, alwaysAllowSubtasks: value })),
 		alwaysAllowParseAst: state.alwaysAllowParseAst,
 		setAlwaysAllowParseAst: (value) => setState((prevState) => ({ ...prevState, alwaysAllowParseAst: value })),
+		alwaysAllowSplitFile: state.alwaysAllowSplitFile,
+		setAlwaysAllowSplitFile: (value) => setState((prevState) => ({ ...prevState, alwaysAllowSplitFile: value })),
 		setAlwaysAllowFollowupQuestions,
 		setFollowupAutoApproveTimeoutMs: (value) =>
 			setState((prevState) => ({ ...prevState, followupAutoApproveTimeoutMs: value })),

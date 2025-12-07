@@ -18,6 +18,7 @@ export function useAutoApprovalToggles() {
 		alwaysAllowFollowupQuestions,
 		alwaysAllowUpdateTodoList,
 		alwaysAllowParseAst,
+		alwaysAllowSplitFile,
 	} = useExtensionState()
 
 	const toggles = useMemo(
@@ -33,6 +34,7 @@ export function useAutoApprovalToggles() {
 			alwaysAllowFollowupQuestions,
 			alwaysAllowUpdateTodoList,
 			alwaysAllowParseAst,
+			alwaysAllowSplitFile,
 		}),
 		[
 			alwaysAllowReadOnly,
@@ -46,6 +48,7 @@ export function useAutoApprovalToggles() {
 			alwaysAllowFollowupQuestions,
 			alwaysAllowUpdateTodoList,
 			alwaysAllowParseAst,
+			alwaysAllowSplitFile,
 		],
 	)
 

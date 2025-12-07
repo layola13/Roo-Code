@@ -17,6 +17,7 @@ type AutoApproveToggles = Pick<
 	| "alwaysAllowFollowupQuestions"
 	| "alwaysAllowUpdateTodoList"
 	| "alwaysAllowParseAst"
+	| "alwaysAllowSplitFile"
 >
 
 export type AutoApproveSetting = keyof AutoApproveToggles
@@ -106,6 +107,13 @@ export const autoApproveSettingsConfig: Record<AutoApproveSetting, AutoApproveCo
 		descriptionKey: "settings:autoApprove.parseAst.description",
 		icon: "symbol-structure",
 		testId: "always-allow-parse-ast-toggle",
+	},
+	alwaysAllowSplitFile: {
+		key: "alwaysAllowSplitFile",
+		labelKey: "settings:autoApprove.splitFile.label",
+		descriptionKey: "settings:autoApprove.splitFile.description",
+		icon: "split-horizontal",
+		testId: "always-allow-split-file-toggle",
 	},
 }
 

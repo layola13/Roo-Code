@@ -29,6 +29,7 @@ import {
 	FILE_SIZE_LIMITS,
 	validateLineRange,
 } from "./helpers/fileSizeHelpers"
+import { shouldSplitFile, splitLargeFile, getSplitDirectoryPath } from "./helpers/fileSplitter"
 // TODO: Uncomment when smartFileRead is fully implemented
 // import { smartFileRead } from "./helpers/smartFileRead"
 
@@ -623,7 +624,52 @@ export async function readFileTool(
 					fileSize > FILE_SIZE_LIMITS.FORCE_LINE_RANGE_BYTES &&
 					(!fileResult.lineRanges || fileResult.lineRanges.length === 0)
 				) {
-					const errorMsg = `File size (${Math.round(fileSize / 1024)} KB) exceeds 180 KB limit. You MUST use line_range to read specific sections. Use list_code_definition_names first to understand file structure, then read relevant sections with line_range (max ${FILE_SIZE_LIMITS.MAX_LINES_PER_READ} lines per range).`
+					// Detect if this is a webpack/minified file
+					const isWebpackOrMinified =
+						/\.(min|bundle|chunk|webpack)\.js$/.test(relPath.toLowerCase()) ||
+						/(chunk-|bundle-|webpack-)/.test(relPath.toLowerCase())
+
+					const splitDir = getSplitDirectoryPath(fullPath, cline.cwd)
+					const splitDirRelative = path.relative(cline.cwd, splitDir)
+
+					// For webpack/minified files, suggest smaller chunks (100 lines)
+					const suggestedLinesPerChunk = isWebpackOrMinified
+						? FILE_SIZE_LIMITS.DEFAULT_LINES_PER_CHUNK
+						: FILE_SIZE_LIMITS.MAX_LINES_PER_READ
+
+					const estimatedChunks = Math.ceil(totalLines / suggestedLinesPerChunk)
+
+					let errorMsg = `File size (${Math.round(fileSize / 1024)} KB) exceeds 180 KB limit.`
+
+					if (isWebpackOrMinified) {
+						errorMsg += `\n\n⚠️ WEBPACK/MINIFIED FILE DETECTED - This file appears to be webpack-compressed or minified.`
+						errorMsg += `\nFor such files, it's recommended to split into smaller chunks for analysis.\n`
+					}
+
+					errorMsg += `\n\nYou have three options:
+
+1. **Use line_range** to read specific sections (for targeted reading):
+			Example: <line_range>1-${FILE_SIZE_LIMITS.MAX_LINES_PER_READ}</line_range>
+			Max ${FILE_SIZE_LIMITS.MAX_LINES_PER_READ} lines per range.
+
+2. **Split file into chunks** for easier exploration (RECOMMENDED${isWebpackOrMinified ? " for webpack/minified files" : ""}):
+			The file has ${totalLines.toLocaleString()} lines and can be split into ${estimatedChunks} manageable chunks.
+			Target directory: ${splitDirRelative}/
+			${isWebpackOrMinified ? `Suggested chunk size: ${suggestedLinesPerChunk} lines per chunk` : `Each chunk: up to ${suggestedLinesPerChunk} lines`}
+			
+			You should use execute_command to split the file programmatically.
+			The system has a fileSplitter utility at src/core/tools/helpers/fileSplitter.ts with:
+			- splitLargeFile(filePath, config) - splits file into chunks
+			- getSplitDirectoryPath(filePath, baseDir) - gets the target directory path
+			
+			After splitting, you can use list_files, search_files, or read_file on individual chunks in ${splitDirRelative}/.
+
+3. **Use alternative tools** to explore without reading full content:
+			- list_code_definition_names: Get an overview of file structure
+			- search_files: Find specific patterns with regex
+			- codebase_search: Semantic search for relevant code
+
+${isWebpackOrMinified ? "\n💡 TIP: For webpack files, use search_files with specific function/variable names you are looking for." : "\nFor structured reading: use list_code_definition_names first, then read relevant sections with line_range."}`
 
 					updateFileResult(relPath, {
 						status: "error",

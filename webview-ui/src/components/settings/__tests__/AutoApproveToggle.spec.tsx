@@ -28,6 +28,7 @@ describe("AutoApproveToggle", () => {
 		alwaysAllowFollowupQuestions: false,
 		alwaysAllowUpdateTodoList: true,
 		alwaysAllowParseAst: false,
+		alwaysAllowSplitFile: true,
 		onToggle: mockOnToggle,
 	}
 

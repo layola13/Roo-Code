@@ -252,6 +252,7 @@ export interface WebviewMessage {
 		| "judgeAllowUserOverride"
 		| "judgeModelConfigId"
 		| "alwaysAllowParseAst"
+		| "alwaysAllowSplitFile"
 	text?: string
 	editedMessageContent?: string
 	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "cloud"

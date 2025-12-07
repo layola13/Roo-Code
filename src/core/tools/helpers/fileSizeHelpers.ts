@@ -18,6 +18,9 @@ export const FILE_SIZE_LIMITS = {
 	// Line range limits
 	MAX_LINES_PER_READ: 1500, // Maximum lines that can be read in a single line_range
 
+	// Lines per chunk when splitting files
+	DEFAULT_LINES_PER_CHUNK: 100, // Default lines per chunk for webpack/minified files
+
 	// Token estimation (rough approximation: 1 token ≈ 4 bytes)
 	BYTES_PER_TOKEN: 4,
 } as const
@@ -50,14 +53,32 @@ export interface BatchFileSizeCheckResult {
 /**
  * Check if a single file's size is within acceptable limits
  * @param filePath - Full path to the file
+ * @param skipForceLineRangeCheck - Skip the 180KB force line_range check (used by batch checker)
  * @returns File size check result
  */
-export async function checkFileSizeForRead(filePath: string): Promise<FileSizeCheckResult> {
+export async function checkFileSizeForRead(
+	filePath: string,
+	skipForceLineRangeCheck: boolean = false,
+): Promise<FileSizeCheckResult> {
 	const stats = await fs.stat(filePath)
 	const sizeInBytes = stats.size
 	const estimatedTokens = Math.ceil(sizeInBytes / FILE_SIZE_LIMITS.BYTES_PER_TOKEN)
 
-	// Check if file exceeds hard limit
+	// PRIORITY CHECK: Files exceeding 180KB should use line_range or be split
+	// This check should happen BEFORE the 1MB hard limit
+	// Skip this check in batch validation to let readFileTool handle it properly
+	if (!skipForceLineRangeCheck && sizeInBytes > FILE_SIZE_LIMITS.FORCE_LINE_RANGE_BYTES) {
+		// Don't block here - let the readFileTool handle this with detailed split instructions
+		return {
+			sizeInBytes,
+			estimatedTokens,
+			shouldWarn: false,
+			shouldBlock: false, // Let readFileTool handle the error message
+			errorMessage: `File requires line_range or splitting (${formatBytes(sizeInBytes)})`,
+		}
+	}
+
+	// Check if file exceeds hard limit (only applies when line_range is used or file is small)
 	if (sizeInBytes > FILE_SIZE_LIMITS.SINGLE_FILE_MAX_BYTES) {
 		return {
 			sizeInBytes,
@@ -100,10 +121,10 @@ export async function checkBatchFileSizeForRead(filePaths: string[]): Promise<Ba
 	let hasBlockedFile = false
 	let hasWarningFile = false
 
-	// Check each file individually
+	// Check each file individually - skip the 180KB check here as readFileTool will handle it
 	for (const filePath of filePaths) {
 		try {
-			const result = await checkFileSizeForRead(filePath)
+			const result = await checkFileSizeForRead(filePath, true) // Skip force line_range check
 			fileResults.set(filePath, result)
 
 			if (result.shouldBlock) {
@@ -121,7 +142,7 @@ export async function checkBatchFileSizeForRead(filePaths: string[]): Promise<Ba
 		}
 	}
 
-	// If any individual file is blocked, block the entire batch
+	// If any individual file is blocked (>1MB without line_range), block the entire batch
 	if (hasBlockedFile) {
 		const blockedFiles = Array.from(fileResults.entries())
 			.filter(([, result]) => result.shouldBlock)
@@ -133,7 +154,7 @@ export async function checkBatchFileSizeForRead(filePaths: string[]): Promise<Ba
 			fileResults,
 			shouldWarn: false,
 			shouldBlock: true,
-			errorMessage: `Cannot read batch: ${blockedFiles.length} file(s) exceed maximum size limit. Please reduce file size or read files individually with line_range.`,
+			errorMessage: `Cannot read batch: ${blockedFiles.length} file(s) exceed maximum size limit (1 MB). Files over 180 KB must use line_range, and files over 1 MB cannot be read without line_range.`,
 		}
 	}
 

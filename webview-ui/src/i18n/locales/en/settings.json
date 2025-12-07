@@ -220,6 +220,10 @@
 			"label": "Parse AST",
 			"description": "Automatically parse file abstract syntax trees without requiring approval"
 		},
+		"splitFile": {
+			"label": "Split File",
+			"description": "Automatically split large files into manageable chunks without requiring approval"
+		},
 		"apiRequestLimit": {
 			"title": "Max Count",
 			"unlimited": "Unlimited"

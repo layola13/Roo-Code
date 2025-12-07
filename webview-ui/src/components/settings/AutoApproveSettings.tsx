@@ -33,6 +33,7 @@ type AutoApproveSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	alwaysAllowFollowupQuestions?: boolean
 	alwaysAllowUpdateTodoList?: boolean
 	alwaysAllowParseAst?: boolean
+	alwaysAllowSplitFile?: boolean
 	followupAutoApproveTimeoutMs?: number
 	allowedCommands?: string[]
 	allowedMaxRequests?: number | undefined
@@ -60,6 +61,7 @@ type AutoApproveSettingsProps = HTMLAttributes<HTMLDivElement> & {
 		| "deniedCommands"
 		| "alwaysAllowUpdateTodoList"
 		| "alwaysAllowParseAst"
+		| "alwaysAllowSplitFile"
 		| "commandApprovalFreeMode"
 	>
 }
@@ -81,6 +83,7 @@ export const AutoApproveSettings = ({
 	followupAutoApproveTimeoutMs = 60000,
 	alwaysAllowUpdateTodoList,
 	alwaysAllowParseAst,
+	alwaysAllowSplitFile,
 	allowedCommands,
 	allowedMaxRequests,
 	allowedMaxCost,
@@ -178,6 +181,7 @@ export const AutoApproveSettings = ({
 						alwaysAllowFollowupQuestions={alwaysAllowFollowupQuestions}
 						alwaysAllowUpdateTodoList={alwaysAllowUpdateTodoList}
 						alwaysAllowParseAst={alwaysAllowParseAst}
+						alwaysAllowSplitFile={alwaysAllowSplitFile}
 						onToggle={(key, value) => {
 							setCachedStateField(key, value)
 							vscode.postMessage({ type: key, bool: value })

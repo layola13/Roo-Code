@@ -29,6 +29,7 @@ import { getUpdateTodoListDescription } from "./update-todo-list"
 import { getRunSlashCommandDescription } from "./run-slash-command"
 import { getGenerateImageDescription } from "./generate-image"
 import { getUseSubagentDescription } from "./use-subagent"
+import { getSplitFileDescription } from "./split-file-description"
 import { CodeIndexManager } from "../../../services/code-index/manager"
 
 // Map of tool names to their description functions
@@ -64,6 +65,7 @@ const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined>
 	run_slash_command: () => getRunSlashCommandDescription(),
 	generate_image: (args) => getGenerateImageDescription(args),
 	use_subagent: (args) => getUseSubagentDescription(args),
+	split_file: (args) => getSplitFileDescription(args),
 }
 
 export function getToolDescriptionsForMode(
@@ -186,4 +188,5 @@ export {
 	getRunSlashCommandDescription,
 	getGenerateImageDescription,
 	getUseSubagentDescription,
+	getSplitFileDescription,
 }

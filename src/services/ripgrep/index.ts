@@ -1,11 +1,13 @@
 import * as childProcess from "child_process"
 import * as path from "path"
 import * as readline from "readline"
+import { stat } from "fs/promises"
 
 import * as vscode from "vscode"
 
 import { RooIgnoreController } from "../../core/ignore/RooIgnoreController"
 import { fileExistsAtPath } from "../../utils/fs"
+import { FILE_SIZE_LIMITS } from "../../core/tools/helpers/fileSizeHelpers"
 /*
 This file provides functionality to perform regex searches on files using ripgrep.
 Inspired by: https://github.com/DiscreteTom/vscode-ripgrep-utils
@@ -213,14 +215,32 @@ export async function regexSearchFiles(
 	// console.log(results)
 
 	// Filter results using RooIgnoreController if provided
-	const filteredResults = rooIgnoreController
+	let filteredResults = rooIgnoreController
 		? results.filter((result) => rooIgnoreController.validateAccess(result.file))
 		: results
 
-	return formatResults(filteredResults, cwd)
+	// Filter out files that are too large (over 180KB)
+	const sizeFilteredResults: SearchFileResult[] = []
+	const skippedFiles: string[] = []
+
+	for (const result of filteredResults) {
+		try {
+			const stats = await stat(result.file)
+			if (stats.size > FILE_SIZE_LIMITS.FORCE_LINE_RANGE_BYTES) {
+				skippedFiles.push(result.file)
+			} else {
+				sizeFilteredResults.push(result)
+			}
+		} catch (error) {
+			// If we can't stat the file, include it anyway
+			sizeFilteredResults.push(result)
+		}
+	}
+
+	return formatResults(sizeFilteredResults, cwd, skippedFiles)
 }
 
-function formatResults(fileResults: SearchFileResult[], cwd: string): string {
+function formatResults(fileResults: SearchFileResult[], cwd: string, skippedFiles: string[] = []): string {
 	const groupedResults: { [key: string]: SearchResult[] } = {}
 
 	let totalResults = fileResults.reduce((sum, file) => sum + file.searchResults.length, 0)
@@ -229,6 +249,11 @@ function formatResults(fileResults: SearchFileResult[], cwd: string): string {
 		output += `Showing first ${MAX_RESULTS} of ${MAX_RESULTS}+ results. Use a more specific search if necessary.\n\n`
 	} else {
 		output += `Found ${totalResults === 1 ? "1 result" : `${totalResults.toLocaleString()} results`}.\n\n`
+	}
+
+	// Add warning about skipped large files
+	if (skippedFiles.length > 0) {
+		output += `⚠️  Skipped ${skippedFiles.length} file(s) larger than 180 KB. For large files, use read_file with line_range or codebase_search instead.\n\n`
 	}
 
 	// Group results by file name

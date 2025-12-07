@@ -71,6 +71,7 @@ export const toolParamNames = [
 	"context",
 	"format",
 	"max_depth",
+	"lines_per_chunk",
 ] as const
 
 export type ToolParamName = (typeof toolParamNames)[number]
@@ -190,6 +191,11 @@ export interface UseSubagentToolUse extends ToolUse {
 	params: Partial<Pick<Record<ToolParamName, string>, "agent_name" | "task" | "context">>
 }
 
+export interface SplitFileToolUse extends ToolUse {
+	name: "split_file"
+	params: Partial<Pick<Record<ToolParamName, string>, "path" | "lines_per_chunk">>
+}
+
 // Define tool group configuration
 export type ToolGroupConfig = {
 	tools: readonly string[]
@@ -220,6 +226,7 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
 	run_slash_command: "run slash command",
 	generate_image: "generate images",
 	use_subagent: "use subagents",
+	split_file: "split large files",
 } as const
 
 // Define available tool groups.
@@ -233,6 +240,7 @@ export const TOOL_GROUPS: Record<ToolGroup, ToolGroupConfig> = {
 			"list_code_definition_names",
 			"parse_ast",
 			"codebase_search",
+			"split_file",
 		],
 	},
 	edit: {
