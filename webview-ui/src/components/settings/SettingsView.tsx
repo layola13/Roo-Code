@@ -68,6 +68,7 @@ import { Section } from "./Section"
 import PromptsSettings from "./PromptsSettings"
 import { SlashCommandsSettings } from "./SlashCommandsSettings"
 import { UISettings } from "./UISettings"
+import { SplitFileSettings } from "./SplitFileSettings"
 
 export const settingsTabsContainer = "flex flex-1 overflow-hidden [&.narrow_.tab-label]:hidden"
 export const settingsTabList =
@@ -91,6 +92,7 @@ const sectionNames = [
 	"terminal",
 	"prompts",
 	"ui",
+	"splitFile",
 	"experimental",
 	"language",
 	"about",
@@ -212,6 +214,8 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		qdrantUrl,
 		qdrantCollectionName,
 		commandApprovalFreeMode,
+		splitFileLinesPerChunk,
+		splitFileOverlapLines,
 		// enableSmartFileRead, // Temporarily disabled
 	} = cachedState
 
@@ -427,6 +431,8 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 				text: openRouterImageGenerationSelectedModel,
 			})
 			vscode.postMessage({ type: "commandApprovalFreeMode", bool: commandApprovalFreeMode ?? true })
+			vscode.postMessage({ type: "splitFileLinesPerChunk", value: splitFileLinesPerChunk ?? 100 })
+			vscode.postMessage({ type: "splitFileOverlapLines", value: splitFileOverlapLines ?? 0 })
 			// vscode.postMessage({ type: "enableSmartFileRead", bool: enableSmartFileRead ?? true }) // Temporarily disabled
 			setChangeDetected(false)
 		}
@@ -515,6 +521,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			{ id: "terminal", icon: SquareTerminal },
 			{ id: "prompts", icon: MessageSquare },
 			{ id: "ui", icon: Glasses },
+			{ id: "splitFile", icon: FlaskConical },
 			{ id: "experimental", icon: FlaskConical },
 			{ id: "language", icon: Globe },
 			{ id: "about", icon: Info },
@@ -835,6 +842,15 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 					{activeTab === "ui" && (
 						<UISettings
 							reasoningBlockCollapsed={reasoningBlockCollapsed ?? true}
+							setCachedStateField={setCachedStateField}
+						/>
+					)}
+
+					{/* Split File Section */}
+					{activeTab === "splitFile" && (
+						<SplitFileSettings
+							splitFileLinesPerChunk={splitFileLinesPerChunk}
+							splitFileOverlapLines={splitFileOverlapLines}
 							setCachedStateField={setCachedStateField}
 						/>
 					)}

@@ -31,6 +31,7 @@
 		"slashCommands": "Slash Commands",
 		"prompts": "Prompts",
 		"ui": "UI",
+		"splitFile": "Split File",
 		"experimental": "Experimental",
 		"language": "Language",
 		"about": "About Roo Code"
@@ -975,6 +976,20 @@
 			"input": "Input",
 			"output": "Output",
 			"cacheReads": "Cache reads"
+		}
+	},
+	"splitFile": {
+		"configuration": {
+			"label": "File Splitting Configuration",
+			"description": "Configure parameters for the large file splitting tool. This tool is used to split oversized files into smaller chunks for easier code analysis and semantic search. Useful when processing large compressed files (like webpack bundles) to optimize context window usage."
+		},
+		"linesPerChunk": {
+			"label": "Lines per chunk",
+			"description": "Set the number of lines per split file chunk. Default: 100 lines. Range: 100-1000 lines. Larger values create bigger chunks that may preserve more context but increase token usage per processing. Recommended: Use 100-500 lines for compressed JavaScript files, 500-1000 lines for regular code files."
+		},
+		"overlapLines": {
+			"label": "Overlap lines between chunks",
+			"description": "Set the number of overlapping lines between adjacent chunks. Default: 0 lines. Range: 0-100 lines. Overlap lines help maintain code semantic integrity across chunk boundaries, preventing functions or class definitions from being cut off. Recommended: Use around 50 lines of overlap for scenarios requiring complete semantic preservation."
 		}
 	}
 }

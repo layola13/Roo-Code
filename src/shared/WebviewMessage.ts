@@ -253,6 +253,8 @@ export interface WebviewMessage {
 		| "judgeModelConfigId"
 		| "alwaysAllowParseAst"
 		| "alwaysAllowSplitFile"
+		| "splitFileLinesPerChunk"
+		| "splitFileOverlapLines"
 	text?: string
 	editedMessageContent?: string
 	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "cloud"

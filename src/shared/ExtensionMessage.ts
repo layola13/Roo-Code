@@ -246,6 +246,8 @@ export type ExtensionState = Pick<
 	| "alwaysAllowExecute"
 	| "alwaysAllowUpdateTodoList"
 	| "alwaysAllowSplitFile"
+	| "splitFileLinesPerChunk"
+	| "splitFileOverlapLines"
 	| "followupAutoApproveTimeoutMs"
 	| "allowedCommands"
 	| "deniedCommands"

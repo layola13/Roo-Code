@@ -70,6 +70,8 @@ export const globalSettingsSchema = z.object({
 	alwaysAllowUpdateTodoList: z.boolean().optional(),
 	alwaysAllowParseAst: z.boolean().optional(),
 	alwaysAllowSplitFile: z.boolean().optional(),
+	splitFileLinesPerChunk: z.number().optional(),
+	splitFileOverlapLines: z.number().optional(),
 	allowedCommands: z.array(z.string()).optional(),
 	deniedCommands: z.array(z.string()).optional(),
 	commandApprovalFreeMode: z.boolean().optional(),

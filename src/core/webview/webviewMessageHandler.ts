@@ -581,6 +581,14 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("alwaysAllowParseAst", message.bool)
 			await provider.postStateToWebview()
 			break
+		case "splitFileLinesPerChunk":
+			await updateGlobalState("splitFileLinesPerChunk", message.value ?? 100)
+			await provider.postStateToWebview()
+			break
+		case "splitFileOverlapLines":
+			await updateGlobalState("splitFileOverlapLines", message.value ?? 0)
+			await provider.postStateToWebview()
+			break
 		case "askResponse":
 			provider.getCurrentTask()?.handleWebviewAskResponse(message.askResponse!, message.text, message.images)
 			break

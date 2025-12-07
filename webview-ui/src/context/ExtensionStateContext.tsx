@@ -93,6 +93,10 @@ export interface ExtensionStateContextType extends ExtensionState {
 	setAlwaysAllowParseAst: (value: boolean) => void
 	alwaysAllowSplitFile?: boolean
 	setAlwaysAllowSplitFile: (value: boolean) => void
+	splitFileLinesPerChunk?: number
+	setSplitFileLinesPerChunk: (value: number) => void
+	splitFileOverlapLines?: number
+	setSplitFileOverlapLines: (value: number) => void
 	setBrowserToolEnabled: (value: boolean) => void
 	setShowRooIgnoredFiles: (value: boolean) => void
 	setShowAnnouncement: (value: boolean) => void
@@ -522,6 +526,11 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		setAlwaysAllowParseAst: (value) => setState((prevState) => ({ ...prevState, alwaysAllowParseAst: value })),
 		alwaysAllowSplitFile: state.alwaysAllowSplitFile,
 		setAlwaysAllowSplitFile: (value) => setState((prevState) => ({ ...prevState, alwaysAllowSplitFile: value })),
+		splitFileLinesPerChunk: state.splitFileLinesPerChunk,
+		setSplitFileLinesPerChunk: (value) =>
+			setState((prevState) => ({ ...prevState, splitFileLinesPerChunk: value })),
+		splitFileOverlapLines: state.splitFileOverlapLines,
+		setSplitFileOverlapLines: (value) => setState((prevState) => ({ ...prevState, splitFileOverlapLines: value })),
 		setAlwaysAllowFollowupQuestions,
 		setFollowupAutoApproveTimeoutMs: (value) =>
 			setState((prevState) => ({ ...prevState, followupAutoApproveTimeoutMs: value })),
