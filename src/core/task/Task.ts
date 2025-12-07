@@ -3878,18 +3878,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// 使用增强的任务描述，包含最近的用户反馈
 		const enhancedTaskDescription = this.buildEnhancedTaskDescription()
 
-		// 获取Git状态信息
-		let gitStatusInfo: string | undefined
-		try {
-			const { checkGitStatus } = await import("../judge/git-utils")
-			const gitStatus = await checkGitStatus(this.cwd)
-			gitStatusInfo = gitStatus.summary
-		} catch (error) {
-			console.warn("[Task#invokeJudge] Failed to check git status:", error)
-			// Git状态检查失败不应该阻止裁判执行，只是缺少这部分信息
-			gitStatusInfo = undefined
-		}
-
 		// 检查是否为子任务
 		const isSubtask = !!this.parentTaskId
 		let parentTaskDescription: string | undefined
@@ -3921,7 +3909,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			toolCalls: this.getToolCallHistory(),
 			fileChanges: this.getFileChangeHistory(),
 			currentMode: await this.getTaskMode(),
-			gitStatus: gitStatusInfo,
 			isSubtask,
 			parentTaskDescription,
 			rootTaskDescription,

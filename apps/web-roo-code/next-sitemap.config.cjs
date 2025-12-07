@@ -52,13 +52,7 @@ module.exports = {
   additionalPaths: async (config) => {
     // Add any additional paths that might not be automatically discovered
     // This is useful for dynamic routes or API-generated pages
-    // Add the /evals page since it's a dynamic route
-    return [{
-      loc: '/evals',
-      changefreq: 'monthly',
-      priority: 0.8,
-      lastmod: new Date().toISOString(),
-    }];
+    const result = [];
     
     // Add the /evals page since it's a dynamic route
     result.push({

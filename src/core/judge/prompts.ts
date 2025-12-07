@@ -15,7 +15,6 @@ export function buildJudgePrompt(
 		toolCalls,
 		fileChanges,
 		currentMode,
-		gitStatus,
 		isSubtask,
 		parentTaskDescription,
 		rootTaskDescription,
@@ -37,16 +36,6 @@ export function buildJudgePrompt(
 		detailLevel === "detailed"
 			? `请提供详细的判断理由，逐项检查并提供改进建议。`
 			: `请提供简洁的判断理由，只指出主要问题。`
-
-	// Git状态部分
-	const gitStatusSection = gitStatus
-		? `
-## 实际文件改动情况 (Git Status)
-
-${gitStatus}
-
-**重要提示**: 上述是通过 git status 检查的实际文件改动情况。如果声称修改了某些文件但这里没有显示，说明文件可能没有真正被修改。`
-		: ""
 
 	// 用户需求变更部分
 	const userFeedbackSection = recentUserFeedback
@@ -99,7 +88,6 @@ ${toolCallsSummary}
 
 ### 文件修改声明
 ${fileChangesSummary}
-${gitStatusSection}
 
 ## 模型声称的完成结果
 
@@ -115,23 +103,18 @@ ${isSubtask ? "**⚠️ 子任务评判标准**：请注意，这是一个子任
 - ${isSubtask ? "在子任务范围内" : ""}是否有明显的遗漏？
 - ${isSubtask ? "子任务声称要完成的功能" : "所有用户明确要求的功能"}是否都已实现？
 
-### 2. 实际改动验证 (Actual Changes Verification)
-- **关键检查点**: 如果声称修改了文件，Git状态中是否真的显示了这些文件的改动？
-- 如果Git状态显示"无改动"但声称完成了任务，这很可能意味着文件没有真正被修改
-- 文件修改的时间是否合理（最近修改的文件才是真正改动过的）
-
-### 3. 正确性 (Correctness)
+### 2. 正确性 (Correctness)
 - 实现是否正确无误？
 - 是否有明显的逻辑错误或bug？
 - 代码是否能正常运行？
 
-### 4. 质量 (Quality)
+### 3. 质量 (Quality)
 - 代码质量是否符合基本标准？
 - 是否有测试覆盖（如果要求）？
 - 是否有适当的错误处理？
 - 是否遵循了最佳实践？
 
-### 5. 文档 (Documentation)
+### 4. 文档 (Documentation)
 - 是否有必要的注释和文档？
 - 是否更新了相关的 README 或文档文件（如果需要）？
 
@@ -180,14 +163,12 @@ ${
 `
 		: ""
 }1. **灵活性优先**: 如果用户在对话中修改了需求，以最新的需求为准，不要死板地坚持初始任务
-2. **验证实际改动**: 优先参考Git状态来验证文件是否真正被修改，而不是仅凭声明
-3. **批准适度**: 如果${isSubtask ? "子任务" : "任务"}基本完成但有小问题，可以批准并在 suggestions 中提出改进建议
-4. **严格对待关键问题**: 如果有以下严重问题必须拒绝：
-   - 声称修改文件但Git显示无改动
+2. **批准适度**: 如果${isSubtask ? "子任务" : "任务"}基本完成但有小问题，可以批准并在 suggestions 中提出改进建议
+3. **严格对待关键问题**: 如果有以下严重问题必须拒绝：
    - 明显违背用户最新要求
    - 有严重的逻辑错误或安全问题
-5. **具体建议**: 提供可操作的具体建议，而非笼统的评价
-6. **评分范围**: 0-10分，其中：
+4. **具体建议**: 提供可操作的具体建议，而非笼统的评价
+5. **评分范围**: 0-10分，其中：
    - 0-3: 严重不足，完全未完成${isSubtask ? "子任务目标" : ""}
    - 4-6: 有明显问题或遗漏
    - 7-8: 基本合格但有改进空间
