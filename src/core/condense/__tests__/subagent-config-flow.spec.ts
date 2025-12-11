@@ -104,7 +104,8 @@ describe("SubAgent Configuration Flow", () => {
 				undefined, // conversationMemory
 				false, // useMemoryEnhancement
 				undefined, // vectorMemoryStore
-				subAgentConfig,
+				undefined, // gswMemorySystem
+				subAgentConfig, // subAgentConfig
 			)
 
 			// Verify subagent compression was used
@@ -155,7 +156,8 @@ describe("SubAgent Configuration Flow", () => {
 				undefined,
 				false,
 				undefined,
-				subAgentConfig,
+				undefined, // gswMemorySystem
+				subAgentConfig, // subAgentConfig
 			)
 
 			// Verify createMessage was called with custom prompts
@@ -197,7 +199,8 @@ describe("SubAgent Configuration Flow", () => {
 				undefined,
 				false,
 				undefined,
-				config1,
+				undefined, // gswMemorySystem
+				config1, // subAgentConfig
 			)
 
 			expect(result1.subAgentTokenUsage).toBeDefined()
@@ -224,7 +227,8 @@ describe("SubAgent Configuration Flow", () => {
 				undefined,
 				false,
 				undefined,
-				config2,
+				undefined, // gswMemorySystem
+				config2, // subAgentConfig
 			)
 
 			expect(result2.subAgentTokenUsage).toBeDefined()
@@ -256,7 +260,8 @@ describe("SubAgent Configuration Flow", () => {
 				undefined,
 				false,
 				undefined,
-				subAgentConfig,
+				undefined, // gswMemorySystem
+				subAgentConfig, // subAgentConfig
 			)
 
 			// Should still work with default prompts
@@ -332,7 +337,8 @@ describe("SubAgent Configuration Flow", () => {
 				undefined,
 				false,
 				undefined,
-				subAgentConfig,
+				undefined, // gswMemorySystem
+				subAgentConfig, // subAgentConfig
 			)
 
 			// New context should be smaller than previous
@@ -368,7 +374,8 @@ describe("SubAgent Configuration Flow", () => {
 				undefined,
 				false,
 				undefined,
-				subAgentConfig,
+				undefined, // gswMemorySystem
+				subAgentConfig, // subAgentConfig
 			)
 
 			// Should have: first message + summary + last N messages
@@ -416,7 +423,8 @@ describe("SubAgent Configuration Flow", () => {
 				undefined,
 				false,
 				undefined,
-				subAgentConfig,
+				undefined, // gswMemorySystem
+				subAgentConfig, // subAgentConfig
 			)
 
 			// Should still return a result (from fallback)
@@ -449,7 +457,8 @@ describe("SubAgent Configuration Flow", () => {
 				undefined,
 				false,
 				undefined,
-				subAgentConfig,
+				undefined, // gswMemorySystem
+				subAgentConfig, // subAgentConfig
 			)
 
 			expect(result.subAgentTokenUsage).toBeDefined()
@@ -542,7 +551,8 @@ describe("SubAgent Configuration Flow", () => {
 				undefined,
 				false,
 				undefined,
-				processedConfig,
+				undefined, // gswMemorySystem
+				processedConfig, // subAgentConfig
 			)
 
 			// Step 4: Verify results match expected configuration
@@ -583,7 +593,8 @@ describe("SubAgent Configuration Flow", () => {
 				undefined,
 				false,
 				undefined,
-				subAgentConfig,
+				undefined, // gswMemorySystem
+				subAgentConfig, // subAgentConfig
 			)
 
 			// Verbose logging should have been called if enabled
@@ -617,7 +628,8 @@ describe("SubAgent Configuration Flow", () => {
 				undefined,
 				false,
 				undefined,
-				subAgentConfig,
+				undefined, // gswMemorySystem
+				subAgentConfig, // subAgentConfig
 			)
 
 			// Each subagent should have token usage tracked
@@ -660,7 +672,8 @@ describe("SubAgent Configuration Flow", () => {
 				undefined,
 				false,
 				undefined,
-				subAgentConfig,
+				undefined, // gswMemorySystem
+				subAgentConfig, // subAgentConfig
 			)
 
 			// Total cost should include all subagent costs

@@ -320,6 +320,18 @@ export class CodeIndexManager {
 	}
 
 	/**
+	 * 获取VectorStore实例，用于GSW向量化记忆系统
+	 * @returns IVectorStore实例，如果未初始化则返回undefined
+	 */
+	public getVectorStore() {
+		if (!this.isFeatureEnabled || !this.isInitialized) {
+			return undefined
+		}
+		// 从serviceFactory获取vectorStore
+		return this._serviceFactory?.getVectorStore()
+	}
+
+	/**
 	 * Private helper method to recreate services with current configuration.
 	 * Used by both initialize() and handleSettingsChange().
 	 */

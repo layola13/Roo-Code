@@ -421,7 +421,7 @@ describe("VectorMemoryStore Integration with Context Condensing", () => {
 			)
 
 			// 应该记录警告但继续生成摘要
-			expect(warnSpy).toHaveBeenCalledWith("Failed to search vector memories:", searchError)
+			expect(warnSpy).toHaveBeenCalledWith("[Condense] Failed to search vector memories:", searchError)
 			expect(result.summary).toBeTruthy()
 			expect(result.error).toBeUndefined()
 

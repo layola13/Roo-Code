@@ -12,6 +12,7 @@ import { serializeError } from "serialize-error"
 // Judge
 import { JudgeService } from "../judge/JudgeService"
 import { JudgeConfig, JudgeResult, DEFAULT_JUDGE_CONFIG } from "../judge/types"
+import { FileOperationTracker, FileOperation } from "../judge/FileOperationTracker"
 
 import {
 	type TaskLike,
@@ -43,6 +44,8 @@ import {
 import type { SubAgentInvocation } from "../../shared/ExtensionMessage"
 import { ConversationMemory } from "../memory/ConversationMemory"
 import { VectorMemoryStore, VectorMemoryStoreConfig } from "../memory/VectorMemoryStore"
+import { DirectoryMemorySystem } from "../../memory/gsw/DirectoryMemorySystem"
+import { MemoryCapture } from "../../memory/gsw/MemoryCapture"
 import { TelemetryService } from "@roo-code/telemetry"
 import { CloudService, BridgeOrchestrator } from "@roo-code/cloud"
 
@@ -124,6 +127,15 @@ import { SubAgentExecutor, SubAgentConfig, SubAgentResult } from "../condense/Su
 // import { ConversationController } from "../subagent/ConversationController"
 import { Gpt5Metadata, ClineMessageWithMetadata } from "./types"
 import { MessageQueueService } from "../message-queue/MessageQueueService"
+import {
+	JudgeEvidenceCache,
+	UserRequirement,
+	CodeChangeSummary,
+	ToolCallRecord,
+	TaskCheckpoint,
+	createEmptyJudgeEvidenceCache,
+	JUDGE_EVIDENCE_CONFIG,
+} from "./types/judge-evidence"
 
 import { AutoApprovalHandler } from "./AutoApprovalHandler"
 
@@ -260,10 +272,27 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	conversationMemory: ConversationMemory
 	vectorMemoryStore?: VectorMemoryStore
 
+	// GSW三元记忆系统
+	public gswMemorySystem?: DirectoryMemorySystem
+	public gswMemoryCapture?: MemoryCapture
+
+	// GSW记忆查询缓存（用于周期性检索优化）
+	private gswMemoryCache?: {
+		content: string
+		timestamp: number
+		messageCount: number
+	}
+	private readonly GSW_CACHE_VALIDITY_MS = 5 * 60 * 1000 // 5分钟缓存有效期
+
 	// Judge Service
 	private judgeService?: JudgeService
 
-	// Computer User
+	// Judge Evidence Pre-collection Cache
+	public judgeEvidenceCache: JudgeEvidenceCache
+
+	// File Operation Tracker (用于Judge系统验证文件修改)
+	public fileOperationTracker: FileOperationTracker = new FileOperationTracker()
+
 	browserSession: BrowserSession
 
 	// Editing
@@ -390,9 +419,18 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.fileContextTracker = new FileContextTracker(provider, this.taskId)
 		this.conversationMemory = new ConversationMemory(this.taskId)
 
+		// 初始化裁判证据缓存
+		this.judgeEvidenceCache = createEmptyJudgeEvidenceCache()
+
 		// 初始化向量记忆存储（如果配置启用）
 		this.initializeVectorMemoryStore(provider).catch((error) => {
 			console.warn("Failed to initialize VectorMemoryStore:", error)
+			// 非关键功能，失败不影响主流程
+		})
+
+		// 初始化GSW三元记忆系统（如果配置启用）
+		this.initializeGSWMemorySystem(provider).catch((error) => {
+			console.warn("Failed to initialize GSW Memory System:", error)
 			// 非关键功能，失败不影响主流程
 		})
 
@@ -586,6 +624,114 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			console.error("Error initializing VectorMemoryStore:", error)
 			// 非关键功能，记录错误但不抛出
 			this.vectorMemoryStore = undefined
+		}
+	}
+
+	/**
+	 * 初始化GSW三元记忆系统
+	 */
+	private async initializeGSWMemorySystem(provider: ClineProvider): Promise<void> {
+		try {
+			// 检查是否启用GSW记忆功能
+			const config = vscode.workspace.getConfiguration("roo-cline")
+			const gswEnabled = config.get<boolean>("gswMemory.enabled", true)
+
+			if (!gswEnabled) {
+				return
+			}
+
+			// GSW记忆系统的根目录设置在项目根目录下的.project文件夹
+			const gswRootPath = path.join(this.cwd, ".project")
+
+			// 🚀 尝试从CodeIndexManager获取embedder和vectorStore以启用向量化搜索
+			let embedder: import("../../services/code-index/interfaces/embedder").IEmbedder | undefined
+			let vectorStore: import("../../services/code-index/interfaces/vector-store").IVectorStore | undefined
+			let vectorSize: number | undefined
+
+			try {
+				const codeIndexManager = CodeIndexManager.getInstance(provider.context, this.cwd)
+				if (codeIndexManager && codeIndexManager.isInitialized) {
+					embedder = codeIndexManager.getEmbedder()
+					vectorStore = codeIndexManager.getVectorStore()
+					vectorSize = codeIndexManager.getVectorSize()
+
+					if (embedder && vectorStore && vectorSize) {
+						console.log("[Task#initializeGSWMemorySystem] 🚀 Vector search enabled for GSW")
+					} else {
+						console.log(
+							"[Task#initializeGSWMemorySystem] ℹ️ CodeIndexManager available but missing components, GSW will use YAML fallback",
+						)
+					}
+				} else {
+					console.log(
+						"[Task#initializeGSWMemorySystem] ℹ️ CodeIndexManager not initialized, GSW will use YAML fallback",
+					)
+				}
+			} catch (error) {
+				console.warn(
+					"[Task#initializeGSWMemorySystem] Failed to get vector components from CodeIndexManager:",
+					error,
+				)
+				// 非关键功能，继续使用YAML fallback
+			}
+
+			// 创建DirectoryMemorySystem实例（如果有embedder和vectorStore则启用向量搜索）
+			this.gswMemorySystem = new DirectoryMemorySystem(
+				gswRootPath,
+				{
+					maxFileSizeKB: config.get<number>("gswMemory.maxFileSizeKB", 50),
+					archiveAfterDays: config.get<number>("gswMemory.archiveAfterDays", 30),
+					enableAutoRotation: config.get<boolean>("gswMemory.enableAutoRotation", true),
+				},
+				embedder,
+				vectorStore,
+				vectorSize ? { vectorSize, projectId: this.cwd } : undefined,
+			)
+
+			// 初始化记忆系统（创建目录结构）
+			await this.gswMemorySystem.initialize()
+
+			// 获取GSW专用的LLM配置（如果设置了）
+			let gswApiHandler: ApiHandler | undefined
+
+			try {
+				const globalState = provider.context.globalState
+				const gswModelConfigId = globalState.get<string>("gswModelConfigId")
+				const apiConfigs = globalState.get<Record<string, ProviderSettings>>("apiConfigs")
+
+				if (gswModelConfigId && apiConfigs?.[gswModelConfigId]) {
+					try {
+						// 使用配置的专用模型
+						gswApiHandler = buildApiHandler(apiConfigs[gswModelConfigId])
+						console.log(`GSW Memory System using dedicated LLM: ${gswModelConfigId}`)
+					} catch (error) {
+						console.warn(
+							`Failed to build GSW API handler for ${gswModelConfigId}, will use main model:`,
+							error,
+						)
+						// 回退到主模型
+						gswApiHandler = this.api
+					}
+				} else {
+					// 使用主任务的API Handler
+					gswApiHandler = this.api
+					console.log("GSW Memory System using main task LLM")
+				}
+			} catch (error) {
+				console.warn("Failed to get GSW model config, using main task LLM:", error)
+				gswApiHandler = this.api
+			}
+
+			// 创建MemoryCapture实例，传递ApiHandler
+			this.gswMemoryCapture = new MemoryCapture(this.gswMemorySystem, gswApiHandler)
+
+			const vectorStatus = embedder && vectorStore ? "🚀 Vector search ENABLED" : "📁 YAML fallback"
+			console.log(`GSW Memory System initialized successfully at: ${gswRootPath} (${vectorStatus})`)
+		} catch (error) {
+			console.error("Error initializing GSW Memory System:", error)
+			// 非关键功能，记录错误但不抛出
+			this.gswMemorySystem = undefined
+			this.gswMemoryCapture = undefined
 		}
 	}
 
@@ -1135,6 +1281,19 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			void this.checkpointSave(false, true)
 		}
 
+		// GSW记忆捕获：用户反馈记忆
+		if (askResponse === "messageResponse" && text && this.gswMemoryCapture) {
+			this.getTaskMode()
+				.then((mode) => {
+					this.gswMemoryCapture?.captureUserInteraction(text, mode, this.taskId).catch((error: unknown) => {
+						console.warn("Failed to capture user feedback in GSW:", error)
+					})
+				})
+				.catch((error: unknown) => {
+					console.warn("Failed to get task mode for GSW capture:", error)
+				})
+		}
+
 		// Mark the last follow-up question as answered
 		if (askResponse === "messageResponse" || askResponse === "yesButtonClicked") {
 			// Find the last unanswered follow-up message using findLastIndex
@@ -1258,6 +1417,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			error,
 			subAgentTokenUsage,
 			durationMs,
+			gswUsed,
+			gswVectorSearchEnabled,
+			gswMemoriesRetrieved,
+			gswMemoryTypes,
+			gswSearchMode,
 		} = await summarizeConversation(
 			this.apiConversationHistory,
 			this.api, // Main API handler (fallback)
@@ -1270,6 +1434,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			this.conversationMemory,
 			true, // useMemoryEnhancement
 			this.vectorMemoryStore, // Vector memory store for semantic search
+			this.gswMemorySystem, // 🔥 GSW memory system (preferred over vectorMemoryStore)
 			useSubAgentCompression
 				? {
 						enabled: true,
@@ -1329,6 +1494,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			subAgentTokenUsage,
 			apiConfigName,
 			durationMs,
+			// GSW system usage information
+			gswUsed,
+			gswVectorSearchEnabled,
+			gswMemoriesRetrieved,
+			gswMemoryTypes,
+			gswSearchMode,
 		}
 		await this.say(
 			"condense_context",
@@ -1503,6 +1674,37 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		await this.say("text", task, images)
 		this.isInitialized = true
+
+		// GSW记忆捕获：用户交互记忆（任务开始）
+		if (this.gswMemoryCapture && task) {
+			// 获取mode（这个必须await，但很快）
+			const mode = await this.getTaskMode()
+
+			// 🔥 非阻塞异步调用
+			Promise.resolve().then(async () => {
+				try {
+					await this.gswMemoryCapture!.captureUserInteraction(task, mode, this.taskId)
+				} catch (error) {
+					console.warn("[GSW] Failed to capture user interaction:", error)
+				}
+			})
+		}
+
+		// 🔥 裁判证据预收集：任务开始检查点
+		if (task) {
+			this.updateJudgeEvidence("checkpoint", {
+				timestamp: Date.now(),
+				stage: "started",
+				description: `Task started: ${task.substring(0, 100)}${task.length > 100 ? "..." : ""}`,
+			})
+
+			this.updateJudgeEvidence("userRequirement", {
+				timestamp: Date.now(),
+				requirement: task,
+				priority: this.detectPriority(task),
+				source: "user_message",
+			})
+		}
 
 		let imageBlocks: Anthropic.ImageBlockParam[] = formatResponse.imageBlocks(images)
 
@@ -2806,6 +3008,37 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						this.clineMessages[lastReasoningIndex].partial = false
 						await this.updateClineMessage(this.clineMessages[lastReasoningIndex])
 					}
+
+					// GSW记忆捕获：推理记忆（LLM完成推理后）
+					if (this.gswMemoryCapture && reasoningMessage.length > 50) {
+						const sessionId = this.gswMemoryCapture.getCurrentSessionId()
+
+						if (sessionId) {
+							// 🔥 非阻塞异步调用
+							Promise.resolve().then(async () => {
+								try {
+									// 收集相关文件（从文件上下文跟踪器中提取，使用空数组作为后备）
+									const relatedFiles: string[] = []
+									// TODO: 当FileContextTracker实现getRecentFiles方法后启用
+									// const relatedFiles = this.fileContextTracker.getRecentFiles(5)
+
+									await this.gswMemoryCapture!.captureReasoning(
+										reasoningMessage,
+										relatedFiles,
+										sessionId,
+									)
+
+									// 🔥 自动提取工作流知识（如CLI使用方法、正确参数等）
+									await this.gswMemoryCapture!.extractAndCaptureWorkflowKnowledge(
+										reasoningMessage,
+										sessionId,
+									)
+								} catch (error) {
+									console.warn("[GSW] Failed to capture reasoning:", error)
+								}
+							})
+						}
+					}
 				}
 
 				await this.persistGpt5Metadata(reasoningMessage)
@@ -2951,6 +3184,163 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			apiConfiguration,
 		} = state ?? {}
 
+		// GSW记忆增强：智能注入历史记忆（Always-On Retrieval + Performance Monitoring + Caching）
+		let gswMemoryContext = ""
+		if (this.gswMemorySystem) {
+			try {
+				console.log(`[Task#getSystemPrompt] 🧠 GSW Memory System available - performing intelligent retrieval`)
+
+				// 策略1: 检查用户是否显式引用历史（关键词触发）
+				let explicitHistoryReference = false
+				let userQuery = ""
+
+				const lastUserMessage = this.clineMessages
+					.slice()
+					.reverse()
+					.find((m) => m.type === "say" && m.say === "user_feedback" && m.text)
+
+				if (lastUserMessage && lastUserMessage.text) {
+					userQuery = lastUserMessage.text
+
+					const memoryTriggerKeywords = [
+						"上次",
+						"之前",
+						"记得",
+						"回忆",
+						"历史",
+						"那次",
+						"当时",
+						"last time",
+						"before",
+						"remember",
+						"recall",
+						"history",
+						"previous",
+						"earlier",
+						"past",
+						"that time",
+						"back then",
+					]
+
+					explicitHistoryReference = memoryTriggerKeywords.some((keyword) =>
+						userQuery.toLowerCase().includes(keyword.toLowerCase()),
+					)
+				}
+
+				// 策略2: Always-On记忆检索策略 (增强版)
+				// 🔥 每次用户消息都触发记忆查询，但使用动态limit避免性能问题
+				// - 显式引用：最多10条记忆（高优先级）
+				// - 任务开始/恢复：最多5条记忆
+				// - 常规请求：最多2条最相关记忆（轻量级查询）
+				const isTaskStart = this.clineMessages.length <= 3
+				const messageCount = this.clineMessages.length
+
+				// 🔥 Always-On: 始终查询记忆，动态调整返回数量
+				const shouldQueryMemory = true
+				const dynamicLimit = explicitHistoryReference ? 10 : isTaskStart ? 5 : 2
+
+				// 🔥 缓存优化：检查缓存是否有效
+				// 对于常规请求，缩短缓存有效期以获取更新鲜的记忆
+				const now = Date.now()
+				const cacheValidityMs = explicitHistoryReference
+					? 0
+					: isTaskStart
+						? this.GSW_CACHE_VALIDITY_MS
+						: this.GSW_CACHE_VALIDITY_MS / 2
+				const cacheValid =
+					this.gswMemoryCache &&
+					now - this.gswMemoryCache.timestamp < cacheValidityMs &&
+					this.gswMemoryCache.messageCount === messageCount
+
+				if (shouldQueryMemory) {
+					// 显式引用总是绕过缓存
+					if (explicitHistoryReference || !cacheValid) {
+						const queryReason = explicitHistoryReference
+							? "explicit reference"
+							: isTaskStart
+								? "task initialization"
+								: "always-on retrieval"
+
+						console.log(
+							`[Task#getSystemPrompt] 🔍 Triggering GSW query (reason: ${queryReason}, limit: ${dynamicLimit})`,
+						)
+
+						// 🔥 性能监控：记录查询开始时间
+						const gswQueryStartTime = Date.now()
+
+						// 构建查询：结合任务描述和最近的用户消息
+						const queryText = userQuery || this.metadata.task || "current task context"
+
+						// 查询相关记忆，使用动态limit
+						const queryResult = await this.gswMemorySystem.queryMemory({
+							query: queryText,
+							limit: dynamicLimit,
+							recentDays: 30,
+						})
+
+						// 🔥 性能监控：计算查询耗时
+						const gswQueryDuration = Date.now() - gswQueryStartTime
+						console.log(`[Task#getSystemPrompt] ⏱️ GSW query completed in ${gswQueryDuration}ms`)
+
+						console.log(
+							`[Task#getSystemPrompt] 📊 Query result: ${queryResult.memories.length} memories found (total: ${queryResult.totalFound})`,
+						)
+
+						if (queryResult.memories.length > 0) {
+							const formattedMemories = this.gswMemorySystem.formatMemoriesForPrompt(queryResult.memories)
+
+							gswMemoryContext = "\n\n====\n\n📝 HISTORICAL CONTEXT\n\n"
+							if (explicitHistoryReference) {
+								gswMemoryContext += "The user referenced past interactions. Relevant memories:\n\n"
+							} else {
+								gswMemoryContext +=
+									"Relevant context from previous sessions (use this to inform your approach):\n\n"
+							}
+							gswMemoryContext += formattedMemories
+							gswMemoryContext +=
+								"\n**Instructions**: Use these memories to maintain continuity and avoid repeating past mistakes.\n"
+							gswMemoryContext += "====\n\n"
+
+							console.log(
+								`[Task#getSystemPrompt] ✅ Injected ${queryResult.memories.length} historical memories (${queryReason})`,
+							)
+							console.log(
+								`[Task#getSystemPrompt] Memory types: ${queryResult.memories.map((m) => m.type).join(", ")}`,
+							)
+
+							// 🔥 缓存优化：保存查询结果到缓存（仅对周期性检索缓存）
+							if (!explicitHistoryReference) {
+								this.gswMemoryCache = {
+									content: gswMemoryContext,
+									timestamp: now,
+									messageCount,
+								}
+								console.log(
+									`[Task#getSystemPrompt] 💾 Cached GSW result for ${this.GSW_CACHE_VALIDITY_MS / 1000}s`,
+								)
+							}
+						} else {
+							console.log(`[Task#getSystemPrompt] ℹ️ No relevant memories found`)
+						}
+					} else {
+						// 使用缓存
+						if (this.gswMemoryCache) {
+							gswMemoryContext = this.gswMemoryCache.content
+							const cacheAge = Math.round((now - this.gswMemoryCache.timestamp) / 1000)
+							console.log(`[Task#getSystemPrompt] ⚡ Using cached GSW result (age: ${cacheAge}s)`)
+						}
+					}
+				} else {
+					console.log(`[Task#getSystemPrompt] ⏭️ Skipping GSW query (message ${messageCount}, no trigger)`)
+				}
+			} catch (error) {
+				console.error("[Task#getSystemPrompt] ❌ Failed to query GSW memory:", error)
+				// 非关键功能，失败不影响主流程
+			}
+		} else {
+			console.log(`[Task#getSystemPrompt] ⚠️ GSW Memory System not initialized`)
+		}
+
 		return await (async () => {
 			const provider = this.providerRef.deref()
 
@@ -2958,7 +3348,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				throw new Error("Provider not available")
 			}
 
-			return SYSTEM_PROMPT(
+			const basePrompt = await SYSTEM_PROMPT(
 				provider.context,
 				this.cwd,
 				(this.api.getModel().info.supportsComputerUse ?? false) && (browserToolEnabled ?? true),
@@ -2986,6 +3376,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				undefined, // todoList
 				this.api.getModel().id,
 			)
+
+			// 将GSW记忆上下文附加到系统提示词中
+			return basePrompt + gswMemoryContext
 		})()
 	}
 
@@ -3079,8 +3472,31 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 
 		if (truncateResult.summary) {
-			const { summary, cost, prevContextTokens, newContextTokens = 0, durationMs } = truncateResult
-			const contextCondense: ContextCondense = { summary, cost, newContextTokens, prevContextTokens, durationMs }
+			const {
+				summary,
+				cost,
+				prevContextTokens,
+				newContextTokens = 0,
+				durationMs,
+				gswUsed,
+				gswVectorSearchEnabled,
+				gswMemoriesRetrieved,
+				gswMemoryTypes,
+				gswSearchMode,
+			} = truncateResult
+			const contextCondense: ContextCondense = {
+				summary,
+				cost,
+				newContextTokens,
+				prevContextTokens,
+				durationMs,
+				// GSW system usage information
+				gswUsed,
+				gswVectorSearchEnabled,
+				gswMemoriesRetrieved,
+				gswMemoryTypes,
+				gswSearchMode,
+			}
 			await this.say(
 				"condense_context",
 				undefined /* text */,
@@ -3238,7 +3654,18 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				// send previous_response_id so the request reflects the fresh condensed context.
 				this.skipPrevResponseIdOnce = true
 
-				const { summary, cost, prevContextTokens, newContextTokens = 0, durationMs } = truncateResult
+				const {
+					summary,
+					cost,
+					prevContextTokens,
+					newContextTokens = 0,
+					durationMs,
+					gswUsed,
+					gswVectorSearchEnabled,
+					gswMemoriesRetrieved,
+					gswMemoryTypes,
+					gswSearchMode,
+				} = truncateResult
 				// Get API configuration name for display
 				const apiConfigName = condensingApiHandler
 					? listApiConfigMeta?.find((config: any) => config.id === condensingApiConfigId)?.name
@@ -3250,6 +3677,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					prevContextTokens,
 					apiConfigName,
 					durationMs,
+					// GSW system usage information
+					gswUsed,
+					gswVectorSearchEnabled,
+					gswMemoriesRetrieved,
+					gswMemoryTypes,
+					gswSearchMode,
 				}
 				await this.say(
 					"condense_context",
@@ -3635,7 +4068,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	 * 获取裁判配置
 	 * 从 provider state 中获取裁判模式的配置
 	 */
-	private async getJudgeConfig(): Promise<JudgeConfig> {
+	public async getJudgeConfig(): Promise<JudgeConfig> {
 		try {
 			const state = await this.providerRef.deref()?.getState()
 			const judgeConfig = state?.judgeConfig
@@ -3856,8 +4289,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	/**
 	 * 调用裁判服务
+	 * @param attemptResult 完成尝试的结果
+	 * @param onProgress 可选的流式进度回调，用于实时显示裁判思考过程
 	 */
-	async invokeJudge(attemptResult: string): Promise<JudgeResult> {
+	async invokeJudge(
+		attemptResult: string,
+		onProgress?: import("../judge/types").JudgeProgressCallback,
+	): Promise<JudgeResult> {
 		// 初始化裁判服务（如果还没有）
 		if (!this.judgeService) {
 			const judgeConfig = await this.getJudgeConfig()
@@ -3902,19 +4340,110 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			)
 		}
 
+		// 🚀 优化：同时使用预收集证据和GSW历史记忆
+		let gswHistoricalMemories: string | undefined
+		const memoryParts: string[] = []
+
+		// Part 1: 预收集的证据（当前会话）
+		if (
+			this.judgeEvidenceCache.userRequirements.length > 0 ||
+			this.judgeEvidenceCache.codeChanges.length > 0 ||
+			this.judgeEvidenceCache.toolCalls.length > 0
+		) {
+			// ⚡ 使用缓存的证据，立即可用（<1秒）
+			const preCollectedEvidence = this.formatEvidenceForJudge(this.judgeEvidenceCache)
+			memoryParts.push(preCollectedEvidence)
+			console.log("[Task#invokeJudge] ⚡ Using pre-collected evidence from current session")
+			console.log(
+				`[Task#invokeJudge] Evidence stats: ${this.judgeEvidenceCache.userRequirements.length} requirements, ${this.judgeEvidenceCache.codeChanges.length} code changes, ${this.judgeEvidenceCache.toolCalls.length} tool calls`,
+			)
+		}
+
+		// Part 2: GSW历史记忆（跨会话）- 始终查询，与预收集证据并存
+		if (this.gswMemorySystem) {
+			try {
+				console.log(`[Task#invokeJudge] 🔍 Querying GSW system for historical context...`)
+
+				// 构建查询：结合原始任务和完成声明
+				const queryText = `${this.metadata.task || ""}\n\n${attemptResult}`
+
+				// 查询相关记忆（最近60天，最多15条）
+				const queryResult = await this.gswMemorySystem.queryMemory({
+					query: queryText,
+					limit: 15,
+					recentDays: 60,
+				})
+
+				console.log(
+					`[Task#invokeJudge] 📊 GSW Query result: ${queryResult.memories.length} memories found (total: ${queryResult.totalFound})`,
+				)
+
+				if (queryResult.memories.length > 0) {
+					// 使用格式化方法生成结构化的记忆上下文
+					const historicalContext = this.gswMemorySystem.formatMemoriesForPrompt(queryResult.memories)
+					memoryParts.push("\n\n---\n\n# Historical Context from Previous Sessions\n\n" + historicalContext)
+
+					console.log(
+						`[Task#invokeJudge] ✅ Successfully retrieved ${queryResult.memories.length} historical memories from GSW`,
+					)
+					console.log(
+						`[Task#invokeJudge] Memory types: ${queryResult.memories.map((m) => m.type).join(", ")}`,
+					)
+				} else {
+					console.log(`[Task#invokeJudge] ℹ️ No relevant historical memories found`)
+				}
+			} catch (error) {
+				console.error("[Task#invokeJudge] ❌ Failed to query GSW memory:", error)
+				// 非关键功能，失败不影响主流程
+			}
+		}
+
+		// 合并所有记忆来源
+		if (memoryParts.length > 0) {
+			gswHistoricalMemories = memoryParts.join("\n\n")
+			console.log(`[Task#invokeJudge] 📋 Combined evidence from ${memoryParts.length} source(s)`)
+		} else {
+			console.log(`[Task#invokeJudge] ⚠️ No evidence available (neither pre-collected nor GSW system)`)
+		}
+
+		// 🔥 文件操作验证：获取追踪的文件操作和验证结果
+		const fileOperations = this.fileOperationTracker.getOperations()
+		let verifiedFileChanges: string[] = []
+
+		if (fileOperations.length > 0) {
+			console.log(`[Task#invokeJudge] 📁 Verifying ${fileOperations.length} file operations...`)
+			try {
+				verifiedFileChanges = await this.fileOperationTracker.getVerifiedFiles()
+				const unverified = await this.fileOperationTracker.getUnverifiedFiles()
+
+				console.log(`[Task#invokeJudge] ✅ Verified files: ${verifiedFileChanges.length}`)
+				if (unverified.length > 0) {
+					console.warn(`[Task#invokeJudge] ⚠️ Unverified files: ${unverified.join(", ")}`)
+				}
+			} catch (error) {
+				console.error("[Task#invokeJudge] Failed to verify file changes:", error)
+				// 验证失败时，fallback到假设所有操作都成功
+				verifiedFileChanges = this.fileOperationTracker.getModifiedFiles()
+			}
+		}
+
 		// 构建任务上下文
 		const taskContext: import("../judge/types").TaskContext = {
 			originalTask: enhancedTaskDescription,
 			conversationHistory: this.clineMessages,
 			toolCalls: this.getToolCallHistory(),
 			fileChanges: this.getFileChangeHistory(),
+			fileOperations, // 🔥 详细的文件操作记录
+			verifiedFileChanges, // 🔥 经过验证的文件变更
 			currentMode: await this.getTaskMode(),
 			isSubtask,
 			parentTaskDescription,
 			rootTaskDescription,
+			gswHistoricalMemories, // 🔥 注入GSW历史记忆
 		}
 
-		return await this.judgeService.judgeCompletion(taskContext, attemptResult)
+		// 🔑 传递流式回调给裁判服务
+		return await this.judgeService.judgeCompletion(taskContext, attemptResult, onProgress)
 	}
 
 	/**
@@ -3941,6 +4470,23 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// 构建裁判反馈消息
 		let feedback = `## 🧑‍⚖️ Judge Feedback\n\n`
 		feedback += `**Decision**: Task completion rejected\n\n`
+
+		// Add execution time and GSW info
+		if (judgeResult.executionTimeMs !== undefined) {
+			const timeStr =
+				judgeResult.executionTimeMs < 1000
+					? `${judgeResult.executionTimeMs}ms`
+					: `${(judgeResult.executionTimeMs / 1000).toFixed(2)}s`
+			feedback += `**执行时间**: ${timeStr}\n`
+		}
+		if (judgeResult.modelName) {
+			feedback += `**使用模型**: ${judgeResult.modelName}\n`
+		}
+		if (judgeResult.usedGswMemory !== undefined) {
+			feedback += `**GSW记忆**: ${judgeResult.usedGswMemory ? "已使用" : "未使用"}\n`
+		}
+		feedback += `\n`
+
 		feedback += `**Reasoning**: ${judgeResult.reasoning}\n\n`
 
 		// 如果有严重问题，优先显示
@@ -4119,26 +4665,288 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	/**
 	 * 获取文件修改历史
+	 * 优先使用 FileOperationTracker 的实时追踪数据
 	 */
 	private getFileChangeHistory(): string[] {
+		// 🔥 优先使用 FileOperationTracker 的追踪数据（更可靠）
+		const trackedFiles = this.fileOperationTracker.getModifiedFiles()
+		if (trackedFiles.length > 0) {
+			console.log(`[Task#getFileChangeHistory] Using FileOperationTracker: ${trackedFiles.length} files`)
+			return trackedFiles
+		}
+
+		// 回退到旧逻辑（兼容性，从消息中提取）
+		console.log("[Task#getFileChangeHistory] Falling back to message parsing")
+		return this.getFileChangeHistoryFromMessages()
+	}
+
+	/**
+	 * 从消息中提取文件修改历史（旧方法，作为回退）
+	 */
+	private getFileChangeHistoryFromMessages(): string[] {
 		const fileChanges: Set<string> = new Set()
 
 		for (const message of this.clineMessages) {
 			if (message.type === "say" && message.say && message.text) {
 				// 从工具调用中提取文件路径
-				// 使用类型断言来避免类型检查错误
 				const sayType = message.say as string
-				if ((sayType === "tool" || sayType === "completion_result") && message.text.includes("write_to_file")) {
-					// 尝试从文本中提取文件路径
-					const pathMatch = message.text.match(/(?:path|file):\s*([^\s,)]+)/)
-					if (pathMatch && pathMatch[1]) {
-						fileChanges.add(pathMatch[1])
+
+				// 🔥 扩展匹配范围：包括所有文件编辑工具
+				const fileEditTools = [
+					"write_to_file",
+					"apply_diff",
+					"multi_apply_diff",
+					"insert_content",
+					"search_and_replace",
+				]
+				const containsEditTool = fileEditTools.some((tool) => message.text!.includes(tool))
+
+				if ((sayType === "tool" || sayType === "completion_result") && containsEditTool) {
+					// 尝试从文本中提取文件路径（多种格式）
+					const pathPatterns = [
+						/(?:path|file):\s*["']?([^\s,)"']+)/i,
+						/(?:filePath|relPath):\s*["']?([^\s,)"']+)/i,
+						/"path"\s*:\s*"([^"]+)"/,
+					]
+
+					for (const pattern of pathPatterns) {
+						const pathMatch = message.text.match(pattern)
+						if (pathMatch && pathMatch[1]) {
+							fileChanges.add(pathMatch[1])
+							break
+						}
 					}
 				}
 			}
 		}
 
 		return Array.from(fileChanges)
+	}
+
+	/**
+	 * 记录文件操作（供工具调用）
+	 * 同时更新 FileOperationTracker 和 judgeEvidenceCache
+	 */
+	public recordFileOperation(op: FileOperation): void {
+		// 记录到 FileOperationTracker
+		this.fileOperationTracker.recordOperation(op)
+
+		// 同时更新 judgeEvidenceCache（保持兼容性）
+		if (op.success) {
+			this.updateJudgeEvidence("codeChange", {
+				timestamp: op.timestamp,
+				file: op.filePath,
+				summary: `${op.operationType} via ${op.toolUsed}`,
+				linesChanged: op.linesChanged || 0,
+				toolUsed: op.toolUsed,
+			})
+		}
+
+		console.log(
+			`[Task#recordFileOperation] Recorded: ${op.toolUsed} ${op.operationType} ${op.filePath} (success: ${op.success})`,
+		)
+	}
+
+	// Judge Evidence Pre-collection Methods
+
+	/**
+	 * 更新裁判证据缓存
+	 * @param type 证据类型
+	 * @param data 证据数据
+	 */
+	public updateJudgeEvidence(
+		type: "userRequirement" | "codeChange" | "toolCall" | "checkpoint",
+		data: UserRequirement | CodeChangeSummary | ToolCallRecord | TaskCheckpoint,
+	): void {
+		try {
+			switch (type) {
+				case "userRequirement":
+					this.judgeEvidenceCache.userRequirements.push(data as UserRequirement)
+					// 保持最近的记录数量限制
+					if (this.judgeEvidenceCache.userRequirements.length > JUDGE_EVIDENCE_CONFIG.MAX_USER_REQUIREMENTS) {
+						this.judgeEvidenceCache.userRequirements = this.judgeEvidenceCache.userRequirements.slice(
+							-JUDGE_EVIDENCE_CONFIG.MAX_USER_REQUIREMENTS,
+						)
+					}
+					break
+
+				case "codeChange":
+					this.judgeEvidenceCache.codeChanges.push(data as CodeChangeSummary)
+					if (this.judgeEvidenceCache.codeChanges.length > JUDGE_EVIDENCE_CONFIG.MAX_CODE_CHANGES) {
+						this.judgeEvidenceCache.codeChanges = this.judgeEvidenceCache.codeChanges.slice(
+							-JUDGE_EVIDENCE_CONFIG.MAX_CODE_CHANGES,
+						)
+					}
+					break
+
+				case "toolCall":
+					this.judgeEvidenceCache.toolCalls.push(data as ToolCallRecord)
+					if (this.judgeEvidenceCache.toolCalls.length > JUDGE_EVIDENCE_CONFIG.MAX_TOOL_CALLS) {
+						this.judgeEvidenceCache.toolCalls = this.judgeEvidenceCache.toolCalls.slice(
+							-JUDGE_EVIDENCE_CONFIG.MAX_TOOL_CALLS,
+						)
+					}
+					break
+
+				case "checkpoint":
+					this.judgeEvidenceCache.checkpoints.push(data as TaskCheckpoint)
+					if (this.judgeEvidenceCache.checkpoints.length > JUDGE_EVIDENCE_CONFIG.MAX_CHECKPOINTS) {
+						this.judgeEvidenceCache.checkpoints = this.judgeEvidenceCache.checkpoints.slice(
+							-JUDGE_EVIDENCE_CONFIG.MAX_CHECKPOINTS,
+						)
+					}
+					break
+			}
+
+			// 更新最后更新时间
+			this.judgeEvidenceCache.lastUpdated = Date.now()
+		} catch (error) {
+			console.error(`[Task#updateJudgeEvidence] Error updating ${type}:`, error)
+			// 非关键功能，错误不影响主流程
+		}
+	}
+
+	/**
+	 * 将预收集的证据格式化为裁判可读格式
+	 * @param evidence 证据缓存
+	 * @returns 格式化的证据字符串
+	 */
+	private formatEvidenceForJudge(evidence: JudgeEvidenceCache): string {
+		const parts: string[] = []
+
+		// 用户需求演进
+		if (evidence.userRequirements.length > 0) {
+			parts.push("## User Requirements Evolution\n")
+			const recentRequirements = evidence.userRequirements.slice(-10) // 最近10条
+			recentRequirements.forEach((req, idx) => {
+				const time = new Date(req.timestamp).toISOString()
+				parts.push(
+					`${idx + 1}. [${time}] (${req.priority}) [${req.source}]: ${req.requirement.substring(0, 200)}${req.requirement.length > 200 ? "..." : ""}\n`,
+				)
+			})
+			parts.push("\n")
+		}
+
+		// 代码变更摘要
+		if (evidence.codeChanges.length > 0) {
+			parts.push("## Code Changes Summary\n")
+			const recentChanges = evidence.codeChanges.slice(-15) // 最近15条
+			const fileGroups = new Map<string, CodeChangeSummary[]>()
+
+			// 按文件分组
+			recentChanges.forEach((change) => {
+				if (!fileGroups.has(change.file)) {
+					fileGroups.set(change.file, [])
+				}
+				fileGroups.get(change.file)!.push(change)
+			})
+
+			fileGroups.forEach((changes, file) => {
+				const totalLines = changes.reduce((sum, c) => sum + c.linesChanged, 0)
+				parts.push(`- **${file}**: ${changes.length} changes, ${totalLines} lines modified\n`)
+				changes.slice(-3).forEach((change) => {
+					// 只显示每个文件最近3次变更
+					parts.push(`  - [${change.toolUsed}] ${change.summary}\n`)
+				})
+			})
+			parts.push("\n")
+		}
+
+		// 工具调用统计
+		if (evidence.toolCalls.length > 0) {
+			parts.push("## Tool Usage Statistics\n")
+			const toolStats = new Map<string, { total: number; success: number; failed: number }>()
+
+			evidence.toolCalls.forEach((call) => {
+				if (!toolStats.has(call.tool)) {
+					toolStats.set(call.tool, { total: 0, success: 0, failed: 0 })
+				}
+				const stats = toolStats.get(call.tool)!
+				stats.total++
+				if (call.success) {
+					stats.success++
+				} else {
+					stats.failed++
+				}
+			})
+
+			toolStats.forEach((stats, tool) => {
+				const successRate = ((stats.success / stats.total) * 100).toFixed(1)
+				parts.push(`- **${tool}**: ${stats.total} calls (${successRate}% success)\n`)
+			})
+			parts.push("\n")
+		}
+
+		// 任务检查点
+		if (evidence.checkpoints.length > 0) {
+			parts.push("## Task Progress Checkpoints\n")
+			evidence.checkpoints.forEach((cp, idx) => {
+				const time = new Date(cp.timestamp).toISOString()
+				parts.push(`${idx + 1}. [${time}] **${cp.stage}**: ${cp.description}\n`)
+			})
+			parts.push("\n")
+		}
+
+		if (parts.length === 0) {
+			return ""
+		}
+
+		return (
+			"# Pre-collected Evidence\n\n" +
+			`Last updated: ${new Date(evidence.lastUpdated).toISOString()}\n\n` +
+			parts.join("")
+		)
+	}
+
+	/**
+	 * 检测用户需求的优先级
+	 * @param text 用户消息文本
+	 * @returns 优先级级别
+	 */
+	private detectPriority(text: string): "high" | "medium" | "low" {
+		const lowerText = text.toLowerCase()
+
+		// 高优先级关键词
+		const highPriorityKeywords = [
+			"must",
+			"critical",
+			"urgent",
+			"important",
+			"required",
+			"necessary",
+			"essential",
+			"禁止",
+			"必须",
+			"关键",
+			"紧急",
+			"重要",
+		]
+
+		// 低优先级关键词
+		const lowPriorityKeywords = [
+			"maybe",
+			"optional",
+			"nice to have",
+			"consider",
+			"could",
+			"might",
+			"可选",
+			"建议",
+			"可以考虑",
+		]
+
+		// 检查高优先级
+		if (highPriorityKeywords.some((keyword) => lowerText.includes(keyword))) {
+			return "high"
+		}
+
+		// 检查低优先级
+		if (lowPriorityKeywords.some((keyword) => lowerText.includes(keyword))) {
+			return "low"
+		}
+
+		// 默认中等优先级
+		return "medium"
 	}
 
 	// Getters

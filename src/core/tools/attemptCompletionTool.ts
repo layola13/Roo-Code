@@ -93,12 +93,32 @@ export async function attemptCompletionTool(
 			// Judge mode check: Invoke judge if enabled
 			const shouldInvokeJudge = await cline.shouldInvokeJudge()
 			if (shouldInvokeJudge) {
-				// Show "judging in progress" message before invoking judge
+				// Get judge configuration to display model info
+				const judgeConfig = await cline.getJudgeConfig()
+				const judgeModelName = judgeConfig.modelConfig?.apiModelId || "当前模型"
+
+				// Check if GSW is enabled
+				const hasGswMemory = !!(
+					cline.gswMemorySystem ||
+					(cline.judgeEvidenceCache &&
+						(cline.judgeEvidenceCache.userRequirements.length > 0 ||
+							cline.judgeEvidenceCache.codeChanges.length > 0 ||
+							cline.judgeEvidenceCache.toolCalls.length > 0))
+				)
+
+				// 🔑 流式消息：初始显示，后续通过回调更新
+				let streamingMessage = `🧑‍⚖️ **裁判正在分析任务完成情况...**\n\n`
+				streamingMessage += `**使用模型**: ${judgeModelName}\n`
+				streamingMessage += `**GSW记忆**: ${hasGswMemory ? "已启用" : "未启用"}\n\n`
+				streamingMessage += `---\n\n`
+				streamingMessage += `*正在准备分析...*`
+
+				// 显示初始消息（partial=true 表示会继续更新）
 				await cline.say(
 					"text",
-					"🧑‍⚖️ 裁判正在分析任务完成情况，请稍后...",
+					streamingMessage,
 					undefined,
-					false,
+					true, // partial - 消息未完成，会继续更新
 					undefined,
 					undefined,
 					{
@@ -106,7 +126,48 @@ export async function attemptCompletionTool(
 					},
 				)
 
-				const judgeResult = await cline.invokeJudge(result)
+				// 🔑 使用流式回调实时更新 UI
+				let lastApprovedStatus: boolean | undefined
+				const judgeResult = await cline.invokeJudge(result, async (update) => {
+					if (update.type === "parsing" && update.stage) {
+						// 阶段更新
+						streamingMessage = `🧑‍⚖️ **裁判正在分析任务完成情况...**\n\n`
+						streamingMessage += `**使用模型**: ${judgeModelName}\n`
+						streamingMessage += `**GSW记忆**: ${hasGswMemory ? "已启用" : "未启用"}\n\n`
+						streamingMessage += `---\n\n`
+						streamingMessage += `*${update.stage}*`
+						await cline.say("text", streamingMessage, undefined, true).catch(() => {})
+					} else if (update.type === "approved_detected") {
+						// 🔑 关键：检测到批准/拒绝状态，立即更新 UI
+						lastApprovedStatus = update.approved
+						const statusEmoji = update.approved ? "✅" : "❌"
+						const statusText = update.approved ? "初步判断：批准" : "初步判断：拒绝"
+						streamingMessage = `🧑‍⚖️ **裁判正在分析任务完成情况...**\n\n`
+						streamingMessage += `**使用模型**: ${judgeModelName}\n`
+						streamingMessage += `**GSW记忆**: ${hasGswMemory ? "已启用" : "未启用"}\n\n`
+						streamingMessage += `---\n\n`
+						streamingMessage += `**${statusEmoji} ${statusText}**\n\n`
+						streamingMessage += `*正在生成详细理由...*`
+						await cline.say("text", streamingMessage, undefined, true).catch(() => {})
+					} else if (update.type === "chunk" && update.chunk) {
+						// 可选：显示部分响应内容（如果需要更详细的进度）
+						// 这里我们选择不显示每个 chunk，因为会太频繁
+						// 但保留这个分支以便将来扩展
+					} else if (update.type === "complete") {
+						// 分析完成
+						streamingMessage = `🧑‍⚖️ **裁判分析完成**\n\n`
+						streamingMessage += `**使用模型**: ${judgeModelName}\n`
+						streamingMessage += `**GSW记忆**: ${hasGswMemory ? "已启用" : "未启用"}\n\n`
+						streamingMessage += `---\n\n`
+						if (lastApprovedStatus !== undefined) {
+							const statusEmoji = lastApprovedStatus ? "✅" : "❌"
+							const statusText = lastApprovedStatus ? "批准" : "拒绝"
+							streamingMessage += `**${statusEmoji} 最终判断：${statusText}**\n\n`
+						}
+						streamingMessage += `*正在处理结果...*`
+						await cline.say("text", streamingMessage, undefined, true).catch(() => {})
+					}
+				})
 
 				// 🔴 关键修复：严格验证 approved 必须为 true
 				// 只有 approved === true 才算批准，其他任何值（false、undefined、null、字符串等）都视为拒绝
@@ -194,6 +255,23 @@ export async function attemptCompletionTool(
 
 					let approvalMessage = `## ✅ Judge Approval\n\n`
 					approvalMessage += `**Decision**: Task completion approved\n\n`
+
+					// Add execution time and GSW info
+					if (judgeResult.executionTimeMs !== undefined) {
+						const timeStr =
+							judgeResult.executionTimeMs < 1000
+								? `${judgeResult.executionTimeMs}ms`
+								: `${(judgeResult.executionTimeMs / 1000).toFixed(2)}s`
+						approvalMessage += `**执行时间**: ${timeStr}\n`
+					}
+					if (judgeResult.modelName) {
+						approvalMessage += `**使用模型**: ${judgeResult.modelName}\n`
+					}
+					if (judgeResult.usedGswMemory !== undefined) {
+						approvalMessage += `**GSW记忆**: ${judgeResult.usedGswMemory ? "已使用" : "未使用"}\n`
+					}
+					approvalMessage += `\n`
+
 					approvalMessage += `**Reasoning**: ${judgeResult.reasoning}\n\n`
 
 					if (judgeResult.overallScore !== undefined) {

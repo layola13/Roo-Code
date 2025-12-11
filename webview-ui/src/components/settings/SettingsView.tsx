@@ -25,6 +25,7 @@ import {
 	LucideIcon,
 	SquareSlash,
 	Glasses,
+	Brain,
 } from "lucide-react"
 
 import type { ProviderSettings, ExperimentId, TelemetrySetting } from "@roo-code/types"
@@ -69,6 +70,7 @@ import PromptsSettings from "./PromptsSettings"
 import { SlashCommandsSettings } from "./SlashCommandsSettings"
 import { UISettings } from "./UISettings"
 import { SplitFileSettings } from "./SplitFileSettings"
+import { GswMemorySettings } from "./GswMemorySettings"
 
 export const settingsTabsContainer = "flex flex-1 overflow-hidden [&.narrow_.tab-label]:hidden"
 export const settingsTabList =
@@ -89,6 +91,7 @@ const sectionNames = [
 	"checkpoints",
 	"notifications",
 	"contextManagement",
+	"gswMemory",
 	"terminal",
 	"prompts",
 	"ui",
@@ -216,6 +219,10 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		commandApprovalFreeMode,
 		splitFileLinesPerChunk,
 		splitFileOverlapLines,
+		gswMemoryEnabled,
+		gswMaxFileSizeKB,
+		gswArchiveAfterDays,
+		gswEnableAutoRotation,
 		// enableSmartFileRead, // Temporarily disabled
 	} = cachedState
 
@@ -433,6 +440,10 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			vscode.postMessage({ type: "commandApprovalFreeMode", bool: commandApprovalFreeMode ?? true })
 			vscode.postMessage({ type: "splitFileLinesPerChunk", value: splitFileLinesPerChunk ?? 100 })
 			vscode.postMessage({ type: "splitFileOverlapLines", value: splitFileOverlapLines ?? 0 })
+			vscode.postMessage({ type: "gswMemoryEnabled", bool: gswMemoryEnabled ?? true })
+			vscode.postMessage({ type: "gswMaxFileSizeKB", value: gswMaxFileSizeKB ?? 50 })
+			vscode.postMessage({ type: "gswArchiveAfterDays", value: gswArchiveAfterDays ?? 30 })
+			vscode.postMessage({ type: "gswEnableAutoRotation", bool: gswEnableAutoRotation ?? true })
 			// vscode.postMessage({ type: "enableSmartFileRead", bool: enableSmartFileRead ?? true }) // Temporarily disabled
 			setChangeDetected(false)
 		}
@@ -518,6 +529,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			{ id: "checkpoints", icon: GitBranch },
 			{ id: "notifications", icon: Bell },
 			{ id: "contextManagement", icon: Database },
+			{ id: "gswMemory", icon: Brain },
 			{ id: "terminal", icon: SquareTerminal },
 			{ id: "prompts", icon: MessageSquare },
 			{ id: "ui", icon: Glasses },
@@ -802,6 +814,19 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 							qdrantUrl={qdrantUrl}
 							qdrantCollectionName={qdrantCollectionName}
 							// enableSmartFileRead={enableSmartFileRead} // Temporarily disabled
+							setCachedStateField={setCachedStateField}
+						/>
+					)}
+
+					{/* GSW Memory Section */}
+					{activeTab === "gswMemory" && (
+						<GswMemorySettings
+							gswMemoryEnabled={gswMemoryEnabled}
+							gswMaxFileSizeKB={gswMaxFileSizeKB}
+							gswArchiveAfterDays={gswArchiveAfterDays}
+							gswEnableAutoRotation={gswEnableAutoRotation}
+							apiConfiguration={apiConfiguration}
+							setApiConfigurationField={setApiConfigurationField as any}
 							setCachedStateField={setCachedStateField}
 						/>
 					)}

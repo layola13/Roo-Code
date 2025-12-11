@@ -455,6 +455,47 @@ export async function executeCommand(
 				}
 
 				exitStatus += `Exit code: ${exitDetails.exitCode}`
+
+				// 🔥 GSW自动学习：命令执行成功时记录为"成功模式"
+				if (exitDetails.exitCode === 0 && command) {
+					try {
+						const gswMemoryCapture = (task as any).gswMemoryCapture
+						if (gswMemoryCapture && typeof gswMemoryCapture.captureWorkflowKnowledge === "function") {
+							const sessionId = gswMemoryCapture.getCurrentSessionId?.() || "unknown"
+
+							// 提取命令名（去掉路径）
+							const commandParts = command.trim().split(/\s+/)
+							const cmdPath = commandParts[0] || ""
+							const cmdName = cmdPath.split("/").pop() || cmdPath
+
+							// 提取参数
+							const params = commandParts.slice(1)
+
+							// 非阻塞异步调用
+							Promise.resolve().then(async () => {
+								try {
+									await gswMemoryCapture.captureWorkflowKnowledge(
+										cmdName,
+										"parameter_pattern",
+										{
+											command: command,
+											correctParams: params,
+											description: `Successful command execution pattern`,
+											example: command,
+											context: `Executed in ${terminal.getCurrentWorkingDirectory().toPosix()}`,
+										},
+										sessionId,
+									)
+									console.log(`[GSW] 📚 Captured successful command pattern: ${cmdName}`)
+								} catch (error) {
+									console.warn("[GSW] Failed to capture command pattern:", error)
+								}
+							})
+						}
+					} catch (error) {
+						// 非关键功能，静默失败
+					}
+				}
 			}
 		} else {
 			result += "<VSCE exitDetails == undefined: terminal output and command execution status is unknown.>"

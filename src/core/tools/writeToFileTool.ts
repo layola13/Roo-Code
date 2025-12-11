@@ -306,6 +306,66 @@ export async function writeToFileTool(
 
 			pushToolResult(message)
 
+			// 🔥 裁判证据预收集：记录代码变更（在工具成功执行后）
+			try {
+				const actualLinesChanged = newContent ? newContent.split("\n").length : 0
+				cline.updateJudgeEvidence("codeChange", {
+					timestamp: Date.now(),
+					file: relPath,
+					summary: fileExists ? "Modified existing file" : "Created new file",
+					linesChanged: actualLinesChanged,
+					toolUsed: "write_to_file",
+				})
+			} catch (error) {
+				console.warn("[Judge Evidence] Failed to record code change:", error)
+			}
+
+			// 🔥 GSW代码演进记忆捕获：write_to_file成功后
+			if (cline.gswMemoryCapture) {
+				const sessionId = cline.gswMemoryCapture.getCurrentSessionId()
+				if (sessionId) {
+					// 🔥 非阻塞异步调用
+					Promise.resolve().then(async () => {
+						try {
+							// 生成diff（如果是修改现有文件）
+							let diff = ""
+							if (fileExists && cline.diffViewProvider.originalContent) {
+								diff = formatResponse.createPrettyPatch(
+									relPath,
+									cline.diffViewProvider.originalContent,
+									newContent,
+								)
+							} else {
+								// 新文件，将全部内容作为diff
+								diff = `+++ ${relPath}\n${newContent
+									.split("\n")
+									.map((line) => `+ ${line}`)
+									.join("\n")}`
+							}
+
+							// 捕获代码演进（无git commit时传null）
+							await cline.gswMemoryCapture!.captureCodeEvolution(
+								relPath,
+								diff,
+								null, // git commit在此处暂不可用
+								sessionId,
+							)
+
+							// 🔥 捕获文件修改证据（用于裁判验证）
+							await cline.gswMemoryCapture!.captureToolExecution(
+								"write_to_file",
+								{ path: relPath, isNewFile: !fileExists },
+								{ success: true, filesModified: [relPath] },
+								sessionId,
+							)
+						} catch (error) {
+							console.warn("[GSW] Failed to capture code evolution:", error)
+							// 非关键功能，失败不影响主流程
+						}
+					})
+				}
+			}
+
 			await cline.diffViewProvider.reset()
 
 			// Process any queued messages after file edit completes

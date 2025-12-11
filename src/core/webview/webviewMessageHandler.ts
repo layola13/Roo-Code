@@ -581,6 +581,10 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("alwaysAllowParseAst", message.bool)
 			await provider.postStateToWebview()
 			break
+		case "alwaysAllowSplitFile":
+			await updateGlobalState("alwaysAllowSplitFile", message.bool)
+			await provider.postStateToWebview()
+			break
 		case "splitFileLinesPerChunk":
 			await updateGlobalState("splitFileLinesPerChunk", message.value ?? 100)
 			await provider.postStateToWebview()
@@ -3206,6 +3210,82 @@ export const webviewMessageHandler = async (
 				type: "dismissedUpsells",
 				list: dismissedUpsells,
 			})
+			break
+		}
+		case "gswMemoryEnabled":
+			await updateGlobalState("gswMemoryEnabled", message.bool)
+			await provider.postStateToWebview()
+			break
+		case "gswMaxFileSizeKB":
+			await updateGlobalState("gswMaxFileSizeKB", message.value)
+			await provider.postStateToWebview()
+			break
+		case "gswArchiveAfterDays":
+			await updateGlobalState("gswArchiveAfterDays", message.value)
+			await provider.postStateToWebview()
+			break
+		case "gswEnableAutoRotation":
+			await updateGlobalState("gswEnableAutoRotation", message.bool)
+			await provider.postStateToWebview()
+			break
+		case "gswModelConfigId":
+			await updateGlobalState("gswModelConfigId", message.text)
+			await provider.postStateToWebview()
+			break
+		// Judge settings - these are part of ProviderSettings (per-API-config)
+		case "judgeEnabled": {
+			const { apiConfiguration, currentApiConfigName } = await provider.getState()
+			if (currentApiConfigName && apiConfiguration) {
+				const updatedConfig = { ...apiConfiguration, judgeEnabled: message.bool }
+				await provider.providerSettingsManager.saveConfig(currentApiConfigName, updatedConfig)
+				// 🔑 同步到 contextProxy 确保设置正确回显到 UI
+				await provider.contextProxy.setProviderSettings(updatedConfig)
+				await provider.postStateToWebview()
+			}
+			break
+		}
+		case "judgeMode": {
+			const { apiConfiguration, currentApiConfigName } = await provider.getState()
+			if (currentApiConfigName && apiConfiguration) {
+				const updatedConfig = { ...apiConfiguration, judgeMode: message.text as "always" | "ask" | "never" }
+				await provider.providerSettingsManager.saveConfig(currentApiConfigName, updatedConfig)
+				// 🔑 同步到 contextProxy 确保设置正确回显到 UI
+				await provider.contextProxy.setProviderSettings(updatedConfig)
+				await provider.postStateToWebview()
+			}
+			break
+		}
+		case "judgeDetailLevel": {
+			const { apiConfiguration, currentApiConfigName } = await provider.getState()
+			if (currentApiConfigName && apiConfiguration) {
+				const updatedConfig = { ...apiConfiguration, judgeDetailLevel: message.text as "concise" | "detailed" }
+				await provider.providerSettingsManager.saveConfig(currentApiConfigName, updatedConfig)
+				// 🔑 同步到 contextProxy 确保设置正确回显到 UI
+				await provider.contextProxy.setProviderSettings(updatedConfig)
+				await provider.postStateToWebview()
+			}
+			break
+		}
+		case "judgeAllowUserOverride": {
+			const { apiConfiguration, currentApiConfigName } = await provider.getState()
+			if (currentApiConfigName && apiConfiguration) {
+				const updatedConfig = { ...apiConfiguration, judgeAllowUserOverride: message.bool }
+				await provider.providerSettingsManager.saveConfig(currentApiConfigName, updatedConfig)
+				// 🔑 同步到 contextProxy 确保设置正确回显到 UI
+				await provider.contextProxy.setProviderSettings(updatedConfig)
+				await provider.postStateToWebview()
+			}
+			break
+		}
+		case "judgeModelConfigId": {
+			const { apiConfiguration, currentApiConfigName } = await provider.getState()
+			if (currentApiConfigName && apiConfiguration) {
+				const updatedConfig = { ...apiConfiguration, judgeModelConfigId: message.text }
+				await provider.providerSettingsManager.saveConfig(currentApiConfigName, updatedConfig)
+				// 🔑 同步到 contextProxy 确保设置正确回显到 UI
+				await provider.contextProxy.setProviderSettings(updatedConfig)
+				await provider.postStateToWebview()
+			}
 			break
 		}
 	}

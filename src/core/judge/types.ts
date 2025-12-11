@@ -57,8 +57,12 @@ export interface TaskContext {
 	conversationHistory: ClineMessage[]
 	/** 工具调用记录 */
 	toolCalls: string[]
-	/** 文件修改记录 */
+	/** 文件修改记录（从消息中提取，可能不完整） */
 	fileChanges: string[]
+	/** 详细的文件操作记录（来自FileOperationTracker） */
+	fileOperations?: import("./FileOperationTracker").FileOperation[]
+	/** 经过验证的文件变更列表（已确认实际修改） */
+	verifiedFileChanges?: string[]
 	/** 当前模式 */
 	currentMode: string
 	/** 是否为子任务 */
@@ -67,6 +71,8 @@ export interface TaskContext {
 	parentTaskDescription?: string
 	/** 根任务描述（如果是子任务） */
 	rootTaskDescription?: string
+	/** GSW历史记忆（用于理解用户需求变更和微调方向） */
+	gswHistoricalMemories?: string
 }
 
 /**
@@ -93,6 +99,12 @@ export interface JudgeResult {
 	criticalIssues?: string[]
 	/** 是否存在严重问题（由criticalIssues自动计算） */
 	hasCriticalIssues: boolean
+	/** 执行时间（毫秒） */
+	executionTimeMs?: number
+	/** 使用的模型名称 */
+	modelName?: string
+	/** 是否使用了GSW记忆 */
+	usedGswMemory?: boolean
 }
 
 /**
@@ -109,3 +121,33 @@ export interface JudgeResponseJson {
 	suggestions?: string[]
 	criticalIssues?: string[]
 }
+
+/**
+ * 裁判进度更新类型
+ * - chunk: 收到新的文本块
+ * - approved_detected: 检测到批准/拒绝状态
+ * - parsing: 正在解析响应
+ * - complete: 完成
+ */
+export type JudgeProgressType = "chunk" | "approved_detected" | "parsing" | "complete"
+
+/**
+ * 裁判进度更新
+ */
+export interface JudgeProgressUpdate {
+	/** 更新类型 */
+	type: JudgeProgressType
+	/** 新增的文本块 */
+	chunk?: string
+	/** 检测到的批准状态 */
+	approved?: boolean
+	/** 当前累积的完整文本 */
+	fullText?: string
+	/** 阶段描述（可选） */
+	stage?: string
+}
+
+/**
+ * 流式进度回调
+ */
+export type JudgeProgressCallback = (update: JudgeProgressUpdate) => void | Promise<void>

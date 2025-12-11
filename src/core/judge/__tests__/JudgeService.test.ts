@@ -756,5 +756,53 @@ Reasoning: \`\`\`json
 			expect(result.reasoning).not.toContain("矛盾")
 			expect(result.missingItems).toHaveLength(2)
 		})
+
+		it("should handle malformed JSON with literal newlines in string values (user-reported bug)", async () => {
+			// This is the EXACT bug scenario reported by the user:
+			// - JSON contains literal newlines (not escaped \n) in the reasoning field
+			// - This causes JSON.parse() to fail with "Bad control character in string literal"
+			// - The old code would fall back to Markdown parsing, see "Decision: Task completion approved"
+			// - And incorrectly return approved: true even though JSON says approved: false
+
+			// Note: We use template literal to include actual newlines in the string
+			const malformedJsonResponse = `# ✅ Judge Approval
+Decision: Task completion approved
+
+执行时间: 29.99s
+使用模型: Current Model
+GSW记忆: 已使用
+
+Reasoning: 我需要检查项目的实际状态...
+
+{
+  "approved": false,
+  "reasoning": "虽然模型声称完成了71.7%的重构工作...
+1. **任务未100%完成**：验收标准明确要求...
+2. **文件修改验证缺失**：执行历史显示...",
+  "completeness_score": 7,
+  "correctness_score": 6,
+  "overall_score": 6,
+  "missingItems": ["剩余340个编译错误未修复", "cargo build验证未执行"],
+  "suggestions": ["立即修复剩余错误", "优先修复E0308类型错误"],
+  "criticalIssues": ["验收标准要求100%完成，但当前仅71.7%完成"]
+}`
+
+			const mockHandler = {
+				createMessage: vi.fn(async function* () {
+					yield { type: "text", text: malformedJsonResponse }
+				}),
+			}
+
+			judgeService.setApiHandler(mockHandler as any)
+			const result = await judgeService.judgeCompletion(mockTaskContext, "Task completed")
+
+			// The fix should correctly identify approved: false from the JSON
+			// even though JSON.parse fails due to literal newlines
+			expect(result.approved).toBe(false)
+			// Should extract the overall score
+			expect(result.overallScore).toBe(6)
+			// Should extract critical issues
+			expect((result.criticalIssues || []).length).toBeGreaterThan(0)
+		})
 	})
 })

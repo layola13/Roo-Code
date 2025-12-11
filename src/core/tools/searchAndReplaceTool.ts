@@ -260,6 +260,43 @@ export async function searchAndReplaceTool(
 
 		pushToolResult(message)
 
+		// 🔥 GSW代码演进记忆捕获：search_and_replace成功后
+		if (cline.gswMemoryCapture) {
+			try {
+				const sessionId = cline.gswMemoryCapture.getCurrentSessionId()
+				if (sessionId) {
+					// 使用已生成的diff
+					await cline.gswMemoryCapture.captureCodeEvolution(
+						validRelPath,
+						diff,
+						null, // git commit在此处暂不可用
+						sessionId,
+					)
+
+					// 🔥 捕获文件修改证据（用于裁判验证）
+					await cline.gswMemoryCapture.captureToolExecution(
+						"search_and_replace",
+						{ path: validRelPath, search: validSearch, useRegex, ignoreCase },
+						{ success: true, filesModified: [validRelPath] },
+						sessionId,
+					)
+				}
+			} catch (error) {
+				console.warn("Failed to capture code evolution in GSW:", error)
+				// 非关键功能，失败不影响主流程
+			}
+		}
+
+		// 🔥 记录文件操作（用于Judge验证）
+		cline.recordFileOperation({
+			timestamp: Date.now(),
+			filePath: validRelPath,
+			toolUsed: "search_and_replace",
+			operationType: "modify",
+			success: true,
+			linesChanged: newContent.split("\n").length,
+		})
+
 		// Record successful tool usage and cleanup
 		cline.recordToolUsage("search_and_replace")
 		await cline.diffViewProvider.reset()

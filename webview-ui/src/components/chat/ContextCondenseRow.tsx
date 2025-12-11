@@ -15,6 +15,12 @@ export const ContextCondenseRow = ({
 	subAgentTokenUsage,
 	apiConfigName,
 	durationMs,
+	// GSW system usage information
+	gswUsed,
+	gswVectorSearchEnabled: _gswVectorSearchEnabled,
+	gswMemoriesRetrieved,
+	gswMemoryTypes,
+	gswSearchMode,
 }: ContextCondense) => {
 	const { t } = useTranslation()
 	const [isExpanded, setIsExpanded] = useState(false)
@@ -126,6 +132,67 @@ export const ContextCondenseRow = ({
 							)}
 						</div>
 					</div>
+
+					{/* GSW Memory System status */}
+					{gswUsed !== undefined && (
+						<div className="mb-4 pb-3 border-b border-vscode-panel-border">
+							<h4 className="font-bold mb-2 text-vscode-foreground flex items-center gap-2">
+								<span className="codicon codicon-database" />
+								{t("chat:contextCondense.gsw.title")}
+							</h4>
+							<div className="grid grid-cols-2 gap-2 text-xs">
+								<div className="flex items-center gap-2">
+									<span
+										className={`codicon codicon-${gswUsed ? "check" : "circle-slash"} ${gswUsed ? "text-vscode-charts-green" : "text-vscode-descriptionForeground"}`}
+									/>
+									<span>
+										{gswUsed
+											? t("chat:contextCondense.gsw.enabled")
+											: t("chat:contextCondense.gsw.disabled")}
+									</span>
+								</div>
+								{gswUsed && gswSearchMode && (
+									<div>
+										<span className="text-vscode-descriptionForeground">
+											{t("chat:contextCondense.gsw.searchMode")}:
+										</span>
+										<span className="ml-2 font-mono">
+											{gswSearchMode === "vector"
+												? t("chat:contextCondense.gsw.vector")
+												: gswSearchMode === "yaml"
+													? t("chat:contextCondense.gsw.yaml")
+													: t("chat:contextCondense.gsw.hybrid")}
+										</span>
+									</div>
+								)}
+								{gswUsed && gswMemoriesRetrieved !== undefined && gswMemoriesRetrieved > 0 && (
+									<div>
+										<span className="text-vscode-descriptionForeground">
+											{t("chat:contextCondense.gsw.memoriesRetrieved", {
+												count: gswMemoriesRetrieved,
+											})}
+										</span>
+									</div>
+								)}
+								{gswUsed && gswMemoryTypes && gswMemoryTypes.length > 0 && (
+									<div className="col-span-2">
+										<span className="text-vscode-descriptionForeground">
+											{t("chat:contextCondense.gsw.memoryTypes")}:
+										</span>
+										<span className="ml-2">
+											{gswMemoryTypes.map((type) => (
+												<span
+													key={type}
+													className="inline-flex items-center px-1.5 py-0.5 rounded bg-vscode-badge-background text-vscode-badge-foreground text-xs mr-1">
+													{type}
+												</span>
+											))}
+										</span>
+									</div>
+								)}
+							</div>
+						</div>
+					)}
 
 					{/* Sub-agent details */}
 					{hasSubAgents && (

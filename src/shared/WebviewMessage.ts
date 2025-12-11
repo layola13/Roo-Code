@@ -255,6 +255,11 @@ export interface WebviewMessage {
 		| "alwaysAllowSplitFile"
 		| "splitFileLinesPerChunk"
 		| "splitFileOverlapLines"
+		| "gswMemoryEnabled"
+		| "gswMaxFileSizeKB"
+		| "gswArchiveAfterDays"
+		| "gswEnableAutoRotation"
+		| "gswModelConfigId"
 	text?: string
 	editedMessageContent?: string
 	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "cloud"

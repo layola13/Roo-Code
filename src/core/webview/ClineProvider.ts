@@ -1858,6 +1858,9 @@ export class ClineProvider
 			alwaysAllowSubtasks,
 			alwaysAllowUpdateTodoList,
 			alwaysAllowParseAst,
+			alwaysAllowSplitFile,
+			splitFileLinesPerChunk,
+			splitFileOverlapLines,
 			allowedMaxRequests,
 			allowedMaxCost,
 			autoCondenseContext,
@@ -1947,6 +1950,12 @@ export class ClineProvider
 			redisUrl,
 			qdrantUrl,
 			qdrantCollectionName,
+			// GSW Memory System settings
+			gswMemoryEnabled,
+			gswMaxFileSizeKB,
+			gswArchiveAfterDays,
+			gswEnableAutoRotation,
+			gswModelConfigId,
 		} = await this.getState()
 
 		let cloudOrganizations: CloudOrganizationMembership[] = []
@@ -1985,6 +1994,9 @@ export class ClineProvider
 			alwaysAllowSubtasks: alwaysAllowSubtasks ?? false,
 			alwaysAllowUpdateTodoList: alwaysAllowUpdateTodoList ?? false,
 			alwaysAllowParseAst: alwaysAllowParseAst ?? false,
+			alwaysAllowSplitFile: alwaysAllowSplitFile ?? false,
+			splitFileLinesPerChunk: splitFileLinesPerChunk ?? 100,
+			splitFileOverlapLines: splitFileOverlapLines ?? 0,
 			allowedMaxRequests,
 			allowedMaxCost,
 			autoCondenseContext: autoCondenseContext ?? true,
@@ -2114,6 +2126,12 @@ export class ClineProvider
 			redisUrl: redisUrl || "redis://localhost:6379",
 			qdrantUrl: qdrantUrl || "http://localhost:6333",
 			qdrantCollectionName: qdrantCollectionName || "roo_memory",
+			// GSW Memory System settings
+			gswMemoryEnabled: gswMemoryEnabled ?? true,
+			gswMaxFileSizeKB: gswMaxFileSizeKB ?? 50,
+			gswArchiveAfterDays: gswArchiveAfterDays ?? 30,
+			gswEnableAutoRotation: gswEnableAutoRotation ?? true,
+			gswModelConfigId,
 		}
 	}
 
@@ -2230,6 +2248,9 @@ export class ClineProvider
 			alwaysAllowFollowupQuestions: stateValues.alwaysAllowFollowupQuestions ?? false,
 			alwaysAllowUpdateTodoList: stateValues.alwaysAllowUpdateTodoList ?? false,
 			alwaysAllowParseAst: stateValues.alwaysAllowParseAst ?? false,
+			alwaysAllowSplitFile: stateValues.alwaysAllowSplitFile ?? false,
+			splitFileLinesPerChunk: stateValues.splitFileLinesPerChunk ?? 100,
+			splitFileOverlapLines: stateValues.splitFileOverlapLines ?? 0,
 			followupAutoApproveTimeoutMs: stateValues.followupAutoApproveTimeoutMs ?? 60000,
 			diagnosticsEnabled: stateValues.diagnosticsEnabled ?? true,
 			allowedMaxRequests: stateValues.allowedMaxRequests,
@@ -2361,6 +2382,12 @@ export class ClineProvider
 			redisUrl: stateValues.redisUrl || "redis://localhost:6379",
 			qdrantUrl: stateValues.qdrantUrl || "http://localhost:6333",
 			qdrantCollectionName: stateValues.qdrantCollectionName || "roo_memory",
+			// GSW Memory System settings
+			gswMemoryEnabled: stateValues.gswMemoryEnabled ?? true,
+			gswMaxFileSizeKB: stateValues.gswMaxFileSizeKB ?? 50,
+			gswArchiveAfterDays: stateValues.gswArchiveAfterDays ?? 30,
+			gswEnableAutoRotation: stateValues.gswEnableAutoRotation ?? true,
+			gswModelConfigId: stateValues.gswModelConfigId,
 		}
 	}
 

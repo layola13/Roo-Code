@@ -768,6 +768,66 @@
 			"description": "When enabled, Roo can create and manage todo lists to track task progress. This helps organize complex tasks into manageable steps."
 		}
 	},
+	"gsw": {
+		"title": "GSW Memory System",
+		"description": "Configure the Generative Semantic Workspace (GSW) three-level memory system that provides human-like episodic memory capabilities to solve context amnesia issues.",
+		"enabled": {
+			"label": "Enable GSW Memory System",
+			"description": "When enabled, Roo will automatically capture interactions, reasoning, and code evolution to provide better context awareness."
+		},
+		"useLLMReflection": {
+			"label": "Use LLM for semantic extraction",
+			"description": "Use LLM to generate deep semantic reflections for code changes. Provides best context understanding (~$0.0004 per change). When disabled, uses rule-based extraction."
+		},
+		"reflectionModel": {
+			"label": "Reflection Model",
+			"description": "Select the LLM model for semantic reflection. Lightweight models are recommended for cost efficiency.",
+			"models": {
+				"haiku": "Claude 3 Haiku (Recommended)",
+				"gpt4omini": "GPT-4o Mini",
+				"deepseek": "DeepSeek Chat (Cheapest)",
+				"geminiFlash": "Gemini 1.5 Flash",
+				"gpt35": "GPT-3.5 Turbo"
+			}
+		},
+		"reflectionApiKey": {
+			"label": "GSW API Key",
+			"description": "Optional dedicated API key for GSW operations. Leave empty to use the main API key.",
+			"placeholder": "Leave empty to use main API key"
+		},
+		"reflectionApiBase": {
+			"label": "GSW API Base URL",
+			"description": "Optional custom API base URL for GSW operations.",
+			"placeholder": "https://api.openai.com/v1"
+		},
+		"fallbackToRules": {
+			"label": "Fallback to rule-based extraction",
+			"description": "Automatically fallback to rule-based extraction when LLM calls fail or timeout."
+		},
+		"timeout": {
+			"label": "Timeout (milliseconds)",
+			"description": "Maximum time to wait for LLM reflection before falling back to rules. Recommended: 5000ms (5 seconds)."
+		},
+		"archiveAfterDays": {
+			"label": "Archive after (days)",
+			"description": "Automatically archive memory files older than this many days."
+		},
+		"maxFileSizeKB": {
+			"label": "Max file size (KB)",
+			"description": "Maximum size for memory files before splitting into chunks."
+		},
+		"costEstimator": {
+			"title": "Cost Estimation",
+			"description": "Based on your configuration and average usage:",
+			"perChange": "Per code change: ~$0.0004",
+			"perDay": "Per day (10 changes): ~$0.004/day",
+			"perMonth": "Per month: ~$0.12",
+			"acceptable": "✅ Extremely low cost, fully acceptable"
+		},
+		"advancedSettings": "Advanced Settings",
+		"saveButton": "Save Configuration",
+		"resetButton": "Reset to Default"
+	},
 	"experimental": {
 		"DIFF_STRATEGY_UNIFIED": {
 			"name": "Use experimental unified diff strategy",

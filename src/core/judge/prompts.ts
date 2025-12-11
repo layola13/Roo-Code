@@ -14,10 +14,13 @@ export function buildJudgePrompt(
 		conversationHistory,
 		toolCalls,
 		fileChanges,
+		fileOperations,
+		verifiedFileChanges,
 		currentMode,
 		isSubtask,
 		parentTaskDescription,
 		rootTaskDescription,
+		gswHistoricalMemories,
 	} = taskContext
 
 	// 提取对话历史的摘要
@@ -26,8 +29,8 @@ export function buildJudgePrompt(
 	// 提取工具调用摘要
 	const toolCallsSummary = summarizeToolCalls(toolCalls)
 
-	// 提取文件修改摘要
-	const fileChangesSummary = summarizeFileChanges(fileChanges)
+	// 提取文件修改摘要（增强版）
+	const fileChangesSummary = summarizeFileChangesEnhanced(fileChanges, fileOperations, verifiedFileChanges)
 
 	// 提取最近的用户反馈和需求变更
 	const recentUserFeedback = extractRecentUserFeedback(conversationHistory)
@@ -36,6 +39,23 @@ export function buildJudgePrompt(
 		detailLevel === "detailed"
 			? `请提供详细的判断理由，逐项检查并提供改进建议。`
 			: `请提供简洁的判断理由，只指出主要问题。`
+
+	// 🔥 GSW历史记忆部分 - 提供用户需求变更和微调方向的完整历史
+	const gswMemorySection = gswHistoricalMemories
+		? `
+## 📝 历史记忆上下文（GSW Memory System）
+
+**重要提示**：以下是从历史记忆系统中检索到的相关信息，包含用户之前的需求、微调方向和工作历史。这些信息对于理解用户的真实意图至关重要。
+
+${gswHistoricalMemories}
+
+**评判指导**：
+- ✅ 优先考虑历史记忆中体现的用户需求变更和微调方向
+- ✅ 如果当前任务与历史记忆中的需求一致，应该给予认可
+- ✅ 注意用户可能在历史对话中已经明确表达的偏好和约束
+- ⚠️ 不要机械地要求完成历史记忆中提到但用户已经放弃的功能
+`
+		: ""
 
 	// 用户需求变更部分
 	const userFeedbackSection = recentUserFeedback
@@ -72,6 +92,7 @@ ${subtaskSection}
 ## 初始任务描述
 
 ${originalTask}
+${gswMemorySection}
 ${userFeedbackSection}
 
 ## 当前模式
@@ -213,7 +234,7 @@ function summarizeToolCalls(toolCalls: string[]): string {
 }
 
 /**
- * 总结文件修改
+ * 总结文件修改（旧版，保留兼容性）
  */
 function summarizeFileChanges(fileChanges: string[]): string {
 	if (fileChanges.length === 0) {
@@ -222,6 +243,81 @@ function summarizeFileChanges(fileChanges: string[]): string {
 
 	const lines = fileChanges.map((file) => `- ${file}`).join("\n")
 	return `修改了 ${fileChanges.length} 个文件：\n${lines}`
+}
+
+/**
+ * 增强版文件修改摘要
+ * 包含详细的文件操作记录和验证状态
+ */
+function summarizeFileChangesEnhanced(
+	claimedChanges: string[],
+	fileOperations?: import("./FileOperationTracker").FileOperation[],
+	verifiedChanges?: string[],
+): string {
+	const parts: string[] = []
+
+	// 如果有详细的文件操作记录（来自 FileOperationTracker）
+	if (fileOperations && fileOperations.length > 0) {
+		parts.push("### 📁 文件操作追踪记录\n")
+		parts.push(`共执行 ${fileOperations.length} 次文件操作：\n`)
+
+		// 按文件分组
+		const byFile = new Map<string, typeof fileOperations>()
+		for (const op of fileOperations) {
+			if (!byFile.has(op.filePath)) {
+				byFile.set(op.filePath, [])
+			}
+			byFile.get(op.filePath)!.push(op)
+		}
+
+		for (const [filePath, ops] of byFile) {
+			const successCount = ops.filter((o) => o.success).length
+			const failCount = ops.length - successCount
+
+			// 验证状态
+			const isVerified = verifiedChanges?.includes(filePath)
+			const verifyStatus = isVerified ? "✅ 已验证" : verifiedChanges ? "⚠️ 待验证" : ""
+
+			const statusIcon = failCount === 0 ? "✅" : "⚠️"
+			parts.push(`- ${statusIcon} **${filePath}** ${verifyStatus}`)
+			parts.push(`  - 操作: ${ops.map((o) => o.toolUsed).join(", ")}`)
+			parts.push(`  - 成功/失败: ${successCount}/${failCount}`)
+
+			// 显示最后一次操作的类型
+			const lastOp = ops[ops.length - 1]
+			parts.push(`  - 最后操作: ${lastOp.operationType} (${new Date(lastOp.timestamp).toLocaleTimeString()})`)
+			if (lastOp.linesChanged) {
+				parts.push(`  - 变更行数: ${lastOp.linesChanged}`)
+			}
+			parts.push("")
+		}
+	}
+
+	// 验证摘要
+	if (verifiedChanges && verifiedChanges.length > 0) {
+		parts.push(`\n### ✅ 验证确认的文件修改 (${verifiedChanges.length}个)\n`)
+		parts.push("以下文件已通过内容哈希验证，确认实际被修改：\n")
+		verifiedChanges.forEach((f) => parts.push(`- ${f}`))
+		parts.push("")
+	}
+
+	// 检查不一致（声称修改但未验证的文件）
+	if (claimedChanges.length > 0 && verifiedChanges) {
+		const unverified = claimedChanges.filter((f) => !verifiedChanges.includes(f))
+		if (unverified.length > 0) {
+			parts.push(`\n### ⚠️ 声称修改但未验证的文件 (${unverified.length}个)\n`)
+			parts.push("**警告**: 以下文件声称被修改，但未通过验证：\n")
+			unverified.forEach((f) => parts.push(`- ${f}`))
+			parts.push("")
+		}
+	}
+
+	// 如果没有任何信息，使用旧版摘要
+	if (parts.length === 0) {
+		return summarizeFileChanges(claimedChanges)
+	}
+
+	return parts.join("\n")
 }
 
 /**

@@ -185,7 +185,18 @@
 		"ratio": "Compression Ratio",
 		"subAgentDetails": "Sub-Agent Details",
 		"summary": "Summary",
-		"compressedBy": "Compressed by {{apiConfig}} model"
+		"compressedBy": "Compressed by {{apiConfig}} model",
+		"gsw": {
+			"title": "GSW Memory System",
+			"enabled": "Enabled",
+			"disabled": "Not Used",
+			"searchMode": "Search Mode",
+			"vector": "Vector Search",
+			"yaml": "YAML Index",
+			"hybrid": "Hybrid",
+			"memoriesRetrieved": "Retrieved {{count}} memories",
+			"memoryTypes": "Memory Types"
+		}
 	},
 	"instructions": {
 		"wantsToFetch": "Roo wants to fetch detailed instructions to assist with the current task"

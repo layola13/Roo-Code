@@ -321,6 +321,46 @@ export class DiffViewProvider {
 			await task.say("user_feedback_diff", JSON.stringify(say))
 		}
 
+		// 🔥 GSW记忆捕获钩子：捕获代码演进
+		// 在工具执行成功后，异步捕获代码变更到GSW记忆系统
+		if (task.gswMemoryCapture && (this.userEdits || this.newContent)) {
+			try {
+				// 获取sessionId
+				const sessionId = task.gswMemoryCapture.getCurrentSessionId() || task.taskId
+
+				// 构建diff内容：优先使用userEdits，否则尝试生成diff
+				const diffContent =
+					this.userEdits ||
+					(this.originalContent && this.newContent
+						? diff.createPatch(this.relPath, this.originalContent, this.newContent)
+						: `File ${isNewFile ? "created" : "modified"}: ${this.relPath}`)
+
+				// 尝试获取git commit（可选）
+				let gitCommit: string | null = null
+				try {
+					const { execSync } = require("child_process")
+					gitCommit = execSync("git rev-parse HEAD", {
+						cwd,
+						encoding: "utf-8",
+						stdio: ["pipe", "pipe", "ignore"],
+					}).trim()
+				} catch {
+					// Git命令失败时静默处理
+					gitCommit = null
+				}
+
+				// 异步捕获代码演进，不阻塞主流程
+				task.gswMemoryCapture
+					.captureCodeEvolution(this.relPath, diffContent, gitCommit, sessionId)
+					.catch((error: unknown) => {
+						console.warn("Failed to capture code evolution in GSW:", error)
+					})
+			} catch (error) {
+				// 捕获过程中的任何错误都不应影响主流程
+				console.warn("Error in GSW code evolution capture:", error)
+			}
+		}
+
 		// Build XML response
 		const xmlObj = {
 			file_write_result: {

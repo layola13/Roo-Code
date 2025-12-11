@@ -231,6 +231,38 @@ export async function applyDiffToolLegacy(
 			// Get the formatted response message
 			const message = await cline.diffViewProvider.pushToolWriteResult(cline, cline.cwd, !fileExists)
 
+			// 🔥 GSW代码演进记忆捕获：apply_diff成功后
+			if (cline.gswMemoryCapture) {
+				const sessionId = cline.gswMemoryCapture.getCurrentSessionId()
+				if (sessionId) {
+					// 🔥 非阻塞异步调用
+					Promise.resolve().then(async () => {
+						try {
+							// 捕获代码演进（无git commit时传null）
+							await cline.gswMemoryCapture!.captureCodeEvolution(
+								relPath,
+								diffContent,
+								null, // git commit在此处暂不可用
+								sessionId,
+							)
+						} catch (error) {
+							console.warn("[GSW] Failed to capture code evolution:", error)
+							// 非关键功能，失败不影响主流程
+						}
+					})
+				}
+			}
+
+			// 🔥 记录文件操作（用于Judge验证）
+			cline.recordFileOperation({
+				timestamp: Date.now(),
+				filePath: relPath,
+				toolUsed: "apply_diff",
+				operationType: "modify",
+				success: true,
+				linesChanged: diffContent.split("\n").length,
+			})
+
 			// Check for single SEARCH/REPLACE block warning
 			const searchBlocks = (diffContent.match(/<<<<<<< SEARCH/g) || []).length
 			const singleBlockNotice =

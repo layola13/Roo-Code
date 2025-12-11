@@ -194,6 +194,17 @@ export interface ExtensionStateContextType extends ExtensionState {
 	setMaxDiagnosticMessages: (value: number) => void
 	includeTaskHistoryInEnhance?: boolean
 	setIncludeTaskHistoryInEnhance: (value: boolean) => void
+	// GSW Memory System configuration
+	gswMemoryEnabled?: boolean
+	setGswMemoryEnabled: (value: boolean) => void
+	gswMaxFileSizeKB?: number
+	setGswMaxFileSizeKB: (value: number) => void
+	gswArchiveAfterDays?: number
+	setGswArchiveAfterDays: (value: number) => void
+	gswEnableAutoRotation?: boolean
+	setGswEnableAutoRotation: (value: boolean) => void
+	gswModelConfigId?: string
+	setGswModelConfigId: (value: string) => void
 }
 
 export const ExtensionStateContext = createContext<ExtensionStateContextType | undefined>(undefined)
@@ -329,6 +340,11 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		maxDiagnosticMessages: 50,
 		openRouterImageApiKey: "",
 		openRouterImageGenerationSelectedModel: "",
+		// GSW Memory System defaults
+		gswMemoryEnabled: true,
+		gswMaxFileSizeKB: 50,
+		gswArchiveAfterDays: 30,
+		gswEnableAutoRotation: true,
 	})
 
 	const [didHydrateState, setDidHydrateState] = useState(false)
@@ -639,6 +655,16 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		},
 		includeTaskHistoryInEnhance,
 		setIncludeTaskHistoryInEnhance,
+		// GSW Memory System configuration getters and setters
+		gswMemoryEnabled: state.gswMemoryEnabled ?? true,
+		setGswMemoryEnabled: (value) => setState((prevState) => ({ ...prevState, gswMemoryEnabled: value })),
+		gswMaxFileSizeKB: state.gswMaxFileSizeKB ?? 50,
+		setGswMaxFileSizeKB: (value) => setState((prevState) => ({ ...prevState, gswMaxFileSizeKB: value })),
+		gswArchiveAfterDays: state.gswArchiveAfterDays ?? 30,
+		setGswArchiveAfterDays: (value) => setState((prevState) => ({ ...prevState, gswArchiveAfterDays: value })),
+		gswEnableAutoRotation: state.gswEnableAutoRotation ?? true,
+		setGswEnableAutoRotation: (value) => setState((prevState) => ({ ...prevState, gswEnableAutoRotation: value })),
+		setGswModelConfigId: (value) => setState((prevState) => ({ ...prevState, gswModelConfigId: value })),
 		// Sub-agent configuration getters and setters
 		useContextAnalyzer: state.useContextAnalyzer ?? true,
 		setUseContextAnalyzer: (value) => setState((prevState) => ({ ...prevState, useContextAnalyzer: value })),

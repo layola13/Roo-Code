@@ -295,7 +295,18 @@
 		"ratio": "压缩率",
 		"subAgentDetails": "子代理详情",
 		"summary": "摘要",
-		"compressedBy": "使用 {{apiConfig}} 模型压缩"
+		"compressedBy": "使用 {{apiConfig}} 模型压缩",
+		"gsw": {
+			"title": "GSW 记忆系统",
+			"enabled": "已启用",
+			"disabled": "未启用",
+			"searchMode": "搜索模式",
+			"vector": "向量搜索",
+			"yaml": "YAML 索引",
+			"hybrid": "混合模式",
+			"memoriesRetrieved": "检索到 {{count}} 条历史记忆",
+			"memoryTypes": "记忆类型"
+		}
 	},
 	"followUpSuggest": {
 		"copyToInput": "复制到输入框（或按住Shift点击）",

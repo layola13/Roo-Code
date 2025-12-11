@@ -24,6 +24,7 @@ import { BATCH_SEGMENT_THRESHOLD } from "./constants"
  */
 export class CodeIndexServiceFactory {
 	private embedderInstance?: IEmbedder
+	private vectorStoreInstance?: IVectorStore
 
 	constructor(
 		private readonly configManager: CodeIndexConfigManager,
@@ -231,6 +232,8 @@ export class CodeIndexServiceFactory {
 		this.embedderInstance = embedder
 
 		const vectorStore = this.createVectorStore()
+		// 存储vectorStore实例以便getVectorStore()方法使用
+		this.vectorStoreInstance = vectorStore
 		const parser = codeParser
 		const scanner = this.createDirectoryScanner(embedder, vectorStore, parser, ignoreInstance)
 		const fileWatcher = this.createFileWatcher(
@@ -258,5 +261,14 @@ export class CodeIndexServiceFactory {
 	 */
 	public getEmbedder(): IEmbedder | undefined {
 		return this.embedderInstance
+	}
+
+	/**
+	 * 获取已创建的vectorStore实例
+	 * 用于GSW向量化记忆系统复用代码索引的向量存储
+	 * @returns vectorStore实例，如果未创建则返回undefined
+	 */
+	public getVectorStore(): IVectorStore | undefined {
+		return this.vectorStoreInstance
 	}
 }

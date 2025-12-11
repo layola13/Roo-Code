@@ -635,6 +635,49 @@ ${errorDetails ? `\nTechnical details:\n${errorDetails}\n` : ""}
 				// Get the formatted response message
 				const message = await cline.diffViewProvider.pushToolWriteResult(cline, cline.cwd, !fileExists)
 
+				// 🔥 GSW代码演进记忆捕获：apply_diff成功后
+				if (cline.gswMemoryCapture) {
+					const sessionId = cline.gswMemoryCapture.getCurrentSessionId()
+					if (sessionId) {
+						// 🔥 非阻塞异步调用
+						Promise.resolve().then(async () => {
+							try {
+								// 将所有diff items合并为一个字符串
+								const combinedDiff = diffItems.map((item) => item.content).join("\n\n")
+
+								// 捕获代码演进（无git commit时传null）
+								await cline.gswMemoryCapture!.captureCodeEvolution(
+									relPath,
+									combinedDiff,
+									null, // git commit在此处暂不可用
+									sessionId,
+								)
+
+								// 🔥 捕获文件修改证据（用于裁判验证）
+								await cline.gswMemoryCapture!.captureToolExecution(
+									"apply_diff",
+									{ path: relPath, diffCount: diffItems.length },
+									{ success: true, filesModified: [relPath] },
+									sessionId,
+								)
+							} catch (error) {
+								console.warn("[GSW] Failed to capture code evolution:", error)
+								// 非关键功能，失败不影响主流程
+							}
+						})
+					}
+				}
+
+				// 🔥 记录文件操作（用于Judge验证）
+				cline.recordFileOperation({
+					timestamp: Date.now(),
+					filePath: relPath,
+					toolUsed: "multi_apply_diff",
+					operationType: "modify",
+					success: true,
+					linesChanged: diffItems.reduce((sum, item) => sum + item.content.split("\n").length, 0),
+				})
+
 				if (partFailHint) {
 					results.push(partFailHint + "\n" + message)
 				} else {

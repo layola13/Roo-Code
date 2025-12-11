@@ -415,6 +415,22 @@ describe("attemptCompletionTool", () => {
 				mockTask.shouldInvokeJudge = vi.fn().mockResolvedValue(true)
 				mockTask.invokeJudge = vi.fn()
 				mockTask.handleJudgeRejection = vi.fn()
+				mockTask.getJudgeConfig = vi.fn().mockResolvedValue({
+					enabled: true,
+					mode: "always",
+					detailLevel: "detailed",
+					allowUserOverride: true,
+					blockOnCriticalIssues: true,
+					modelConfig: { apiModelId: "claude-sonnet-4" },
+				})
+				mockTask.gswMemorySystem = undefined
+				mockTask.judgeEvidenceCache = {
+					userRequirements: [],
+					codeChanges: [],
+					toolCalls: [],
+					checkpoints: [],
+					lastUpdated: Date.now(),
+				}
 				mockTask.say = vi.fn().mockResolvedValue(undefined)
 				mockTask.ask = vi.fn().mockResolvedValue({ response: "yesButtonClicked" })
 				mockTask.clineMessages = []

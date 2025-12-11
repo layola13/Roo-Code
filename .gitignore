@@ -54,4 +54,5 @@ qdrant/qdrant_data
 /agumentcode/
 /ref/
 /cli/
+.project/
 

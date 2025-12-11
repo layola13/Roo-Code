@@ -297,6 +297,12 @@ export const contextCondenseSchema = z.object({
 	subAgentTokenUsage: z.array(subAgentTokenUsageSchema).optional(),
 	apiConfigName: z.string().optional(), // API configuration name used for compression
 	durationMs: z.number().optional(), // Compression duration in milliseconds
+	// GSW System Usage Information
+	gswUsed: z.boolean().optional(), // Whether GSW system was used
+	gswVectorSearchEnabled: z.boolean().optional(), // Whether vector search is enabled in GSW
+	gswMemoriesRetrieved: z.number().optional(), // Number of memories retrieved from GSW
+	gswMemoryTypes: z.array(z.string()).optional(), // Types of memories retrieved (interaction/reasoning/evolution)
+	gswSearchMode: z.enum(["vector", "yaml", "hybrid"]).optional(), // Search mode used by GSW
 })
 
 export type ContextCondense = z.infer<typeof contextCondenseSchema>

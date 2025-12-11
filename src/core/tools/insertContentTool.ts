@@ -186,6 +186,55 @@ export async function insertContentTool(
 
 		pushToolResult(message)
 
+		// 🔥 GSW代码演进记忆捕获：insert_content成功后
+		if (cline.gswMemoryCapture) {
+			try {
+				const sessionId = cline.gswMemoryCapture.getCurrentSessionId()
+				if (sessionId) {
+					// 生成diff（如果是修改现有文件）
+					let diffContent = ""
+					if (fileExists && fileContent) {
+						diffContent = formatResponse.createPrettyPatch(relPath, fileContent, updatedContent)
+					} else {
+						// 新文件，将插入的内容作为diff
+						diffContent = `+++ ${relPath}\n${content
+							.split("\n")
+							.map((line) => `+ ${line}`)
+							.join("\n")}`
+					}
+
+					// 捕获代码演进（无git commit时传null）
+					await cline.gswMemoryCapture.captureCodeEvolution(
+						relPath,
+						diffContent,
+						null, // git commit在此处暂不可用
+						sessionId,
+					)
+
+					// 🔥 捕获文件修改证据（用于裁判验证）
+					await cline.gswMemoryCapture.captureToolExecution(
+						"insert_content",
+						{ path: relPath, line: lineNumber },
+						{ success: true, filesModified: [relPath] },
+						sessionId,
+					)
+				}
+			} catch (error) {
+				console.warn("Failed to capture code evolution in GSW:", error)
+				// 非关键功能，失败不影响主流程
+			}
+		}
+
+		// 🔥 记录文件操作（用于Judge验证）
+		cline.recordFileOperation({
+			timestamp: Date.now(),
+			filePath: relPath,
+			toolUsed: "insert_content",
+			operationType: fileExists ? "modify" : "create",
+			success: true,
+			linesChanged: content.split("\n").length,
+		})
+
 		await cline.diffViewProvider.reset()
 
 		// Process any queued messages after file edit completes

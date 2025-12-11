@@ -54,7 +54,10 @@ export async function splitFileTool(
 	const fullPath = path.resolve(cline.cwd, filePath)
 	const isOutsideWorkspace = isPathOutsideWorkspace(fullPath)
 
-	// Ask for approval
+	// 🔑 检查 alwaysAllowSplitFile 设置
+	const { alwaysAllowSplitFile = false } = (await cline.providerRef.deref()?.getState()) ?? {}
+
+	// Ask for approval (skip if alwaysAllowSplitFile is enabled)
 	const completeMessage = JSON.stringify({
 		tool: "splitFile",
 		path: getReadablePath(cline.cwd, filePath),
@@ -62,20 +65,31 @@ export async function splitFileTool(
 		content: `Split file into chunks of ${linesPerChunk} lines`,
 	} satisfies ClineSayTool)
 
-	const { response, text, images } = await cline.ask("tool", completeMessage, false)
+	let userText: string | undefined
+	let userImages: string[] | undefined
 
-	if (response !== "yesButtonClicked") {
-		if (text) {
-			await cline.say("user_feedback", text, images)
+	if (!alwaysAllowSplitFile) {
+		// 需要用户批准
+		const { response, text, images } = await cline.ask("tool", completeMessage, false)
+
+		if (response !== "yesButtonClicked") {
+			if (text) {
+				await cline.say("user_feedback", text, images)
+			}
+			cline.didRejectTool = true
+			const deniedMessage = text ? formatResponse.toolDeniedWithFeedback(text) : formatResponse.toolDenied()
+			pushToolResult(`<split_result><status>Denied by user</status></split_result>`)
+			return
 		}
-		cline.didRejectTool = true
-		const deniedMessage = text ? formatResponse.toolDeniedWithFeedback(text) : formatResponse.toolDenied()
-		pushToolResult(`<split_result><status>Denied by user</status></split_result>`)
-		return
+		userText = text
+		userImages = images
+	} else {
+		// 自动批准 - 不需要显示消息或等待用户响应，直接继续执行
+		// 注意：在自动批准模式下，我们跳过用户交互，直接进行文件分割操作
 	}
 
-	if (text) {
-		await cline.say("user_feedback", text, images)
+	if (userText) {
+		await cline.say("user_feedback", userText, userImages)
 	}
 
 	// Perform the split operation

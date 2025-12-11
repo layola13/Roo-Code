@@ -105,6 +105,13 @@ export const globalSettingsSchema = z.object({
 	qdrantUrl: z.string().optional(),
 	qdrantCollectionName: z.string().optional(),
 
+	// GSW Memory System configuration
+	gswMemoryEnabled: z.boolean().optional(),
+	gswMaxFileSizeKB: z.number().optional(),
+	gswArchiveAfterDays: z.number().optional(),
+	gswEnableAutoRotation: z.boolean().optional(),
+	gswModelConfigId: z.string().optional(),
+
 	/**
 	 * Whether to include diagnostic messages (errors, warnings) in tool outputs
 	 * @default true

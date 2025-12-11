@@ -9,6 +9,7 @@ import { maybeRemoveImageBlocks } from "../../api/transform/image-cleaning"
 import { scoreAllMessages, MessageImportanceScore } from "./message-importance"
 import { ConversationMemory } from "../memory/ConversationMemory"
 import { VectorMemoryStore, MemorySearchResult } from "../memory/VectorMemoryStore"
+import { DirectoryMemorySystem } from "../../memory/gsw/DirectoryMemorySystem"
 import {
 	executeSubAgentCompression,
 	shouldUseSubAgentCompression,
@@ -95,6 +96,12 @@ export type SummarizeResponse = {
 		cost: number
 	}> // Token usage for each subagent (if subagent compression was used)
 	durationMs?: number // Compression duration in milliseconds
+	// GSW System Usage Information
+	gswUsed?: boolean // Whether GSW memory system was used
+	gswVectorSearchEnabled?: boolean // Whether vector search was enabled in GSW
+	gswMemoriesRetrieved?: number // Number of memories retrieved from GSW
+	gswMemoryTypes?: string[] // Types of memories retrieved (interaction/reasoning/evolution)
+	gswSearchMode?: "vector" | "yaml" | "hybrid" // Search mode used by GSW
 }
 
 /**
@@ -195,6 +202,7 @@ export async function selectMessagesToKeep(
  * @param {ConversationMemory} conversationMemory - Optional conversation memory for memory-enhanced summarization
  * @param {boolean} useMemoryEnhancement - Whether to use memory enhancement (default: true)
  * @param {VectorMemoryStore} vectorMemoryStore - Optional vector memory store for semantic search
+ * @param {DirectoryMemorySystem} gswMemorySystem - Optional GSW memory system (preferred over vectorMemoryStore)
  * @param {SubAgentConfig} subAgentConfig - Optional subagent configuration for subagent-based compression
  * @returns {SummarizeResponse} - The result of the summarization operation (see above)
  */
@@ -210,6 +218,7 @@ export async function summarizeConversation(
 	conversationMemory?: ConversationMemory,
 	useMemoryEnhancement: boolean = true,
 	vectorMemoryStore?: VectorMemoryStore,
+	gswMemorySystem?: DirectoryMemorySystem,
 	subAgentConfig?: SubAgentConfig,
 ): Promise<SummarizeResponse> {
 	// Record start time for duration tracking
@@ -361,6 +370,13 @@ export async function summarizeConversation(
 
 	// 如果启用了记忆增强，提取并添加记忆上下文
 	let memoryContext = ""
+	// GSW usage tracking
+	let gswUsed = false
+	let gswVectorSearchEnabled = false
+	let gswMemoriesRetrieved = 0
+	let gswMemoryTypes: string[] = []
+	let gswSearchMode: "vector" | "yaml" | "hybrid" | undefined = undefined
+
 	if (useMemoryEnhancement && conversationMemory) {
 		// 从所有消息中提取记忆（包括最近的）
 		const extractionResult = await conversationMemory.extractMemories(messages)
@@ -377,9 +393,11 @@ export async function summarizeConversation(
 		// 生成基础记忆摘要（基于ConversationMemory）
 		memoryContext = conversationMemory.generateMemorySummary()
 
-		// 如果配置了向量记忆存储，使用语义搜索检索相关历史记忆
-		if (vectorMemoryStore && memoryContext) {
+		// 🔥 优先使用GSW记忆系统（如果可用），否则fallback到VectorMemoryStore
+		if (gswMemorySystem && memoryContext) {
 			try {
+				const gswStartTime = Date.now()
+
 				// 使用当前对话的最后几条消息作为查询上下文
 				const recentMessages = messages.slice(-3)
 				const queryContext = recentMessages
@@ -391,16 +409,100 @@ export async function summarizeConversation(
 					.join(" ")
 					.slice(0, 500) // 限制长度
 
-				// 搜索项目级别的相关记忆（跨对话）
+				// 使用GSW的智能查询API（支持向量搜索+YAML fallback）
+				const queryResult = await gswMemorySystem.queryMemory({
+					query: queryContext,
+					limit: 5,
+					recentDays: 30,
+					useVectorSearch: true, // 优先使用向量搜索
+				})
+
+				const gswDuration = Date.now() - gswStartTime
+				console.log(
+					`[Condense] GSW query completed in ${gswDuration}ms, found ${queryResult.memories.length} memories`,
+				)
+
+				// 记录 GSW 使用信息
+				gswUsed = true
+				gswVectorSearchEnabled = true // useVectorSearch was set to true in the query
+				gswMemoriesRetrieved = queryResult.memories.length
+				// Infer search mode: if we successfully got results with vector search enabled, it's likely "hybrid" or "vector"
+				// Since GSW tries vector first and falls back to YAML, we mark it as "hybrid" when vector search was requested
+				gswSearchMode = "hybrid" // Vector search was enabled in query options
+				// 提取记忆类型（从记忆的类型字段中）
+				if (queryResult.memories.length > 0) {
+					const typeSet = new Set<string>()
+					for (const memory of queryResult.memories) {
+						if (memory.type) typeSet.add(memory.type)
+					}
+					gswMemoryTypes = Array.from(typeSet)
+				}
+
+				// 将检索到的历史记忆添加到上下文
+				if (queryResult.memories.length > 0) {
+					const formattedMemories = gswMemorySystem.formatMemoriesForPrompt(queryResult.memories)
+					memoryContext += `\n\n### 🧠 GSW历史记忆（跨会话）：\n${formattedMemories}`
+				}
+			} catch (error) {
+				console.warn("[Condense] Failed to query GSW memories, falling back to VectorMemoryStore:", error)
+
+				// Fallback: 尝试使用VectorMemoryStore
+				if (vectorMemoryStore) {
+					try {
+						const recentMessages = messages.slice(-3)
+						const queryContext = recentMessages
+							.map((m) =>
+								typeof m.content === "string"
+									? m.content
+									: m.content.map((block) => (block.type === "text" ? block.text : "")).join(" "),
+							)
+							.join(" ")
+							.slice(0, 500)
+
+						const relevantMemories: MemorySearchResult[] = await vectorMemoryStore.searchProjectMemories(
+							queryContext,
+							{
+								minScore: 0.75,
+								maxResults: 5,
+							},
+						)
+
+						if (relevantMemories.length > 0) {
+							const historicalContext = relevantMemories
+								.map(
+									(result) =>
+										`- ${result.memory.content} (相似度: ${(result.score * 100).toFixed(1)}%)`,
+								)
+								.join("\n")
+
+							memoryContext += `\n\n### 相关历史记忆（跨对话）：\n${historicalContext}`
+						}
+					} catch (fallbackError) {
+						console.warn("[Condense] VectorMemoryStore fallback also failed:", fallbackError)
+					}
+				}
+			}
+		} else if (vectorMemoryStore && memoryContext) {
+			// 如果没有GSW，使用传统的VectorMemoryStore
+			try {
+				const recentMessages = messages.slice(-3)
+				const queryContext = recentMessages
+					.map((m) =>
+						typeof m.content === "string"
+							? m.content
+							: m.content.map((block) => (block.type === "text" ? block.text : "")).join(" "),
+					)
+					.join(" ")
+					.slice(0, 500)
+
 				const relevantMemories: MemorySearchResult[] = await vectorMemoryStore.searchProjectMemories(
 					queryContext,
 					{
-						minScore: 0.75, // 较高的相似度阈值
-						maxResults: 5, // 限制数量以避免上下文过长
+						minScore: 0.75,
+						maxResults: 5,
 					},
 				)
 
-				// 将检索到的历史记忆添加到上下文
 				if (relevantMemories.length > 0) {
 					const historicalContext = relevantMemories
 						.map((result) => `- ${result.memory.content} (相似度: ${(result.score * 100).toFixed(1)}%)`)
@@ -409,7 +511,7 @@ export async function summarizeConversation(
 					memoryContext += `\n\n### 相关历史记忆（跨对话）：\n${historicalContext}`
 				}
 			} catch (error) {
-				console.warn("Failed to search vector memories:", error)
+				console.warn("[Condense] Failed to search vector memories:", error)
 			}
 		}
 	}
@@ -510,7 +612,19 @@ export async function summarizeConversation(
 	// Calculate duration
 	const durationMs = Date.now() - startTime
 
-	return { messages: newMessages, summary, cost, newContextTokens, durationMs }
+	return {
+		messages: newMessages,
+		summary,
+		cost,
+		newContextTokens,
+		durationMs,
+		// GSW usage information
+		gswUsed,
+		gswVectorSearchEnabled: gswUsed ? gswVectorSearchEnabled : undefined,
+		gswMemoriesRetrieved: gswUsed ? gswMemoriesRetrieved : undefined,
+		gswMemoryTypes: gswUsed && gswMemoryTypes.length > 0 ? gswMemoryTypes : undefined,
+		gswSearchMode: gswUsed ? gswSearchMode : undefined,
+	}
 }
 
 /* Returns the list of all messages since the last summary message, including the summary. Returns all messages if there is no summary. */

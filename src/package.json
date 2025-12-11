@@ -3,7 +3,7 @@
 	"displayName": "Roo-Cline",
 	"description": "Autonomous coding agent right in your IDE. Designed to work with the latest Claude Sonnet 4.0, GPT-4o, Gemini 2.0 and any OpenRouter models. Claude Code Generator",
 	"publisher": "RooVeterinaryInc",
-	"version": "3.36.341",
+	"version": "3.36.345",
 	"icon": "assets/icons/icon.png",
 	"galleryBanner": {
 		"color": "#617A91",
@@ -461,6 +461,30 @@
 					"type": "string",
 					"default": "",
 					"description": "%settings.vectorMemory.qdrantApiKey.description%"
+				},
+				"roo-cline.gswMemory.enabled": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable GSW (Goal-Session-Workflow) triple memory system for capturing user interactions, LLM reasoning, and code evolution"
+				},
+				"roo-cline.gswMemory.maxFileSizeKB": {
+					"type": "number",
+					"default": 50,
+					"minimum": 10,
+					"maximum": 500,
+					"description": "Maximum size (in KB) for each GSW memory file before rotation"
+				},
+				"roo-cline.gswMemory.archiveAfterDays": {
+					"type": "number",
+					"default": 30,
+					"minimum": 1,
+					"maximum": 365,
+					"description": "Archive GSW memory files older than this many days"
+				},
+				"roo-cline.gswMemory.enableAutoRotation": {
+					"type": "boolean",
+					"default": true,
+					"description": "Automatically rotate GSW memory files when they exceed the maximum size"
 				}
 			}
 		}
@@ -518,6 +542,7 @@
 		"ignore": "^7.0.3",
 		"ioredis": "^5.6.1",
 		"isbinaryfile": "^5.0.2",
+		"js-yaml": "^4.1.1",
 		"jwt-decode": "^4.0.0",
 		"lodash.debounce": "^4.0.8",
 		"mammoth": "^1.9.1",
@@ -567,6 +592,7 @@
 		"@types/diff": "^5.2.1",
 		"@types/diff-match-patch": "^1.0.36",
 		"@types/glob": "^8.1.0",
+		"@types/js-yaml": "^4.0.9",
 		"@types/lodash.debounce": "^4.0.9",
 		"@types/mocha": "^10.0.10",
 		"@types/node": "20.x",

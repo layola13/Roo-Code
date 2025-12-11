@@ -321,6 +321,12 @@ export type ExtensionState = Pick<
 	| "redisUrl"
 	| "qdrantUrl"
 	| "qdrantCollectionName"
+	// GSW Memory System configuration
+	| "gswMemoryEnabled"
+	| "gswMaxFileSizeKB"
+	| "gswArchiveAfterDays"
+	| "gswEnableAutoRotation"
+	| "gswModelConfigId"
 > & {
 	// Judge mode configuration
 	judgeConfig?: {

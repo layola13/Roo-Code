@@ -281,6 +281,22 @@ export async function presentAssistantMessage(cline: Task) {
 				// uses since we should only ever present one tool result per
 				// message.
 				cline.didAlreadyUseTool = true
+
+				// 🔥 裁判证据预收集：记录工具调用
+				// 判断工具是否成功（非错误响应）
+				const isSuccess =
+					typeof content === "string" ? !content.includes("Error") && !content.includes("error") : true
+
+				// 记录工具调用
+				cline.updateJudgeEvidence("toolCall", {
+					tool: block.name,
+					timestamp: Date.now(),
+					success: isSuccess,
+					details: typeof content === "string" ? content.substring(0, 200) : undefined,
+				})
+
+				// ⚠️ 注意：代码变更证据收集已移至各个工具内部
+				// 在工具实际执行成功后收集，确保信息准确性
 			}
 
 			const askApproval = async (

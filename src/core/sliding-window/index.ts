@@ -175,6 +175,7 @@ export async function truncateConversationIfNeeded({
 				conversationMemory,
 				useMemoryEnhancement,
 				vectorMemoryStore,
+				undefined, // gswMemorySystem
 				subAgentConfig,
 			)
 			if (result.error) {
