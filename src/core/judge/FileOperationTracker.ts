@@ -17,7 +17,7 @@ export interface FileOperation {
 	/** 使用的工具 */
 	toolUsed: string
 	/** 操作类型 */
-	operationType: "create" | "modify" | "delete"
+	operationType: "create" | "modify" | "delete" | "read"
 	/** 是否成功 */
 	success: boolean
 	/** 修改的行数 */
@@ -99,6 +99,19 @@ export class FileOperationTracker {
 		const files = new Set<string>()
 		for (const op of this.operations) {
 			if (op.success && (op.operationType === "create" || op.operationType === "modify")) {
+				files.add(op.filePath)
+			}
+		}
+		return Array.from(files)
+	}
+
+	/**
+	 * 获取成功读取的文件列表
+	 */
+	getReadFiles(): string[] {
+		const files = new Set<string>()
+		for (const op of this.operations) {
+			if (op.success && op.operationType === "read") {
 				files.add(op.filePath)
 			}
 		}

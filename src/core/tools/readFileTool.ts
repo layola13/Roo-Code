@@ -694,6 +694,14 @@ ${isWebpackOrMinified ? "\n💡 TIP: For webpack files, use search_files with sp
 					updateFileResult(relPath, {
 						xmlContent: `<file><path>${relPath}</path>\n${rangeResults.join("\n")}\n</file>`,
 					})
+					// 🔥 记录文件读取操作
+					cline.recordFileOperation({
+						timestamp: Date.now(),
+						filePath: fullPath,
+						toolUsed: "read_file",
+						operationType: "read",
+						success: true,
+					})
 					continue
 				}
 
@@ -757,6 +765,15 @@ ${isWebpackOrMinified ? "\n💡 TIP: For webpack files, use search_files with sp
 
 				// Track file read
 				await cline.fileContextTracker.trackFileContext(relPath, "read_tool" as RecordSource)
+
+				// 🔥 记录文件读取操作
+				cline.recordFileOperation({
+					timestamp: Date.now(),
+					filePath: fullPath,
+					toolUsed: "read_file",
+					operationType: "read",
+					success: true,
+				})
 
 				updateFileResult(relPath, {
 					xmlContent: `<file><path>${relPath}</path>\n${xmlInfo}</file>`,

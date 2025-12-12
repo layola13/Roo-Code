@@ -98,6 +98,7 @@ import { RooProtectedController } from "../protect/RooProtectedController"
 import { type AssistantMessageContent, presentAssistantMessage } from "../assistant-message"
 import { AssistantMessageParser } from "../assistant-message/AssistantMessageParser"
 import { truncateConversationIfNeeded } from "../sliding-window"
+import { RealtimeContextSummarizer } from "../condense/RealtimeContextSummarizer"
 import { ClineProvider } from "../webview/ClineProvider"
 import { MultiSearchReplaceDiffStrategy } from "../diff/strategies/multi-search-replace"
 import { MultiFileSearchReplaceDiffStrategy } from "../diff/strategies/multi-file-search-replace"
@@ -370,6 +371,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	// Intelligent Context Filtering
 	conversationController?: import("../subagent/ConversationController").ConversationController
 
+	// Realtime Context Compression (实时上下文压缩)
+	private realtimeContextSummarizer: RealtimeContextSummarizer
+
 	constructor({
 		provider,
 		apiConfiguration,
@@ -504,6 +508,16 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 
 		this.toolRepetitionDetector = new ToolRepetitionDetector(this.consecutiveMistakeLimit)
+
+		// 初始化实时上下文压缩器
+		this.realtimeContextSummarizer = new RealtimeContextSummarizer(this.taskId, {
+			enabled: true,
+			messageIncrement: 5, // 每5条消息更新一次缓存
+			tokenIncrement: 20000, // 每20k tokens更新一次缓存
+			cacheValidityMs: 5 * 60 * 1000, // 5分钟有效期
+			criticalThresholdPercent: 85, // 85%时使用缓存
+			warningThresholdPercent: 70, // 70%时开始更频繁更新
+		})
 
 		// Initialize todo list if provided
 		if (initialTodos && initialTodos.length > 0) {
@@ -3072,6 +3086,51 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 					TelemetryService.instance.captureConversationMessage(this.taskId, "assistant")
 
+					// 🔥 实时上下文压缩：在每次API响应完成后，检查是否应该触发后台总结
+					// 这是"预热缓存"策略的核心：提前准备好压缩结果，等需要时直接使用
+					try {
+						const modelInfo = this.api.getModel().info
+						const contextWindow = modelInfo.contextWindow
+						const { contextTokens } = this.getTokenUsage()
+
+						if (
+							this.realtimeContextSummarizer.shouldTriggerBackgroundSummary(
+								this.apiConversationHistory.length,
+								contextTokens || 0,
+								contextWindow,
+							)
+						) {
+							// 获取压缩所需的配置
+							const state = await this.providerRef.deref()?.getState()
+							const systemPrompt = await this.getSystemPrompt()
+
+							// 并行触发后台总结（不阻塞主流程）
+							this.realtimeContextSummarizer.triggerBackgroundSummary(
+								this.apiConversationHistory,
+								this.api,
+								{
+									systemPrompt,
+									customCondensingPrompt: state?.customCondensingPrompt,
+									conversationMemory: this.conversationMemory,
+									vectorMemoryStore: this.vectorMemoryStore,
+									gswMemorySystem: this.gswMemorySystem,
+									subAgentConfig: state?.useSubAgentCompression
+										? {
+												enabled: true,
+												useContextAnalyzer: true,
+												useMemoryExtractor: true,
+												useCodeSummarizer: true,
+												verboseLogging: false,
+											}
+										: undefined,
+								},
+							)
+						}
+					} catch (error) {
+						// 后台总结失败不影响主流程
+						console.warn("[Task] 后台实时总结触发失败:", error)
+					}
+
 					// NOTE: This comment is here for future reference - this was a
 					// workaround for `userMessageContent` not getting set to true.
 					// It was due to it not recursively calling for partial blocks
@@ -3587,6 +3646,98 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			})
 
 			const contextWindow = modelInfo.contextWindow
+
+			// 🔥 实时上下文压缩：临界点检测
+			// 如果上下文使用率达到临界点（85%），检查是否有预热的缓存可用
+			if (
+				this.realtimeContextSummarizer.isCriticalPoint(contextTokens, contextWindow) &&
+				this.realtimeContextSummarizer.hasCachedSummary(this.apiConversationHistory.length)
+			) {
+				console.log(
+					`[Task#${this.taskId}] 🔥 临界点到达！使用预热的实时总结缓存 (当前tokens: ${contextTokens}, 窗口: ${contextWindow})`,
+				)
+
+				// 使用缓存的总结（零等待）
+				const cachedResult = this.realtimeContextSummarizer.consumeCachedSummary()
+				if (cachedResult) {
+					// 应用压缩后的消息历史
+					await this.overwriteApiConversationHistory(cachedResult.compressedMessages)
+
+					// 显示压缩结果给用户
+					const contextCondense: ContextCondense = {
+						summary: cachedResult.summary,
+						cost: cachedResult.cost,
+						newContextTokens: cachedResult.newContextTokens,
+						prevContextTokens: contextTokens,
+						durationMs: 0, // 零等待
+						// GSW system usage information
+						gswUsed: cachedResult.fullResponse.gswUsed,
+						gswVectorSearchEnabled: cachedResult.fullResponse.gswVectorSearchEnabled,
+						gswMemoriesRetrieved: cachedResult.fullResponse.gswMemoriesRetrieved,
+						gswMemoryTypes: cachedResult.fullResponse.gswMemoryTypes,
+						gswSearchMode: cachedResult.fullResponse.gswSearchMode,
+					}
+
+					await this.say(
+						"condense_context",
+						undefined /* text */,
+						undefined /* images */,
+						false /* partial */,
+						undefined /* checkpoint */,
+						undefined /* progressStatus */,
+						{ isNonInteractive: true } /* options */,
+						contextCondense,
+					)
+
+					console.log(
+						`[Task#${this.taskId}] ✅ 零等待压缩完成！tokens: ${contextTokens} → ${cachedResult.newContextTokens}`,
+					)
+
+					// 跳过后续的传统压缩逻辑（因为已经使用了预热缓存）
+					// 继续执行 API 请求
+				}
+			} else if (this.realtimeContextSummarizer.isCriticalPoint(contextTokens, contextWindow)) {
+				// 临界点但没有缓存，尝试等待正在进行的后台总结
+				const pendingResult = await this.realtimeContextSummarizer.waitForPendingSummary()
+				if (
+					pendingResult &&
+					this.realtimeContextSummarizer.hasCachedSummary(this.apiConversationHistory.length)
+				) {
+					console.log(`[Task#${this.taskId}] ⏳ 等待后台总结完成，使用结果`)
+					const cachedResult = this.realtimeContextSummarizer.consumeCachedSummary()
+					if (cachedResult) {
+						await this.overwriteApiConversationHistory(cachedResult.compressedMessages)
+
+						const contextCondense: ContextCondense = {
+							summary: cachedResult.summary,
+							cost: cachedResult.cost,
+							newContextTokens: cachedResult.newContextTokens,
+							prevContextTokens: contextTokens,
+							durationMs: cachedResult.fullResponse.durationMs,
+							gswUsed: cachedResult.fullResponse.gswUsed,
+							gswVectorSearchEnabled: cachedResult.fullResponse.gswVectorSearchEnabled,
+							gswMemoriesRetrieved: cachedResult.fullResponse.gswMemoriesRetrieved,
+							gswMemoryTypes: cachedResult.fullResponse.gswMemoryTypes,
+							gswSearchMode: cachedResult.fullResponse.gswSearchMode,
+						}
+
+						await this.say(
+							"condense_context",
+							undefined,
+							undefined,
+							false,
+							undefined,
+							undefined,
+							{ isNonInteractive: true },
+							contextCondense,
+						)
+
+						console.log(
+							`[Task#${this.taskId}] ✅ 等待后压缩完成！tokens: ${contextTokens} → ${cachedResult.newContextTokens}`,
+						)
+					}
+				}
+			}
 
 			// Get the current profile ID using the helper method
 			const currentProfileId = this.getCurrentProfileId(state)
@@ -4440,6 +4591,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			parentTaskDescription,
 			rootTaskDescription,
 			gswHistoricalMemories, // 🔥 注入GSW历史记忆
+			filesRead: this.fileOperationTracker.getReadFiles(), // 🔥 已读取的文件列表
 		}
 
 		// 🔑 传递流式回调给裁判服务

@@ -21,6 +21,7 @@ export function buildJudgePrompt(
 		parentTaskDescription,
 		rootTaskDescription,
 		gswHistoricalMemories,
+		filesRead,
 	} = taskContext
 
 	// 提取对话历史的摘要
@@ -39,6 +40,32 @@ export function buildJudgePrompt(
 		detailLevel === "detailed"
 			? `请提供详细的判断理由，逐项检查并提供改进建议。`
 			: `请提供简洁的判断理由，只指出主要问题。`
+
+	// 🔑 系统能力声明 - 防止 Judge LLM 产生幻觉
+	const systemCapabilities = `
+## ⚠️ 系统能力声明（请仔细阅读）
+
+**重要提示**：该系统是完整的 IDE/编辑器扩展，具有以下能力：
+- ✅ 可以读取任何项目文件（源代码、配置文件、文档等）
+- ✅ 可以写入和修改任何项目文件
+- ✅ 可以执行终端命令
+- ✅ 可以使用 Git 等版本控制工具
+- ✅ 可以搜索代码库
+
+**请不要假设系统“只能读取文档”或“无法访问源代码”。**
+请基于下方提供的具体工具调用和文件操作记录进行评判。
+`
+
+	// 🔑 已读取文件部分
+	const filesReadSection =
+		filesRead && filesRead.length > 0
+			? `
+### 已读取的文件 (✅ ${filesRead.length}个)
+
+以下文件已被成功读取，模型可以基于这些文件内容进行分析和验证：
+${filesRead.map((f) => `- ${f}`).join("\n")}
+`
+			: ""
 
 	// 🔥 GSW历史记忆部分 - 提供用户需求变更和微调方向的完整历史
 	const gswMemorySection = gswHistoricalMemories
@@ -100,12 +127,14 @@ ${userFeedbackSection}
 ${currentMode}
 
 ## 执行历史摘要
+${systemCapabilities}
 
 ### 对话轮数
 ${conversationSummary.rounds} 轮对话
 
 ### 工具调用
 ${toolCallsSummary}
+${filesReadSection}
 
 ### 文件修改声明
 ${fileChangesSummary}

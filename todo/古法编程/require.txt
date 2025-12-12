@@ -1,0 +1,2654 @@
+### USER
+我想用vscode 做个插件，叫古法编程，就是不同于目前的code agent,我的插件还是以程序员手写为目的，改错为辅助，但这个改错有新意
+1.比如错误，vscode 默认有红线，当鼠标移动上去，会有对应的类似错误问题，点击后侧边栏出现提示
+2.其他功能帮我想象，构造，
+我出发点是最大限度让程序员回归手写
+
+### ASSISTANT
+基于您的需求，我来为您设计"古法编程"VSCode插件的完整方案。这个插件的核心是"辅助而不替代"，让程序员保持手写代码的专注度。
+
+## 核心功能设计
+
+### 1. 增强型错误诊断系统
+- **传统红线保留**：保持VSCode默认的错误红线提示，这是程序员熟悉的交互方式 
+- **悬停增强**：鼠标悬停时显示简洁的错误类型和位置，不显示完整解决方案，避免干扰思考 
+- **侧边栏深度分析**：点击错误后，侧边栏显示：
+  - 错误原因的分层解析（从语法到逻辑）
+  - 相关代码上下文关联
+  - 历史相似错误案例（匿名化处理）
+  - **关键创新**：显示"思考引导"而不是直接答案，比如"检查这个变量的作用域"、"考虑这个函数的返回类型是否匹配"
+
+### 2. "古法"辅助功能
+
+#### 代码脉络图
+- 在侧边栏生成当前文件的**代码结构脉络图**，用树状结构展示函数、变量、依赖关系
+- 不提供自动补全，只帮助程序员理清思路
+- 支持手动画重点标记（类似纸质笔记）
+
+#### 历史对比工具
+- 保存代码修改前后的差异，但不自动应用
+- 程序员可以手动对比不同版本，培养对代码演进的理解 
+
+#### 上下文感知文档
+- 当鼠标悬停在API或函数上时，在侧边栏显示**精简版文档**，只包含核心参数和返回值
+- 避免信息过载，让程序员自己探索更多细节 
+
+### 3. 创新交互设计
+
+#### "沉思模式"
+- 按下特定快捷键（如Ctrl+Shift+M）进入沉思模式
+- 隐藏所有AI提示，只保留基础语法高亮
+- 只在代码真正出错时才显示最基础的错误提示 
+
+#### 错误分级系统
+- **语法错误**：红线，强制提示（必须处理）
+- **逻辑警告**：黄色虚线，需要主动点击才显示详情
+- **风格建议**：灰色点线，完全可忽略
+- 这种分级让程序员决定何时接受帮助 
+
+#### "古籍"知识库
+- 内置经典编程模式和反模式案例
+- 当检测到特定代码模式时，侧边栏显示相关经典案例
+- 不直接建议修改，而是展示"古人是如何处理类似问题的"
+
+## 技术实现路径
+
+1. **基础框架**：使用VSCode Extension API，从诊断提供者（DiagnosticProvider）开始 
+2. **侧边栏集成**：创建Webview面板，用于显示深度分析和辅助信息 
+3. **悬停增强**：自定义HoverProvider，控制悬停内容的详细程度 
+4. **代码分析**：集成轻量级静态分析工具，但只用于发现问题，不用于生成代码
+
+## 与现有工具的区别
+
+| 功能 | 传统AI工具 | 古法编程插件 |
+|------|-----------|-------------|
+| 代码生成 | 自动生成大部分代码 | 完全不生成代码 |
+| 错误修复 | 直接提供修复方案 | 提供思考引导 |
+| 学习曲线 | 降低编程门槛 | 提升编程思维 |
+| 交互频率 | 高频主动提示 | 低频被动响应 |
+| 目标用户 | 快速开发需求 | 编程技能提升 |
+
+## 推荐开发步骤
+
+1. 先实现基础的诊断提供者和悬停功能 
+2. 开发侧边栏深度分析界面 
+3. 添加代码脉络图功能
+4. 实现"沉思模式"和错误分级系统
+5. 集成经典案例知识库
+
+这个插件的核心价值在于：**它不帮你写代码，但它帮你成为更好的程序员**。通过克制的设计，避免AI工具常见的"拐杖效应"，真正培养程序员的手写能力和问题解决思维。
+
+### USER
+还是要有一个类似roo code 的任务对话框，但这个对话框里面会即时显示问题当前代码遇到的问题，按严重程度排序和颜色显示，包括终端捕捉到的错误
+
+### ASSISTANT
+基于您的需求，我来为您设计"古法编程"VSCode插件的完整方案。这个插件的核心是**辅助而非替代**，让程序员保持手写代码的专注度。
+
+## 核心功能设计
+
+### 1. "古法诊断台"任务对话框
+```typescript
+// 插件入口点
+export function activate(context: vscode.ExtensionContext) {
+    // 创建古法诊断台面板
+    const diagnosticPanel = vscode.window.createWebviewPanel(
+        'ancientCodingDiagnostic', 
+        '古法诊断台', 
+        vscode.ViewColumn.Beside,
+        { enableScripts: true }
+    );
+    
+    // 实时监听代码问题
+    context.subscriptions.push(
+        vscode.languages.registerDiagnosticCollection('ancient-coding')
+    );
+}
+```
+
+**对话框特点：**
+- **实时问题聚合**：集成VSCode默认错误、警告、终端错误
+- **严重程度分级**：
+  - 🔴 红色：语法错误、编译失败（阻断性）
+  - 🟡 黄色：逻辑警告、潜在问题（需关注）
+  - 🔵 蓝色：代码风格、优化建议（可选处理）
+- **终端错误捕获**：通过`vscode.tasks.onDidEndTaskProcess`监听终端输出，自动解析错误信息
+
+### 2. 问题展示逻辑
+```javascript
+// 问题数据结构
+const problems = [
+    {
+        id: 'err-001',
+        severity: 'error', // error, warning, info
+        source: 'typescript', // 来源：linter, terminal, custom
+        message: '变量未定义',
+        location: { file: 'main.ts', line: 15, column: 8 },
+        contextCode: 'const result = undefinedVariable + 1;',
+        suggestions: [
+            '检查变量拼写是否正确',
+            '确认变量作用域是否有效'
+        ],
+        terminalOutput: null // 如果是终端错误，这里会有相关输出
+    }
+];
+```
+
+### 3. 创新交互功能
+
+#### "静默模式"开关
+- 默认开启：只显示最严重的3个问题，避免信息过载
+- 点击"展开详情"才显示完整问题列表和建议
+- **设计哲学**：让程序员先尝试自己解决问题，AI只在需要时提供帮助
+
+#### "问题溯源"功能
+- 点击任一问题，侧边栏显示：
+  - 该问题的历史出现频率（帮助识别习惯性错误）
+  - 相关代码上下文截图
+  - **不直接给出修复代码**，而是提供：
+    - "这个错误通常发生在..." 的上下文解释
+    - "可以检查这几个方面..." 的引导性提示
+    - 相关文档链接（MDN、官方文档等）
+
+#### "手写验证"机制
+- 当程序员修改代码后，插件不会自动验证
+- 需要程序员主动点击"验证"按钮
+- 验证后显示：
+  - ✅ 问题已解决
+  - ❌ 问题依然存在，但提供更详细的分析
+  - 🔄 问题已变化，显示新问题的详细信息
+
+### 4. 终端错误集成
+```typescript
+// 捕获终端错误
+vscode.tasks.onDidEndTaskProcess(e => {
+    if (e.exitCode !== 0) {
+        const terminalOutput = e.execution.task.definition.command;
+        parseTerminalErrors(terminalOutput).forEach(error => {
+            addProblem({
+                severity: 'error',
+                source: 'terminal',
+                message: error.message,
+                terminalOutput: error.rawOutput
+            });
+        });
+    }
+});
+
+function parseTerminalErrors(output: string): Array<{message: string, rawOutput: string}> {
+    // 解析常见的终端错误模式
+    const errorPatterns = [
+        /Error: (.+)/,
+        /undefined reference to '(.+)'/,
+        /ModuleNotFoundError: No module named '(.+)'/,
+        /SyntaxError: (.+)/
+    ];
+    
+    // 实现错误解析逻辑
+    return extractedErrors;
+}
+```
+
+### 5. UI设计建议
+
+**对话框布局：**
+```
+┌─────────────────────────────────────────────────┐
+│ 🏮 古法诊断台  [静默模式: ON]  [终端监控: ON]    │
+├─────────────────────────────────────────────────┤
+│ 🔴 严重问题 (2)                                 │
+│   • main.ts:15 变量未定义                        │
+│   • build failed: module not found              │
+│                                                 │
+│ 🟡 警告 (3)                                     │
+│   • unused variable 'temp'                      │
+│   • potential null reference                    │
+│   • missing type annotation                     │
+│                                                 │
+│ 🔵 建议 (5)                                     │
+│   • consider using const instead of let         │
+│   • function could be extracted                 │
+│                                                 │
+├─────────────────────────────────────────────────┤
+│ [验证当前文件]  [查看历史问题]  [设置]           │
+└─────────────────────────────────────────────────┘
+```
+
+### 6. 技术实现路径
+
+1. **基础框架**：使用VSCode Extension API创建WebView面板 
+2. **错误收集**：
+   - 集成VSCode的`DiagnosticCollection`
+   - 监听`vscode.tasks`获取终端输出
+   - 自定义代码分析器（轻量级，避免性能问题）
+3. **数据处理**：
+   - 问题严重程度分类算法
+   - 终端错误模式识别
+   - 问题去重和聚合
+4. **用户体验**：
+   - 响应式设计，适应不同屏幕
+   - 问题折叠/展开功能
+   - 暗色/亮色主题适配
+
+### 7. 与现有工具的区别
+
+| 特性 | 传统AI工具 | 古法编程插件 |
+|------|-----------|-------------|
+| 代码生成 | 自动生成代码 | **绝不生成代码** |
+| 错误提示 | 直接给出修复方案 | **只给提示，让程序员自己修复** |
+| 交互频率 | 高频主动提示 | **低频被动响应** |
+| 学习曲线 | 降低编程门槛 | **提升编程能力** |
+| 核心价值 | 提高效率 | **培养手写能力** |
+
+### 8. 开发建议
+
+1. **先实现MVP版本**：
+   - 基础对话框 + 语法错误显示
+   - 简单的严重程度分类
+   - 基本的终端错误捕获
+
+2. **逐步迭代**：
+   - 添加静默模式
+   - 实现问题溯源功能
+   - 集成历史问题分析
+   - 添加自定义规则配置
+
+3. **性能优化**：
+   - 错误分析使用Web Worker避免阻塞UI
+   - 问题缓存机制减少重复计算
+   - 智能刷新策略（只在代码保存时刷新）
+
+这个插件的核心思想是：**让AI成为"严师"而非"代笔"**，通过克制的设计，真正帮助程序员提升手写代码的能力，而不是培养对AI的依赖。对话框的设计既提供了必要的信息，又避免了过度干扰程序员的思考流程。
+
+您觉得这个设计方案如何？我可以针对某个具体功能点深入讨论实现细节。
+
+### USER
+绝不生成代码 也不是，就是评选等价，如果程序员都是选择自动生成修改代码，分数+0.01，如果根据代码最简提示修复，分数+1，然后实时评估程序员分数，给出类似电脑管家一样的分数评级，你打败了99%的程序员
+
+### ASSISTANT
+基于您的需求，我来设计"古法编程"VSCode插件的完整方案。这个插件的核心是**回归手写**，通过创新的评分机制激励程序员自己思考和修复代码。
+
+## 🌟 核心功能设计
+
+### 1. "古法道场"任务对话框
+```typescript
+// 创建Webview面板
+const panel = vscode.window.createWebviewPanel(
+    'ancientCodingPanel',
+    '🏮 古法道场', 
+    vscode.ViewColumn.Beside,
+    { enableScripts: true, retainContextWhenHidden: true }
+);
+```
+
+**对话框特性：**
+- **实时问题聚合**：集成VSCode诊断API和终端错误捕获 
+- **严重程度颜色编码**：
+  - 🔴 **致命错误**（红色）：语法错误、编译失败、运行时崩溃
+  - 🟡 **逻辑警告**（黄色）：潜在bug、类型不匹配
+  - 🔵 **优化建议**（蓝色）：性能问题、可读性改进
+  - 🟢 **风格提示**（绿色）：代码规范、命名建议
+- **终端错误捕获**：通过VSCode的Terminal API监控终端输出，自动解析错误信息 
+
+### 2. 创新评分系统 💯
+
+**评分规则：**
+```javascript
+// 评分算法
+const scoringSystem = {
+    // 根据提示复杂度加分
+    minimalHintFix: 1.0,    // 只给错误原因，程序员自己修复
+    detailedHintFix: 0.5,   // 给详细提示，程序员实现
+    aiGeneratedFix: 0.01,   // 完全依赖AI生成代码
+    
+    // 连续手写奖励
+    consecutiveHandwriteBonus: (streak) => streak * 0.2,
+    
+    // 复杂度系数
+    complexityMultiplier: {
+        syntaxError: 1.0,
+        logicError: 2.0, 
+        architectureIssue: 3.0
+    }
+};
+```
+
+**实时评分显示：**
+```
+┌─────────────────────────────────────┐
+│ 🎯 您的古法编程技能：87.5分         │
+│ 🏆 您已超越 95% 的程序员！          │
+│ 📊 今日成就：连续手写修复 8 次      │
+│ 💡 当前连击：+1.6分奖励             │
+└─────────────────────────────────────┘
+```
+
+### 3. "最简提示"机制 🧘
+
+**不同于传统AI工具：**
+- **古法提示**：只显示错误本质，不给完整代码
+  ```
+  ❌ 错误：变量'a'在使用前未初始化
+  💡 古法提示：检查变量声明位置，确保在使用前赋值
+  ```
+- **现代提示**（AI生成）：
+  ```javascript
+  // 完整修复代码
+  let a = 0;
+  console.log(a);
+  ```
+
+**提示分级：**
+1. **Level 1**（古法）：只说错误类型和原因
+2. **Level 2**（引导）：给出修复思路，不给代码
+3. **Level 3**（现代）：生成完整修复代码
+
+### 4. 终端错误集成 🖥️
+
+```typescript
+// 捕获终端错误
+const terminal = vscode.window.createTerminal('Ancient Coding Monitor');
+terminal.show();
+
+// 监听终端输出
+vscode.window.onDidWriteTerminalData(e => {
+    if (e.data.includes('error') || e.data.includes('Exception')) {
+        parseTerminalError(e.data).then(error => {
+            // 将终端错误添加到问题列表
+            addProblem({
+                severity: 'error',
+                source: 'terminal',
+                message: error.message,
+                context: error.context,
+                terminalOutput: e.data
+            });
+        });
+    }
+});
+```
+
+### 5. 代码行为跟踪 📊
+
+**跟踪策略：**
+- 监听`vscode.workspace.onDidChangeTextDocument`
+- 分析代码修改模式：
+  - **手写修复**：程序员根据提示自己编写代码
+  - **AI辅助**：直接应用AI生成的代码
+  - **复制粘贴**：检测大段代码粘贴行为
+
+```javascript
+// 行为分析
+function analyzeFixBehavior(oldCode, newCode, hintLevel) {
+    const diff = calculateDiff(oldCode, newCode);
+    
+    if (diff.isMinimalChange && hintLevel === 1) {
+        return 'handwritten_perfect'; // 完美手写
+    } else if (diff.isAIFormatted) {
+        return 'ai_generated'; // AI生成
+    } else if (diff.linesChanged > 10) {
+        return 'bulk_change'; // 大段修改
+    }
+    
+    return 'guided_fix'; // 引导式修复
+}
+```
+
+## 🎮 游戏化设计
+
+### 1. 评分等级系统
+```
+🌟 0-20分：初入江湖
+🌟🌟 21-40分：小有所成  
+🌟🌟🌟 41-60分：门派精英
+🌟🌟🌟🌟 61-80分：一代宗师
+🌟🌟🌟🌟🌟 81-100分：武道巅峰
+```
+
+### 2. 成就系统
+- **古法传承者**：连续10次选择最简提示修复
+- **代码禅师**：单日手写修复50次无AI辅助
+- **Bug克星**：修复100个致命错误
+- **终端大师**：成功解析并修复50个终端错误
+
+### 3. 排行榜功能
+```
+🏆 古法编程排行榜（本周）
+1. 清风剑客 - 98.7分
+2. 代码诗人 - 95.2分  
+3. 您的昵称 - 87.5分 ⬆️
+4. 算法大师 - 82.1分
+5. 重构之王 - 79.8分
+```
+
+## 🛠️ 技术实现路径
+
+### 1. 基础架构
+```typescript
+// extension.ts
+export function activate(context: vscode.ExtensionContext) {
+    // 创建古法道场面板
+    const ancientPanel = new AncientCodingPanel(context);
+    
+    // 注册命令
+    context.subscriptions.push(
+        vscode.commands.registerCommand('ancient-coding.showPanel', () => {
+            ancientPanel.show();
+        })
+    );
+    
+    // 启动终端监控
+    startTerminalMonitoring();
+    
+    // 启动代码行为跟踪
+    startCodeBehaviorTracking();
+}
+```
+
+### 2. Webview通信
+```javascript
+// 面板与扩展通信
+panel.webview.onDidReceiveMessage(message => {
+    switch (message.type) {
+        case 'requestHint':
+            const minimalHint = generateMinimalHint(message.problemId);
+            panel.webview.postMessage({ type: 'hint',  minimalHint });
+            break;
+        case 'applyFix':
+            if (message.fixType === 'ancient') {
+                updateScore(1.0); // 手写修复加分
+            } else if (message.fixType === 'modern') {
+                updateScore(0.01); // AI生成加分
+            }
+            break;
+    }
+});
+```
+
+### 3. 性能优化
+- **懒加载**：只在面板激活时收集详细错误
+- **缓存机制**：缓存已分析的错误模式
+- **Web Worker**：在后台处理复杂分析，避免阻塞UI 
+
+## 📈 商业价值与差异化
+
+**与传统AI工具对比：**
+| 特性 | 传统AI工具 | 古法编程插件 |
+|------|-----------|-------------|
+| **核心目标** | 提高编码速度 | 提升编程技能 |
+| **交互方式** | 主动推送建议 | 被动响应请求 |
+| **学习曲线** | 降低门槛 | 提升能力 |
+| **长期价值** | 依赖工具 | 培养独立性 |
+| **用户粘性** | 工具依赖 | 技能成长 |
+
+**目标用户：**
+- 🎓 计算机专业学生（培养基本功）
+- 👨‍💻 中级开发者（突破技能瓶颈）
+- 🏢 企业培训（提升团队代码质量）
+- 🎮 编程爱好者（享受手写乐趣）
+
+## 🚀 开发路线图
+
+### Phase 1: MVP（2周）
+- [ ] 基础Webview面板创建 
+- [ ] VSCode诊断错误集成
+- [ ] 简单评分系统
+- [ ] 基础终端错误捕获
+
+### Phase 2: 核心功能（3周）
+- [ ] 智能问题分级算法
+- [ ] 代码行为跟踪
+- [ ] 最简提示生成引擎
+- [ ] 游戏化UI设计
+
+### Phase 3: 高级功能（2周）
+- [ ] 云端排行榜同步
+- [ ] 成就系统
+- [ ] 团队协作模式
+- [ ] 详细数据分析报告
+
+---
+
+这个插件的核心价值在于：**它不帮你写代码，它帮你成为更好的程序员**。通过精心设计的评分机制和最简提示，让程序员在享受"你打败了99%的程序员"成就感的同时，真正提升手写代码的能力，回归编程的本质。
+
+您觉得这个设计如何？需要我详细展开某个特定功能的技术实现细节吗？
+
+### USER
+还有一个初始化设置，比如让你选择 
+1.编程新手，专业，专家，教授
+2.擅长：c#,cpp,....
+3....
+
+比如某些程序员，想学一门新的语言，系统判断它是有一定功底，但爱学习挑战，不断给鼓励它，分数评级可能要动态调整
+
+### ASSISTANT
+基于您的需求，我为您设计"古法编程"VSCode插件的完整方案。这个插件的核心是**回归手写编程本质**，通过创新的评分机制和个性化设置，让程序员在享受成就感的同时提升真实编程能力。
+
+## 🎯 核心架构设计
+
+### 1. 初始化设置向导
+```typescript
+// 初始化配置界面
+const setupWizard = {
+    levels: [
+        { id: 'beginner', name: '编程新手', baseScoreMultiplier: 1.5, hintDetail: '高' },
+        { id: 'professional', name: '专业', baseScoreMultiplier: 1.2, hintDetail: '中' },
+        { id: 'expert', name: '专家', baseScoreMultiplier: 1.0, hintDetail: '低' },
+        { id: 'professor', name: '教授', baseScoreMultiplier: 0.8, hintDetail: '极简' }
+    ],
+    languages: ['JavaScript/TypeScript', 'Python', 'C#', 'C++', 'Java', 'Go', 'Rust', 'PHP'],
+    learningMode: {
+        'new-language': '学习新语言',
+        'skill-improvement': '技能提升',
+        'challenge-mode': '挑战模式'
+    }
+};
+```
+
+**智能动态调整**：
+- 选择"学习新语言"模式时，系统会：
+  - 降低评分门槛，鼓励尝试
+  - 增加提示详细度，但保持最简原则
+  - 动态调整分数权重：手写修复+1.5分，AI生成+0.1分
+- 系统会根据代码质量分析真实水平，自动调整评分标准
+
+### 2. "古法道场"任务对话框
+```typescript
+// Webview面板创建
+const panel = vscode.window.createWebviewPanel(
+    'ancientCodingPanel',
+    '🏮 古法道场',
+    vscode.ViewColumn.Beside,
+    { enableScripts: true, retainContextWhenHidden: true }
+);
+```
+
+**实时问题显示**：
+- 🔴 **致命错误**（红色）：语法错误、编译失败、运行时崩溃
+- 🟡 **逻辑警告**（黄色）：潜在bug、类型不匹配
+- 🔵 **优化建议**（蓝色）：性能问题、可读性改进
+- 🟢 **风格提示**（绿色）：代码规范、命名建议
+
+**终端错误集成**：
+```typescript
+// 监听终端错误
+vscode.window.onDidWriteTerminalData(e => {
+    const errors = parseTerminalOutput(e.data);
+    errors.forEach(error => {
+        addProblem({
+            severity: 'error',
+            source: 'terminal',
+            message: error.message,
+            location: error.location,
+            rawOutput: e.data
+        });
+    });
+});
+```
+
+### 3. 创新评分系统 💯
+
+**核心评分算法**：
+```javascript
+const scoringSystem = {
+    // 基础分值
+    handWrittenFix: (complexity, level) => {
+        const base = 1.0;
+        const complexityBonus = complexity * 0.5; // 复杂度越高，分数越高
+        const levelMultiplier = getLevelMultiplier(level); // 根据级别调整
+        return base + complexityBonus * levelMultiplier;
+    },
+    
+    aiGeneratedFix: 0.01, // 严格限制AI生成分数
+    
+    // 连续手写奖励
+    consecutiveBonus: (streak) => streak * 0.2,
+    
+    // 学习新语言额外奖励
+    learningLanguageBonus: (isNewLanguage) => isNewLanguage ? 0.5 : 0
+};
+```
+
+**实时评分显示**：
+```
+┌─────────────────────────────────────┐
+│ 🎯 您的古法编程技能：87.5分         │
+│ 🏆 您已超越 95% 的 C# 程序员！      │
+│ 📊 今日成就：连续手写修复 8 次      │
+│ 💡 当前连击：+1.6分奖励             │
+│ 🌱 正在学习：Rust（新手模式）       │
+└─────────────────────────────────────┘
+```
+
+### 4. "最简提示"机制 🧘
+
+**提示分级策略**：
+```typescript
+function generateHint(problem, userLevel, isLearningMode) {
+    switch(userLevel) {
+        case 'beginner':
+            return {
+                level: 1,
+                hint: `错误：${problem.message}\n建议：${problem.solutionHint}`,
+                examples: [problem.exampleCode] // 提供简单示例
+            };
+        case 'professional':
+            return {
+                level: 2,
+                hint: `问题本质：${problem.rootCause}\n修复思路：${problem.fixApproach}`
+            };
+        case 'expert':
+            return {
+                level: 3,
+                hint: `思考：${problem.conceptualIssue}`
+            };
+        case 'professor':
+            return {
+                level: 4,
+                hint: `哲学思考：${problem.deepInsight}`
+            };
+    }
+}
+```
+
+**不同于传统AI工具**：
+- **古法提示**：只显示错误本质和修复思路
+  ```
+  ❌ 错误：变量'a'在使用前未初始化
+  💡 古法提示：检查变量声明位置，确保在使用前赋值
+  📚 相关概念：变量作用域、生命周期
+  ```
+- **现代提示**（AI生成）：
+  ```javascript
+  // 完整修复代码
+  let a = 0;
+  console.log(a);
+  ```
+
+### 5. 个性化动态调整 🎛️
+
+**智能水平评估**：
+```typescript
+function assessUserLevel(userConfig, codeAnalysis) {
+    const factors = {
+        codeQuality: analyzeCodeQuality(), // 代码质量分析
+        fixPatterns: analyzeFixPatterns(), // 修复模式分析
+        errorFrequency: getErrorFrequency(), // 错误频率
+        learningProgress: getLearningProgress() // 学习进度
+    };
+    
+    // 动态调整评分标准
+    if (userConfig.learningMode === 'new-language' && 
+        factors.learningProgress > 0.5) {
+        return {
+            level: 'advanced-beginner',
+            scoreMultiplier: 1.3,
+            hintDetail: 'medium'
+        };
+    }
+    
+    return userConfig;
+}
+```
+
+**专家级特殊待遇**：
+- 选择"教授"级别后，系统会：
+  - 只显示最严重的3个问题，其他需要手动展开
+  - 提示内容更加抽象，强调编程哲学
+  - 评分标准更严格，但成就感更强
+  - 显示"您已超越99.9%的程序员"等高级成就
+
+### 6. 游戏化成就系统 🏆
+
+**成就分类**：
+- **基础成就**：连续手写修复10次、修复100个错误
+- **学习成就**：掌握3门新语言、完成特定语言挑战
+- **专家成就**：单日手写修复50次、修复最难10个bug
+- **哲学成就**：理解代码本质、写出最优雅解决方案
+
+**排行榜机制**：
+```javascript
+// 动态排行榜
+const leaderboard = {
+    global: '全球程序员',
+    language: '特定语言程序员',
+    level: '同级别程序员',
+    company: '公司/团队内部（需要授权）'
+};
+
+// 显示："您已超越95%的中级C#程序员"
+```
+
+### 7. 技术实现路径 🛠️
+
+**核心模块**：
+1. **诊断收集器**：集成VSCode的Diagnostic API，收集语法错误
+2. **终端监控器**：监听终端输出，解析运行时错误
+3. **评分引擎**：实时计算程序员分数，动态调整标准
+4. **提示生成器**：根据用户级别生成最简提示
+5. **Webview界面**：展示古法道场，支持交互
+
+**性能优化**：
+- 使用Web Worker处理复杂分析，避免阻塞UI
+- 智能缓存机制，减少重复计算
+- 按需加载，只在需要时激活功能
+
+### 8. 差异化竞争优势 🌟
+
+**与传统AI工具对比**：
+| 特性 | 传统AI工具 | 古法编程插件 |
+|------|-----------|-------------|
+| **核心目标** | 替代程序员写代码 | 培养程序员能力 |
+| **交互频率** | 高频主动推送 | 低频被动响应 |
+| **学习曲线** | 降低门槛，可能产生依赖 | 适度挑战，促进成长 |
+| **成就感** | 快速完成任务 | 真实技能提升 |
+| **长期价值** | 工具依赖 | 能力内化 |
+
+**目标用户**：
+- 🎓 计算机专业学生（培养基本功）
+- 👨‍💻 职业开发者（突破技能瓶颈）
+- 🏢 企业技术团队（提升代码质量）
+- 🎮 编程爱好者（享受手写乐趣）
+
+---
+
+这个插件的核心价值在于：**它不帮你写代码，它帮你成为更好的程序员**。通过精心设计的初始化设置、动态评分系统和最简提示机制，让不同水平的程序员都能找到适合自己的成长路径，真正回归手写编程的本质，享受"你打败了99%的程序员"的成就感，同时获得真实的能力提升。
+
+您觉得这个设计方案如何？需要我针对某个具体功能（如终端错误捕获、评分算法细节、Webview界面设计等）提供更详细的技术实现方案吗？
+
+### USER
+还有时间激励，按等级划分错误的难度和规定时间，如果在这个时间段修复，正常评分，如果超过时间段，正常评分+额外的时间扣分，两样都显示
+
+### ASSISTANT
+基于您的需求，我来设计"古法编程"VSCode插件的完整架构。这个插件将**回归手写本质**，通过创新的评分和时间激励机制，让程序员在享受成就感的同时真正提升编程能力。
+
+## 🎛️ 1. 初始化设置系统
+
+```typescript
+interface UserConfig {
+    skillLevel: 'beginner' | 'professional' | 'expert' | 'professor';
+    primaryLanguages: string[];
+    learningMode: boolean;
+    timePressureEnabled: boolean;
+    dynamicScoring: boolean;
+}
+
+// 初始化设置Webview
+function showSetupWizard() {
+    const panel = vscode.window.createWebviewPanel(
+        'ancientSetupWizard',
+        '🏮 古法编程初始化',
+        vscode.ViewColumn.One,
+        { enableScripts: true }
+    );
+    
+    panel.webview.html = getSetupWizardHTML();
+}
+```
+
+**智能动态调整**：
+- **新手模式**：提示详细，时间宽松，分数奖励高
+- **教授模式**：提示极简，时间严格，分数标准严苛
+- **学习模式**：当检测到用户在学习新语言时，系统会：
+  - 降低时间压力，增加学习提示
+  - 动态调整分数权重：手写修复+1.5分，AI生成+0.05分
+  - 显示鼓励性消息："学习新语言是真正的古法精神！"
+
+## ⏰ 2. 时间激励机制（核心创新）
+
+```typescript
+interface ProblemWithTimer {
+    id: string;
+    severity: 'error' | 'warning' | 'info';
+    difficulty: 1 | 2 | 3 | 4 | 5; // 1-简单，5-极难
+    timeLimit: number; // 秒
+    startTime: Date;
+    baseScore: number;
+    timePenalty: number; // 每超时1秒扣分
+    status: 'active' | 'solved' | 'expired';
+}
+
+// 根据用户级别和问题难度动态计算时间限制
+function calculateTimeLimit(severity: string, difficulty: number, userLevel: string): number {
+    const baseTimes = {
+        'beginner': { 'error': 300, 'warning': 180, 'info': 60 }, // 新手：5分钟、3分钟、1分钟
+        'professional': { 'error': 180, 'warning': 120, 'info': 30 }, // 专业：3分钟、2分钟、30秒
+        'expert': { 'error': 120, 'warning': 60, 'info': 15 }, // 专家：2分钟、1分钟、15秒
+        'professor': { 'error': 60, 'warning': 30, 'info': 5 } // 教授：1分钟、30秒、5秒
+    };
+    
+    return baseTimes[userLevel][severity] * (1 + difficulty * 0.2);
+}
+```
+
+**时间激励显示**：
+```
+┌─────────────────────────────────────────────────┐
+│ 🔴 致命错误：变量未定义 (难度: 3/5)             │
+│ ⏰ 剩余时间：2分15秒 ⚡ 超时扣分：-0.1分/秒      │
+│ 💡 古法提示：检查变量作用域和声明位置           │
+│                                                 │
+│ 📊 修复预估：                                   │
+│   ✅ 2分钟内修复：+1.0分                        │
+│   ❌ 超时修复：+1.0分 -0.3分 = +0.7分           │
+│   🤖 AI生成：+0.01分                            │
+└─────────────────────────────────────────────────┘
+```
+
+## 🎯 3. 评分系统（核心创新）
+
+```typescript
+class ScoringEngine {
+    private baseScores = {
+        handWrittenFix: (difficulty: number, userLevel: string) => {
+            const multipliers = {
+                'beginner': 1.5,
+                'professional': 1.2,
+                'expert': 1.0,
+                'professor': 0.8
+            };
+            return 1.0 * difficulty * multipliers[userLevel];
+        },
+        aiGeneratedFix: 0.01,
+        timeBonus: (remainingTime: number, timeLimit: number) => {
+            return remainingTime / timeLimit * 0.5; // 最多+0.5分时间奖励
+        },
+        timePenalty: (overTime: number, timeLimit: number) => {
+            return -Math.min(overTime / timeLimit * 0.5, 0.5); // 最多-0.5分惩罚
+        }
+    };
+
+    calculateScore(fixType: 'handwritten' | 'ai-generated', 
+                  problem: ProblemWithTimer, 
+                  userConfig: UserConfig): number {
+        let score = 0;
+        
+        // 基础分
+        if (fixType === 'handwritten') {
+            score = this.baseScores.handWrittenFix(problem.difficulty, userConfig.skillLevel);
+        } else {
+            score = this.baseScores.aiGeneratedFix;
+        }
+        
+        // 时间奖励/惩罚
+        const elapsed = Date.now() - problem.startTime.getTime();
+        if (elapsed <= problem.timeLimit * 1000) {
+            score += this.baseScores.timeBonus(
+                (problem.timeLimit * 1000 - elapsed) / 1000, 
+                problem.timeLimit
+            );
+        } else {
+            score += this.baseScores.timePenalty(
+                (elapsed - problem.timeLimit * 1000) / 1000,
+                problem.timeLimit
+            );
+        }
+        
+        return score;
+    }
+}
+```
+
+**实时评分显示**：
+```
+┌─────────────────────────────────────┐
+│ 🎯 您的古法编程技能：87.5分         │
+│ 🏆 您已超越 95% 的 C# 程序员！      │
+│ ⏰ 今日时间效率：+2.3分（奖励）     │
+│ ⚠️  时间惩罚：-0.8分（超时）        │
+│ 📊 净增分数：+1.5分                 │
+│ 🌱 正在学习：Rust（新手模式）       │
+└─────────────────────────────────────┘
+```
+
+## 🖥️ 4. "古法道场"任务对话框
+
+```typescript
+class AncientCodingPanel {
+    private _panel: vscode.WebviewPanel;
+    private _disposables: vscode.Disposable[] = [];
+    
+    constructor(private readonly _context: vscode.ExtensionContext) {
+        this._panel = vscode.window.createWebviewPanel(
+            'ancientCodingPanel',
+            '🏮 古法道场',
+            vscode.ViewColumn.Beside,
+            { 
+                enableScripts: true,
+                retainContextWhenHidden: true,
+                localResourceRoots: [vscode.Uri.joinPath(_context.extensionUri, 'media')]
+            }
+        );
+        
+        // 监听终端错误
+        this.setupTerminalMonitoring();
+        // 监听代码变化
+        this.setupCodeDiagnostics();
+    }
+    
+    private setupTerminalMonitoring() {
+        const terminal = vscode.window.createTerminal('Ancient Coding Monitor');
+        terminal.show();
+        
+        vscode.window.onDidWriteTerminalData(e => {
+            if (e.data.includes('error') || e.data.includes('Exception')) {
+                this.parseAndAddTerminalError(e.data);
+            }
+        });
+    }
+    
+    private setupCodeDiagnostics() {
+        const diagnosticCollection = vscode.languages.createDiagnosticCollection('ancient-coding');
+        this._disposables.push(diagnosticCollection);
+        
+        vscode.workspace.onDidChangeTextDocument(e => {
+            this.analyzeDocument(e.document, diagnosticCollection);
+        });
+    }
+}
+```
+
+**对话框功能**：
+- **实时问题聚合**：集成VSCode diagnostic collection API，收集语法错误和警告 
+- **终端错误捕获**：创建专用终端监控，解析运行时错误
+- **严重程度分级**：
+  - 🔴 红色：语法错误、编译失败（阻断性）
+  - 🟡 黄色：逻辑警告、潜在问题（需关注）  
+  - 🔵 蓝色：代码风格、优化建议（可选处理）
+- **动态难度评估**：根据代码上下文、错误类型、用户历史表现计算难度等级
+
+## 🎮 5. 游戏化成就系统
+
+**时间成就**：
+- ⚡ **闪电手**：在规定时间50%内修复所有错误
+- 🕒 **守时者**：连续10次在时间内完成修复
+- 🐢 **稳扎稳打**：虽然超时，但坚持手写修复（获得"毅力"成就）
+
+**技能成就**：
+- 🏆 **古法大师**：单日手写修复50次无AI辅助
+- 🌱 **新语言征服者**：在学习模式下掌握3门新语言
+- 🧠 **哲学家**：在教授模式下获得95+分
+
+**排行榜动态调整**：
+```javascript
+// 显示："您已超越95%的中级C#程序员"
+// 但如果是学习模式，显示："您已超越85%的新手Rust学习者"
+function getRankingMessage(userScore: number, userConfig: UserConfig): string {
+    const basePercentile = calculatePercentile(userScore, userConfig.skillLevel, userConfig.primaryLanguages[0]);
+    
+    if (userConfig.learningMode) {
+        return `🌱 您已超越 ${Math.floor(basePercentile * 0.9)}% 的 ${userConfig.primaryLanguages[0]} 学习者！`;
+    } else {
+        return `🏆 您已超越 ${Math.floor(basePercentile)}% 的 ${userConfig.skillLevel} 级程序员！`;
+    }
+}
+```
+
+## 🛠️ 6. 技术实现路径
+
+### Phase 1: 基础框架（1周）
+- [ ] 创建VSCode扩展基础项目 
+- [ ] 实现初始化设置Webview 
+- [ ] 集成Diagnostic Collection API收集代码错误 
+- [ ] 创建终端监控系统 
+
+### Phase 2: 核心机制（2周）
+- [ ] 实现动态时间限制算法
+- [ ] 构建评分引擎，支持基础分+时间奖励/惩罚
+- [ ] 开发"最简提示"生成系统
+- [ ] 实现用户行为跟踪（手写 vs AI生成）
+
+### Phase 3: 游戏化（1周）
+- [ ] 设计成就系统
+- [ ] 实现动态排行榜
+- [ ] 添加鼓励性消息系统
+- [ ] 优化UI/UX体验
+
+## 🌟 7. 差异化竞争优势
+
+**与传统AI工具对比**：
+| 特性 | 传统AI工具 | 古法编程插件 |
+|------|-----------|-------------|
+| **核心目标** | 替代程序员写代码 | 培养程序员能力 |
+| **时间压力** | 无时间概念 | 智能时间激励 |
+| **学习曲线** | 降低门槛，可能产生依赖 | 适度挑战，促进成长 |
+| **成就感** | 快速完成任务 | 真实技能+时间效率双成就感 |
+| **适用场景** | 快速开发 | 技能提升、面试准备、教学 |
+
+**目标用户**：
+- 🎓 **学生**：培养扎实的编程基本功，应对面试
+- 👨‍💻 **职业开发者**：突破技能瓶颈，保持手写能力
+- 👨‍🏫 **教师**：用于编程教学，让学生真正理解代码
+- 🎮 **编程爱好者**：享受手写代码的乐趣和成就感
+
+---
+
+这个插件的核心价值在于：**它不帮你写代码，它帮你成为更好的程序员**。通过精心设计的时间激励机制和动态评分系统，让程序员在享受"你打败了99%的程序员"成就感的同时，真正提升手写代码的速度和质量，回归编程的本质。
+
+您觉得这个设计方案如何？需要我详细展开某个特定功能（如时间算法、终端错误解析、Webview界面设计等）的实现细节吗？
+
+### USER
+还要考虑一个，不是所有项目都是从0开始，有时候会团队合作，二次开发等，参考这些，给提示
+1.比如良好的git提交习惯
+2.良好的git 提交提示词详细和修正匹配度
+3.解锁成就，比如push一次，等，看看设计多少成就
+
+
+### ASSISTANT
+基于您的需求，我来设计"古法编程"VSCode插件的完整Git协作增强方案。这个方案将**团队协作**和**二次开发**深度集成到"回归手写"的核心理念中，通过Git工作流评估和成就系统，让程序员在团队环境中也能保持高水平的手写能力。
+
+## 🌟 1. Git协作核心架构
+
+```typescript
+interface GitCollaborationConfig {
+    commitAnalysis: boolean;
+    pullRequestTracking: boolean;
+    teamMetrics: boolean;
+    legacyCodeMode: boolean; // 二次开发模式
+    achievementSystem: {
+        commitQuality: boolean;
+        teamCollaboration: boolean;
+        codeQuality: boolean;
+    };
+}
+
+// Git集成服务
+class GitCollaborationService {
+    private gitAPI: any;
+    private scoringEngine: ScoringEngine;
+    
+    constructor(private context: vscode.ExtensionContext) {
+        // 获取VSCode Git API
+        this.gitAPI = vscode.extensions.getExtension('vscode.git')?.exports.getAPI(1);
+        this.setupGitEventListeners();
+    }
+    
+    private setupGitEventListeners() {
+        // 监听提交事件
+        this.gitAPI.onDidCommit(() => this.analyzeCommit());
+        
+        // 监听推送事件
+        this.gitAPI.onDidPush(() => this.trackPushAchievement());
+        
+        // 监听拉取请求
+        this.setupPullRequestMonitoring();
+    }
+}
+```
+
+## 📝 2. 智能提交分析系统
+
+### 提交质量评估引擎
+```typescript
+interface CommitQualityScore {
+    formatScore: number;      // 提交格式规范性 (0-10)
+    messageQuality: number;   // 信息详细度和质量 (0-10)
+    codeMatchScore: number;   // 代码变更与提交信息匹配度 (0-10)
+    granularityScore: number; // 提交粒度合理性 (0-10)
+    overallScore: number;     // 综合评分 (0-100)
+}
+
+function analyzeCommitQuality(commitMessage: string, changedFiles: string[], diffStats: any): CommitQualityScore {
+    // 1. 格式分析 (conventional commits)
+    const formatScore = analyzeCommitFormat(commitMessage);
+    
+    // 2. 信息质量分析
+    const messageQuality = analyzeMessageQuality(commitMessage);
+    
+    // 3. 代码匹配度分析
+    const codeMatchScore = analyzeCodeMessageMatch(commitMessage, changedFiles);
+    
+    // 4. 粒度分析
+    const granularityScore = analyzeCommitGranularity(diffStats);
+    
+    return {
+        formatScore,
+        messageQuality,
+        codeMatchScore,
+        granularityScore,
+        overallScore: (formatScore + messageQuality + codeMatchScore + granularityScore) * 2.5
+    };
+}
+```
+
+### 二次开发模式（针对legacy代码）
+```typescript
+interface LegacyCodeAnalysis {
+    codebaseMaturity: number; // 代码库成熟度 (0-100)
+    technicalDebtScore: number; // 技术债务评分
+    improvementPotential: number; // 改进潜力
+    riskAssessment: 'low' | 'medium' | 'high'; // 风险评估
+}
+
+function analyzeLegacyCodebase(): LegacyCodeAnalysis {
+    // 分析现有代码质量
+    const codeQuality = analyzeCodebaseQuality();
+    
+    // 识别技术债务
+    const technicalDebt = identifyTechnicalDebt();
+    
+    // 评估改进空间
+    const improvement = calculateImprovementPotential(codeQuality, technicalDebt);
+    
+    return {
+        codebaseMaturity: 100 - technicalDebt.score,
+        technicalDebtScore: technicalDebt.score,
+        improvementPotential: improvement,
+        riskAssessment: technicalDebt.riskLevel
+    };
+}
+```
+
+## 🏆 3. 成就系统设计（Git协作版）
+
+### 基础成就（20+成就）
+```typescript
+const gitAchievements = {
+    // 提交质量成就
+    'perfect-commit': {
+        name: '完美提交者',
+        description: '连续10次提交获得90+分的质量评分',
+        reward: 5.0,
+        badge: '🏆'
+    },
+    'conventional-master': {
+        name: '规范大师',
+        description: '100次使用Conventional Commits规范',
+        reward: 3.0,
+        badge: '📝'
+    },
+    'atomic-commit': {
+        name: '原子提交专家',
+        description: '单次提交只修改1-2个相关文件，保持提交原子性',
+        reward: 2.0,
+        badge: '⚛️'
+    },
+    
+    // 团队协作成就
+    'team-player': {
+        name: '团队之星',
+        description: '一个月内参与10+次Pull Request评审',
+        reward: 4.0,
+        badge: '👥'
+    },
+    'conflict-resolver': {
+        name: '冲突解决大师',
+        description: '成功解决50+次Git合并冲突',
+        reward: 6.0,
+        badge: '⚔️'
+    },
+    'code-reviewer': {
+        name: '代码审查专家',
+        description: '提供100+条有价值的代码审查建议',
+        reward: 5.0,
+        badge: '🔍'
+    },
+    
+    // 二次开发成就
+    'legacy-hero': {
+        name: '遗留代码英雄',
+        description: '在高技术债务代码库中成功添加50+行高质量代码',
+        reward: 8.0,
+        badge: '🦸'
+    },
+    'refactoring-champion': {
+        name: '重构冠军',
+        description: '重构2000+行遗留代码，不引入新bug',
+        reward: 10.0,
+        badge: '🔄'
+    },
+    'documentation-king': {
+        name: '文档之王',
+        description: '为遗留代码库编写1000+行高质量文档',
+        reward: 7.0,
+        badge: '📚'
+    }
+};
+```
+
+### 高级成就（15+成就）
+```typescript
+const advancedAchievements = {
+    'zero-bug-month': {
+        name: '无bug月',
+        description: '整个团队一个月内没有因你的代码产生生产bug',
+        reward: 15.0,
+        badge: '🐞🚫'
+    },
+    'mentor-shield': {
+        name: '导师之盾',
+        description: '指导3个新手程序员，他们的代码质量提升50%',
+        reward: 12.0,
+        badge: '🛡️'
+    },
+    'architecture-guardian': {
+        name: '架构守护者',
+        description: '在100+次提交中始终保持架构一致性',
+        reward: 20.0,
+        badge: '🏰'
+    },
+    
+    // 速度与质量平衡
+    'lightning-refactor': {
+        name: '闪电重构',
+        description: '在规定时间内重构1000行代码，质量评分95+',
+        reward: 18.0,
+        badge: '⚡'
+    },
+    'deadline-master': {
+        name: '截止日大师',
+        description: '在5个紧急项目截止日前高质量完成所有任务',
+        reward: 25.0,
+        badge: '⏰'
+    }
+};
+```
+
+## 🎯 4. 二次开发智能提示系统
+
+### 代码上下文感知
+```typescript
+function generateLegacyCodeHint(filePath: string, userLevel: string, legacyAnalysis: LegacyCodeAnalysis): Hint {
+    const fileContext = analyzeFileContext(filePath);
+    const teamStandards = getTeamCodingStandards();
+    
+    // 根据代码库成熟度调整提示
+    if (legacyAnalysis.codebaseMaturity < 30) {
+        // 高技术债务代码库
+        return {
+            level: 'beginner',
+            hint: `【高技术债务区域】您正在修改一个技术债务较高的文件。\n💡 建议：先理解现有代码逻辑，保持风格一致，小步提交。\n📊 风险评估：高风险，建议充分测试。`,
+            caution: true
+        };
+    } else if (legacyAnalysis.codebaseMaturity < 70) {
+        // 中等成熟度
+        return {
+            level: 'professional',
+            hint: `【改进机会】这个文件有改进空间。\n💡 建议：在修复bug的同时，可以考虑小范围重构。\n📈 潜在提升：代码质量可提升20%`,
+            caution: false
+        };
+    } else {
+        // 高质量代码库
+        return {
+            level: 'expert',
+            hint: `【高质量代码】您正在修改高质量代码库。\n💡 挑战：保持架构一致性，考虑性能影响。\n🎯 专家级要求：代码风格、性能、可维护性三重标准`,
+            caution: false
+        };
+    }
+}
+```
+
+### 团队协作提示
+```typescript
+function generateTeamCollaborationHint(currentBranch: string, recentCommits: any[]): Hint {
+    const activeDevelopers = getActiveTeamMembers();
+    const recentChanges = analyzeRecentChanges(recentCommits);
+    
+    return {
+        level: 'professional',
+        hint: `【团队协作提示】当前分支有${recentChanges.conflictRisk}冲突风险。\n👥 活跃开发者：${activeDevelopers.length}人正在此分支工作\n🔔 建议：频繁拉取最新代码，小步提交，及时沟通\n🏆 团队成就：完成此次协作可获得"团队之星"成就+3分`
+    };
+}
+```
+
+## ⏰ 5. 时间激励与Git集成
+
+### 提交时间压力
+```typescript
+interface CommitTimeChallenge {
+    type: 'bug-fix' | 'feature' | 'refactor' | 'hotfix';
+    difficulty: number;
+    timeLimit: number; // 分钟
+    qualityThreshold: number; // 质量阈值 (0-100)
+    rewardMultiplier: number;
+}
+
+function createCommitChallenge(commitType: string, legacyAnalysis: LegacyCodeAnalysis): CommitTimeChallenge {
+    const baseChallenges = {
+        'bug-fix': { timeLimit: 30, qualityThreshold: 85, rewardMultiplier: 1.2 },
+        'feature': { timeLimit: 120, qualityThreshold: 90, rewardMultiplier: 1.5 },
+        'refactor': { timeLimit: 60, qualityThreshold: 95, rewardMultiplier: 2.0 },
+        'hotfix': { timeLimit: 15, qualityThreshold: 80, rewardMultiplier: 1.8 }
+    };
+    
+    // 根据代码库成熟度调整难度
+    const challenge = baseChallenges[commitType];
+    if (legacyAnalysis.codebaseMaturity < 40) {
+        // 高技术债务，增加时间，降低质量要求
+        challenge.timeLimit *= 1.5;
+        challenge.qualityThreshold *= 0.9;
+    }
+    
+    return {
+        ...challenge,
+        difficulty: calculateCommitDifficulty(commitType, legacyAnalysis),
+        type: commitType
+    };
+}
+```
+
+### 动态评分调整
+```typescript
+function calculateGitCollaborationScore(commitQuality: CommitQualityScore, 
+                                      timeChallenge: CommitTimeChallenge, 
+                                      userLevel: string): number {
+    // 基础分：提交质量
+    const baseScore = commitQuality.overallScore / 10;
+    
+    // 时间奖励/惩罚
+    let timeBonus = 0;
+    if (commitQuality.timeTaken <= timeChallenge.timeLimit * 0.5) {
+        timeBonus = 2.0; // 50%时间内完成
+    } else if (commitQuality.timeTaken <= timeChallenge.timeLimit) {
+        timeBonus = 1.0; // 按时完成
+    } else {
+        timeBonus = -0.5 * Math.min((commitQuality.timeTaken - timeChallenge.timeLimit) / 10, 2); // 超时惩罚
+    }
+    
+    // 质量奖励
+    let qualityBonus = 0;
+    if (commitQuality.overallScore >= timeChallenge.qualityThreshold + 10) {
+        qualityBonus = 3.0; // 超高质量
+    } else if (commitQuality.overallScore >= timeChallenge.qualityThreshold) {
+        qualityBonus = 1.5; // 达到标准
+    }
+    
+    // 团队协作加成
+    const teamBonus = calculateTeamCollaborationBonus();
+    
+    return (baseScore + timeBonus + qualityBonus + teamBonus) * timeChallenge.rewardMultiplier;
+}
+```
+
+## 📊 6. "古法道场"Git协作面板
+
+```typescript
+function renderGitCollaborationPanel() {
+    return `
+    <div class="git-collaboration-panel">
+        <div class="panel-header">
+            <h2>📈 团队协作仪表盘</h2>
+            <div class="user-score">
+                <span>🎯 您的团队贡献分：${userTeamScore}</span>
+                <span>🏆 超越 ${percentile}% 的团队成员</span>
+            </div>
+        </div>
+        
+        <div class="commit-analytics">
+            <h3>📝 今日提交分析</h3>
+            <div class="commit-card">
+                <div class="commit-header">
+                    <span class="commit-type">🐛 Bug修复</span>
+                    <span class="time-limit">⏱️ 时限：30分钟</span>
+                </div>
+                <div class="commit-quality">
+                    <div class="quality-bar">
+                        <div class="quality-fill" style="width: ${commitQuality.overallScore}%"></div>
+                    </div>
+                    <span>质量评分：${commitQuality.overallScore}/100</span>
+                </div>
+                <div class="commit-reward">
+                    <span>💰 预计奖励：+${estimatedReward}分</span>
+                    <button class="commit-hint-btn">💡 获取提交提示</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="achievements-section">
+            <h3>🏆 今日可解锁成就</h3>
+            <div class="achievement-grid">
+                ${renderAchievements(unlockedAchievements, availableAchievements)}
+            </div>
+        </div>
+        
+        <div class="legacy-code-section">
+            <h3>🏛️ 遗留代码战场</h3>
+            <div class="legacy-stats">
+                <div class="stat-item">
+                    <span class="stat-value">${legacyAnalysis.technicalDebtScore}</span>
+                    <span class="stat-label">技术债务指数</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">${legacyAnalysis.improvementPotential}%</span>
+                    <span class="stat-label">改进潜力</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">${legacyAnalysis.codebaseMaturity}</span>
+                    <span class="stat-label">代码成熟度</span>
+                </div>
+            </div>
+            <div class="legacy-challenge">
+                <span class="challenge-badge">⚔️ 挑战</span>
+                <span>重构${legacyAnalysis.filesToRefactor}个文件，可获得"重构冠军"成就+10分</span>
+            </div>
+        </div>
+    </div>
+    `;
+}
+```
+
+## 🎮 7. 游戏化团队排行榜
+
+### 动态排行榜系统
+```typescript
+interface TeamLeaderboard {
+    daily: {
+        mostCommits: TeamMember[];
+        highestQuality: TeamMember[];
+        bestRefactorer: TeamMember[];
+        teamPlayer: TeamMember[];
+    };
+    weekly: {
+        legacyHero: TeamMember[]; // 在遗留代码中表现最好的
+        architectureGuardian: TeamMember[]; // 最好的架构维护者
+        mentorMaster: TeamMember[]; // 最佳导师
+    };
+    monthly: {
+        overallChampion: TeamMember[]; // 综合评分最高
+        mostImproved: TeamMember[]; // 进步最大
+        zeroBugDeveloper: TeamMember[]; // 无生产bug
+    };
+}
+
+function generateTeamLeaderboard(teamMembers: TeamMember[]): TeamLeaderboard {
+    return {
+        daily: {
+            mostCommits: [...teamMembers].sort((a, b) => b.dailyCommits - a.dailyCommits).slice(0, 3),
+            highestQuality: [...teamMembers].sort((a, b) => b.avgCommitQuality - a.avgCommitQuality).slice(0, 3),
+            bestRefactorer: [...teamMembers].sort((a, b) => b.refactorScore - a.refactorScore).slice(0, 3),
+            teamPlayer: [...teamMembers].sort((a, b) => b.codeReviewScore - a.codeReviewScore).slice(0, 3)
+        },
+        weekly: {
+            legacyHero: [...teamMembers].sort((a, b) => b.legacyCodeScore - a.legacyCodeScore).slice(0, 3),
+            architectureGuardian: [...teamMembers].sort((a, b) => b.architectureScore - a.architectureScore).slice(0, 3),
+            mentorMaster: [...teamMembers].sort((a, b) => b.mentorScore - a.mentorScore).slice(0, 3)
+        },
+        monthly: {
+            overallChampion: [...teamMembers].sort((a, b) => b.overallScore - a.overallScore).slice(0, 3),
+            mostImproved: [...teamMembers].sort((a, b) => b.improvementRate - a.improvementRate).slice(0, 3),
+            zeroBugDeveloper
+
+### USER
+这次对话主要设计逻辑为重点，编码是次要的，
+
+### ASSISTANT
+基于您的需求，我重新梳理"古法编程"VSCode插件的**核心设计逻辑**。这个插件的核心不是替代程序员，而是**通过精心设计的激励机制，让程序员回归手写代码的本质**，同时在团队协作和二次开发场景中保持高水平。
+
+## 🎯 一、核心设计哲学
+
+### 1.1 核心理念：**辅助而非替代**
+- **传统AI工具**：生成代码 → 程序员审核 → 快速完成
+- **古法编程**：发现问题 → 引导思考 → 程序员手写 → 能力提升
+- **关键差异**：不是"帮你写代码"，而是"帮你成为更好的程序员"
+
+### 1.2 设计原则
+- **最小干预原则**：只在必要时提供帮助，避免过度干扰
+- **渐进式提示**：从最简提示开始，程序员需要时才展开详情
+- **成就感驱动**：通过游戏化设计，让手写代码变得有成就感
+- **真实能力评估**：分数反映真实编程能力，而非AI使用频率
+
+## 🏗️ 二、整体架构设计
+
+### 2.1 四大核心模块
+```
+┌─────────────────────────────────────────────────┐
+│                  古法编程插件                   │
+├───────────────────┬─────────────────┬───────────┤
+│  智能诊断引擎     │  评分激励系统   │ Git协作   │
+│  (发现问题)       │  (驱动行为)     │  集成     │
+└─────────┬─────────┴────────┬────────┴────┬──────┘
+          │                  │             │
+┌─────────▼─────────┐ ┌──────▼───────┐ ┌───▼───────────┐
+│  问题分级显示     │ │  时间激励    │ │  团队协作     │
+│  (对话框)         │ │  机制        │ │  成就         │
+└─────────┬─────────┘ └──────┬───────┘ └───┬───────────┘
+          │                  │             │
+┌─────────▼──────────────────▼─────────────▼───────────┐
+│                 古法道场 (统一交互界面)                │
+└───────────────────────────────────────────────────────┘
+```
+
+### 2.2 数据流向
+1. **数据收集**：代码错误、终端输出、Git操作、时间数据
+2. **智能分析**：问题分级、难度评估、用户水平判断
+3. **激励触发**：评分计算、成就解锁、时间压力提示
+4. **反馈展示**：古法道场界面、成就通知、排行榜更新
+
+## 🎮 三、评分激励系统设计（核心创新）
+
+### 3.1 评分维度设计
+| 维度 | 新手权重 | 专家权重 | 说明 |
+|------|----------|----------|------|
+| **手写质量** | 40% | 60% | 代码质量、架构设计 |
+| **修复速度** | 30% | 25% | 在时间限制内完成 |
+| **提示依赖度** | 20% | 10% | 使用最简提示的程度 |
+| **Git协作** | 10% | 5% | 提交质量、团队贡献 |
+
+### 3.2 时间激励机制
+```
+时间压力模型：
+┌─────────────────────────────────────────────────┐
+│ 难度等级 │ 新手时间 │ 专家时间 │ 超时扣分率 │ 超时奖励率 │
+├─────────┼─────────┼─────────┼───────────┼───────────┤
+│ 1(简单)  │ 5分钟   │ 2分钟   │ -0.1分/分 │ +0.2分/分 │
+│ 2(中等)  │ 10分钟  │ 4分钟   │ -0.2分/分 │ +0.3分/分 │
+│ 3(困难)  │ 15分钟  │ 6分钟   │ -0.3分/分 │ +0.4分/分 │
+│ 4(极难)  │ 20分钟  │ 8分钟   │ -0.4分/分 │ +0.5分/分 │
+│ 5(地狱)  │ 30分钟  │ 10分钟  │ -0.5分/分 │ +0.6分/分 │
+└─────────┴─────────┴─────────┴───────────┴───────────┘
+```
+
+**设计逻辑**：
+- **新手友好**：时间宽松，扣分少，鼓励尝试
+- **专家挑战**：时间严格，奖励高，满足成就感
+- **动态调整**：根据历史表现自动调整难度和时间
+
+### 3.3 成就系统设计
+**成就分类策略**：
+```
+┌─────────────────────────────────────────────────┐
+│ 个人技能成就 (40%)  │ 团队协作成就 (30%) │ 代码质量成就 (30%) │
+├─────────────────────┼────────────────────┼────────────────────┤
+│ • 手写大师          │ • 团队之星         │ • 代码清洁工       │
+│ • 速度之王          │ • 代码审查专家     │ • 架构守护者       │
+│ • 问题终结者        │ • 冲突解决大师     │ • 文档完善者       │
+│ • 学习达人          │ • 导师之盾         │ • 性能优化师       │
+└─────────────────────┴────────────────────┴────────────────────┘
+```
+
+**成就价值体系**：
+- **青铜成就** (1-5分)：日常行为，如"每日提交"
+- **白银成就** (6-15分)：技能提升，如"连续10次手写修复"
+- **黄金成就** (16-30分)：专业水平，如"重构冠军"
+- **钻石成就** (31+分)：专家级别，如"零bug月"
+
+## 🤝 四、Git协作集成设计
+
+### 4.1 二次开发场景分析
+```
+代码库成熟度评估模型：
+┌─────────────────────────────────────────────────┐
+│ 代码库类型 │ 提交建议 │ 时间压力 │ 成就奖励 │ 风险提示 │
+├───────────┼─────────┼─────────┼─────────┼────────┤
+│ 高成熟度   │ 严格    │ 高      │ 高      │ 低     │
+│ (90-100分)│ 高质量  │ 严格    │ 专家级  │ 基本无 │
+│            │ 标准    │         │         │        │
+├───────────┼─────────┼─────────┼─────────┼────────┤
+│ 中成熟度   │ 适中    │ 中等    │ 中等    │ 中等   │
+│ (60-89分) │ 可改进  │ 适中    │ 专业级  │ 可控   │
+├───────────┼─────────┼─────────┼─────────┼────────┤
+│ 低成熟度   │ 宽松    │ 低      │ 低      │ 高     │
+│ (0-59分)  │ 先稳定  │ 宽松    │ 新手级  │ 高风险 │
+└───────────┴─────────┴─────────┴─────────┴────────┘
+```
+
+### 4.2 提交质量评估逻辑
+**多维度评分**：
+1. **格式规范性** (25%)：是否符合团队提交规范
+2. **信息完整性** (25%)：是否描述清楚变更原因和影响
+3. **代码匹配度** (30%)：提交信息与代码变更是否一致
+4. **粒度合理性** (20%)：是否原子化提交，避免过大变更
+
+**智能反馈**：
+- 90+分：显示"完美提交！+5分，解锁成就进度+10%"
+- 70-89分：显示"良好提交，建议改进：... +3分"
+- 50-69分：显示"需要改进：... +1分"
+- <50分：显示"重新考虑提交策略，建议拆分或补充说明 0分"
+
+### 4.3 团队协作成就设计
+**协作成就层次**：
+```
+初级协作 (新手)：
+• 首次Pull Request
+• 首次代码审查
+• 首次解决冲突
+
+中级协作 (专业)：
+• 连续5次高质量PR
+• 帮助新人解决3个问题
+• 代码审查通过率90%+
+
+高级协作 (专家)：
+• 架构一致性守护者
+• 团队技术债务降低10%
+• 培养3个达到专业水平的新人
+
+大师级协作 (教授)：
+• 整个团队代码质量提升20%
+• 零生产bug月
+• 建立团队编码标准
+```
+
+## 🎨 五、用户体验设计
+
+### 5.1 "古法道场"界面逻辑
+```
+┌─────────────────────────────────────────────────┐
+│ 🏮 古法道场 - 您已超越95%的C#程序员！           │
+├─────────────────────────────────────────────────┤
+│ 🔴 紧急问题 (2) ⏰ 时间压力：高                  │
+│   • main.ts:15 变量未定义 [难度:3] 剩余:2:15    │
+│   • build failed: module not found [难度:4] 剩余:5:30 │
+│                                                 │
+│ 🟡 警告 (3) 📊 预估奖励：+3.2分                 │
+│   • unused variable 'temp'                      │
+│   • potential null reference                    │
+│   • missing type annotation                     │
+│                                                 │
+│ 🌱 学习模式：Rust (新手) 🎯 今日目标：+10分      │
+├─────────────────────────────────────────────────┤
+│ [💡 最简提示] [⏱️ 延长时间] [🤖 AI生成(不推荐)]  │
+│ [📊 查看成就] [👥 团队排行] [⚙️ 设置]           │
+└─────────────────────────────────────────────────┘
+```
+
+### 5.2 交互设计逻辑
+- **渐进式披露**：默认只显示最关键信息，详情需要主动查看
+- **行为引导**："最简提示"按钮最大最显眼，"AI生成"按钮最小且灰色
+- **情感化设计**：根据分数变化显示不同表情符号和鼓励语
+- **上下文感知**：根据当前代码文件类型自动调整提示内容
+
+## 📈 六、商业价值与差异化
+
+### 6.1 目标用户分层
+| 用户类型 | 需求痛点 | 本插件解决方案 |
+|----------|----------|----------------|
+| **计算机学生** | 缺乏实战经验，依赖AI | 通过评分系统培养真实能力 |
+| **初级开发者** | 代码质量不稳定 | 时间激励+错误分级指导 |
+| **中级开发者** | 技能瓶颈，依赖工具 | 挑战模式+专家级成就 |
+| **高级开发者** | 团队管理，代码质量 | Git协作+团队排行榜 |
+| **技术管理者** | 团队能力评估 | 数据仪表盘+能力分析 |
+
+### 6.2 竞争优势
+```
+传统AI工具 vs 古法编程：
+┌─────────────────────────────────────────────────┐
+│ 维度        │ 传统AI工具         │ 古法编程           │
+├─────────────┼───────────────────┼───────────────────┤
+│ 核心价值    │ 提高编码速度       │ 提升编程能力       │
+│ 长期影响    │ 可能产生依赖       │ 能力内化           │
+│ 学习曲线    │ 降低门槛           │ 适度挑战           │
+│ 团队价值    │ 个体效率提升       │ 团队能力提升       │
+│ 商业模式    │ 订阅服务           │ 企业培训+个人成长  │
+└─────────────┴───────────────────┴───────────────────┘
+```
+
+## 🚀 七、实施路线图
+
+### 7.1 阶段规划
+```
+Phase 1: MVP (2个月)
+├── 核心诊断引擎
+├── 基础评分系统  
+├── 古法道场界面
+└── 5个基础成就
+
+Phase 2: 个人成长 (3个月)  
+├── 时间激励机制
+├── 个性化设置
+├── 20+个人成就
+└── 学习模式
+
+Phase 3: 团队协作 (4个月)
+├── Git集成
+├── 团队排行榜
+├── 30+团队成就
+└── 企业仪表盘
+
+Phase 4: 生态扩展 (持续)
+├── 插件市场
+├── 企业版
+├── 教育版
+└── 开发者社区
+```
+
+### 7.2 关键指标设计
+- **个人指标**：手写率、平均修复时间、成就解锁数
+- **团队指标**：代码质量提升率、技术债务减少率、新人成长速度
+- **商业指标**：用户留存率、付费转化率、企业客户数
+
+---
+
+## 💎 核心设计价值总结
+
+**这个插件不是工具，而是一个"编程能力培养系统"**：
+
+1. **回归本质**：通过评分机制让程序员重新重视手写代码
+2. **智能激励**：时间压力+成就系统创造良性循环
+3. **真实成长**：Git协作集成确保在实战中提升能力
+4. **团队赋能**：不仅提升个人，更提升整个团队的代码质量
+5. **长期价值**：培养的不是依赖AI的程序员，而是真正有实力的开发者
+
+**最终目标**：让每个使用这个插件的程序员都能自豪地说："我靠手写代码，打败了99%的AI辅助程序员！"
+
+### USER
+给我设计vscode 古法编程的UI ，给详细的提示词，
+
+### ASSISTANT
+基于"古法编程"的核心理念，我为您设计完整的VSCode插件UI方案。这个设计**回归手写本质**，通过精心设计的界面和提示词，让程序员在享受成就感的同时真正提升编程能力。
+
+## 🎨 一、整体UI架构
+
+### 1.1 面板布局（"古法道场"主界面）
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 🏮 古法道场  |  💯 87.5分  |  🏆 超越95%的C#程序员  |  🌱 Rust新手模式        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 🔴 紧急问题 (2) ⏰ 时间压力：高  [⏰ +2.0分奖励]                             │
+│   • [🐞 ERR-001] main.ts:15 变量'a'未定义 [难度:3] ⏳ 02:15                  │
+│     💡 古法提示：检查变量作用域，确保使用前声明                              │
+│     📊 修复预估：手写+1.0分 | AI生成+0.01分 | 超时-0.3分                    │
+│                                                                             │
+│   • [🔥 ERR-002] build failed: module 'lodash' not found [难度:4] ⏳ 05:30   │
+│     💡 古法提示：检查package.json依赖，确认模块是否安装                       │
+│     🔧 终端命令：npm install lodash --save                                   │
+│                                                                             │
+│ 🟡 警告 (3) 📈 今日进步：+5.2分                                            │
+│   • [⚠️ WRN-015] unused variable 'temp'                                     │
+│   • [⚠️ WRN-016] potential null reference in getUser()                     │
+│   • [ℹ️ INF-023] missing JSDoc comment for function                         │
+│                                                                             │
+│ 🔵 建议 (2) 🎯 今日目标：+10分                                              │
+│   • [✨ IMP-007] consider using const instead of let                         │
+│   • [✨ IMP-008] extract function for better readability                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 📊 实时统计  |  ⏱️ 今日效率  |  🏅 成就进度  |  👥 团队贡献                    │
+│ 手写率：85%  |  平均修复：92秒  |  🥇 手写大师(95%)  |  📝 今日提交：3/5      │
+│ AI依赖：15%  |  超时率：5%   |  🕒 闪电手(80%)   |  ⭐ 团队排名：#2/15     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ [💡 最简提示]  [⏱️ 延长时间]  [🔍 详细分析]  [🤖 AI生成(不推荐)]  [📊 全部统计] │
+│ [🎯 今日挑战]  [👥 团队排行]  [🏆 我的成就]  [⚙️ 设置]  [❓ 帮助]               │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 1.2 颜色编码系统
+
+| 颜色 | 含义 | 严重程度 | 时间压力 | 成就关联 |
+|------|------|----------|----------|----------|
+| 🔴 红色 | 语法错误、编译失败 | 1-5级 | 高 | 问题终结者 |
+| 🟡 黄色 | 逻辑警告、潜在bug | 1-3级 | 中 | 代码清洁工 |
+| 🔵 蓝色 | 优化建议、可读性 | 1-2级 | 低 | 性能优化师 |
+| 🟢 绿色 | 风格提示、文档 | 1级 | 无 | 文档完善者 |
+| ⚪ 灰色 | 已解决/历史问题 | - | - | - |
+
+## 📝 二、详细提示词设计
+
+### 2.1 问题提示词模板
+
+#### 语法错误提示（新手模式）
+```
+🐞 [语法错误] 变量'a'在使用前未声明
+📍 位置：main.ts 第15行，第8列
+💡 古法提示：在JavaScript/TypeScript中，变量必须先声明后使用。检查：
+   1. 变量名是否拼写正确？
+   2. 是否在当前作用域内声明？
+   3. 是否在代码执行路径上前声明？
+📚 相关概念：变量作用域、变量提升
+🎯 修复建议：添加 'let a = 0;' 或确认变量来源
+⏰ 时间奖励：2分钟内修复 +0.2分
+🏆 成就进度：连续手写修复 (3/10)
+```
+
+#### 逻辑警告提示（专家模式）
+```
+⚠️ [潜在缺陷] 可能的空引用异常
+📍 位置：utils.ts 第42行
+💡 哲学思考：防御性编程是高质量代码的基石
+🔍 根本原因：未验证getUser()返回值可能为null
+⚔️ 挑战：不改变函数签名，如何优雅处理？
+💡 专家提示：考虑Optional Chaining (?.) 或 Nullish Coalescing (??)
+📊 影响分析：此问题可能导致10%的用户遇到运行时错误
+⏰ 专家时限：60秒 ⚡ 超时扣分：-0.3分/秒
+🏆 专家成就：零bug月 (+2.0分)
+```
+
+#### 终端错误提示
+```
+🔥 [终端错误] ModuleNotFoundError: No module named 'numpy'
+📍 来源：Python终端输出
+💡 古法诊断：依赖管理是项目稳定的基础
+🔧 解决步骤：
+   1. 检查 requirements.txt 或 package.json
+   2. 确认虚拟环境是否激活
+   3. 验证安装命令是否正确
+💻 终端建议：pip install numpy --user
+⏰ 新手时限：8分钟 🎯 预计奖励：+1.5分
+🌱 学习提示：Python依赖管理是基础技能，掌握它！
+```
+
+### 2.2 Git协作提示词
+
+#### 提交质量分析
+```
+📝 [提交分析] 今日第3次提交
+📊 质量评分：85/100 (良好)
+✅ 格式规范：✓ 符合Conventional Commits
+✅ 信息完整：✓ 描述了变更原因
+⚠️ 代码匹配：✗ 部分变更未在提交信息中说明
+✅ 粒度合理：✓ 原子化提交
+💡 改进建议：
+   "修复用户登录bug" → "fix(auth): 修复JWT令牌验证逻辑，处理空令牌情况"
+⏱️ 预计奖励：+3.0分
+🏆 成就解锁：原子提交专家 (8/10)
+👥 团队贡献：+1.2分 (本周排名第3)
+```
+
+#### 二次开发提示
+```
+🏛️ [遗留代码] 正在修改legacy/service.js
+📊 代码库分析：
+   • 技术债务指数：78/100 (高风险)
+   • 代码成熟度：45/100
+   • 改进潜力：⭐⭐⭐⭐
+💡 古法智慧：在遗留代码中，稳定比创新更重要
+🔍 上下文分析：
+   • 该文件最后修改：6个月前
+   • 主要开发者：@zhang (已离职)
+   • 依赖关系：5个关键模块
+⚔️ 挑战：在不破坏现有功能的前提下修复bug
+🎯 建议：
+   1. 先添加测试用例
+   2. 小步提交，每次只改一个功能
+   3. 保持原有代码风格
+⏰ 保守时限：15分钟 ⚡ 超时惩罚：-0.2分/秒
+🏆 高风险成就：遗留代码英雄 (+5.0分)
+```
+
+### 2.3 成就系统提示词
+
+#### 个人成就解锁
+```
+🎉 🏆 成就解锁：手写大师！
+🎯 目标：连续10次手写修复
+✅ 完成：10/10
+📈 分数奖励：+10.0分
+💡 古法精神："真正的程序员相信自己的双手"
+📊 当前评分：87.5 → 97.5
+🏆 全局排名：超越98%的程序员
+👥 团队影响：您的手写率提升了团队平均手写率2%
+🌱 下一成就：闪电手 (连续5次在时限50%内完成)
+```
+
+#### 团队成就提示
+```
+👥 🏆 团队成就：架构守护者
+🎯 目标：本月保持架构一致性
+✅ 进度：85% (17/20次提交)
+🌟 贡献者：@you (+15分), @li (+12分), @wang (+8分)
+💡 团队智慧："一致的架构是可维护性的基石"
+📊 影响：减少新人学习成本40%
+⏰ 剩余时间：3天
+🏆 预计奖励：每人+8.0分
+🎯 今日挑战：审查2个Pull Request
+```
+
+## 🖥️ 三、交互元素设计
+
+### 3.1 按钮设计与提示词
+
+#### 主要按钮（按优先级排序）
+```
+[💡 最简提示]
+• 新手提示："点击获取最简修复思路"
+• 专家提示："真正的挑战从理解开始"
+• 悬停效果：显示"古法提示：只给思考方向，不给完整代码"
+
+[⏱️ 延长时间]
+• 新手提示："再给自己3分钟思考"
+• 专家提示："时间是能力的试金石，慎重使用"
+• 悬停效果：显示"延长50%时间，但奖励减少20%"
+
+[🔍 详细分析]
+• 新手提示："查看完整错误分析"
+• 专家提示："深入理解问题本质"
+• 悬停效果：显示"包含：调用栈、变量状态、历史相似问题"
+
+[🤖 AI生成(不推荐)]
+• 新手提示："查看AI生成的修复代码 (获得0.01分)"
+• 专家提示："⚠️ 依赖AI会降低您的古法评分"
+• 悬停效果：显示"警告：这会重置您的连续手写记录"
+• 视觉设计：灰色、小字号、右下角位置
+
+[🎯 今日挑战]
+• 新手提示："每日提升小目标"
+• 专家提示："突破舒适区"
+• 悬停效果：显示"根据您的水平定制的挑战"
+```
+
+### 3.2 状态提示设计
+
+#### 评分变化提示
+```
+📈 +1.2分  [手写修复]
+• 原因：在时限内手写修复了中等难度问题
+• 奖励组成：
+   ✓ 基础分：+1.0分
+   ✓ 时间奖励：+0.2分
+   ✓ 连续奖励：+0.0分 (中断)
+• 当前总分：86.3 → 87.5
+• 排名变化：94% → 95%
+```
+
+#### 时间警告提示
+```
+⚠️ ⏰ 时间警告：ERR-001 剩余30秒！
+• 当前问题：变量未定义 (难度3)
+• 预计奖励：+0.7分 (原+1.0分，超时惩罚-0.3分)
+• 建议：优先修复此问题，或延长时限
+• 成就影响：连续手写记录保持中
+[⏱️ 延长时间] [✅ 继续尝试] [🤖 放弃挑战]
+```
+
+## 🎯 四、个性化设置界面
+
+### 4.1 初始化设置向导
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 🎯 古法编程初始化设置                                           │
+├─────────────────────────────────────────────────────────────────┤
+│ 1. 您的编程经验：                                               │
+│    ○ 编程新手 (0-1年)    ○ 专业 (2-5年)                         │
+│    ○ 专家 (5-10年)       ○ 教授 (10年+)                         │
+│                                                                 │
+│ 2. 擅长语言 (多选)：                                            │
+│    □ JavaScript/TypeScript  □ Python   □ C#    □ C++            │
+│    □ Java               □ Go        □ Rust   □ PHP             │
+│                                                                 │
+│ 3. 当前目标：                                                   │
+│    ○ 学习新语言 (Rust)   ○ 技能提升   ○ 挑战自我                │
+│    ○ 团队协作            ○ 代码质量   ○ 速度提升                │
+│                                                                 │
+│ 4. 时间压力偏好：                                               │
+│    ○ 低压力 (宽松时间)   ○ 中等压力   ○ 高压力 (挑战模式)       │
+│                                                                 │
+│ 5. Git协作模式：                                                │
+│    ○ 个人项目           ○ 小团队(2-5人)   ○ 大团队(5人+)        │
+│    ○ 开源协作           ○ 教学环境                            │
+├─────────────────────────────────────────────────────────────────┤
+│ [🎮 生成我的古法档案]  [⚙️ 高级设置]  [❓ 示例说明]               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 4.2 详细设置面板
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ ⚙️ 古法编程设置                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│ 🔧 诊断设置                                                     │
+│   • 错误严重度阈值：3级 (1-5级，5最严格)                        │
+│   • 终端错误监控：✓ 启用  [自定义关键词：error,exception,fail]  │
+│   • 性能影响：✓ 低延迟模式                                       │
+│                                                                 │
+│ ⏰ 时间激励设置                                                  │
+│   • 基础时间倍率：1.2x (新手), 1.0x (专业), 0.8x (专家)         │
+│   • 超时惩罚强度：中等 (每超时1分钟-0.2分)                      │
+│   • 时间奖励上限：+0.5分/问题                                   │
+│                                                                 │
+│ 🏆 成就系统设置                                                 │
+│   • 个人成就难度：✓ 标准  ○ 简单  ○ 困难                        │
+│   • 团队成就可见：✓ 启用 (需要Git集成)                          │
+│   • 成就通知频率：✓ 仅重要成就                                  │
+│                                                                 │
+│ 👥 Git协作设置                                                  │
+│   • 提交分析深度：✓ 详细  ○ 简洁                               │
+│   • Pull Request跟踪：✓ 启用                                    │
+│   • 团队排行榜：✓ 启用 (匿名化处理)                             │
+│   • 企业模式：□ 启用 (需要管理员权限)                           │
+├─────────────────────────────────────────────────────────────────┤
+│ [💾 保存设置]  [🔄 恢复默认]  [❓ 帮助文档]  [🎮 重置成就]        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## 📊 五、数据可视化设计
+
+### 5.1 评分趋势图表
+
+```
+📈 您的编程能力趋势 (最近7天)
+┌─────────────────────────────────────────────────┐
+│ 100|                                              │
+│ 95 |       📈                                    │
+│ 90 |    📈   📈                                  │
+│ 85 | 📈   📈   📈  📈                            │
+│ 80 |   📈   📈   📈   📈  📈                     │
+│ 75 | 📈   📈   📈   📈   📈   📈                  │
+│ 70 |_____________________________________________│
+│     周一  周二  周三  周四  周五  周六  周日      │
+│                                                  │
+│ 🔍 详细分析：                                    │
+│ • 手写率提升：78% → 85% (+7%)                     │
+│ • 平均修复时间：120秒 → 92秒 (-23%)              │
+│ • AI依赖度：22% → 15% (-7%)                      │
+│ 🏆 本周成就：解锁"手写大师"，总分+10.0           │
+└─────────────────────────────────────────────────┘
+```
+
+### 5.2 团队协作仪表盘
+
+```
+👥 团队协作仪表盘 (Alpha项目组)
+┌─────────────────────────────────────────────────┐
+│ 📊 代码质量趋势                                  │
+│  100| 🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵                    │
+│   90| 🔵🔵🔵🔵🔵🔵🔵🔵🔵🔴🔴                    │
+│   80| 🔵🔵🔵🔵🔵🔵🔵🔴🔴🔴🔴🔴                    │
+│   70|___________________________________________│
+│      1月   2月   3月   4月   5月   6月           │
+│                                                  │
+│ 🎯 个人贡献排名                                  │
+│  1. @you     ⭐⭐⭐⭐⭐ 97.5分 (手写率85%)            │
+│  2. @li      ⭐⭐⭐⭐  89.2分 (手写率78%)            │
+│  3. @wang    ⭐⭐⭐   82.1分 (手写率72%)            │
+│                                                  │
+│ 🏆 团队成就                                      │
+│  • 架构守护者：85% ✓ (目标90%)                   │
+│  • 零bug月：⚠️ 进行中 (当前bug数：3)              │
+│  • 技术债务：📉 从78→65 (-13%)                   │
+│                                                  │
+│ ⚡ 今日目标                                      │
+│  • 审查2个PR                                     │
+│  • 重构utils模块 (可获得+5.0分)                  │
+│  • 帮助@wang解决遗留代码问题                     │
+└─────────────────────────────────────────────────┘
+```
+
+## 🎮 六、成就展示界面
+
+### 6.1 个人成就墙
+
+```
+🏆 您的成就殿堂
+┌─────────────────────────────────────────────────────────────────┐
+│ 🥇 已解锁成就 (23/50)  🌟 总分：97.5分                          │
+├─────────────────────┬─────────────────────┬─────────────────────┤
+│ 🏆 手写大师          │ 🕒 闪电手            │ 🧠 问题终结者        │
+│ 连续10次手写修复     │ 5次在时限50%内完成   │ 修复100个错误        │
+│ 奖励：+10.0分       │ 奖励：+8.0分        │ 奖励：+15.0分       │
+│ 状态：✓ 已解锁       │ 状态：✓ 已解锁       │ 状态：✓ 已解锁       │
+│                     │                     │ 进度：100/100       │
+├─────────────────────┼─────────────────────┼─────────────────────┤
+│ 🏗️ 架构守护者        │ 📚 文档完善者        │ ⚔️ 遗留代码英雄      │
+│ 保持架构一致性       │ 编写1000行文档       │ 重构2000行遗留代码   │
+│ 奖励：+12.0分       │ 奖励：+7.0分        │ 奖励：+10.0分       │
+│ 状态：⚠️ 进行中(85%)  │ 状态：○ 未开始       │ 状态：✓ 已解锁       │
+│ 进度：17/20         │ 进度：0/1000        │ 进度：2000/2000     │
+├─────────────────────┴─────────────────────┴─────────────────────┤
+│ 🌟 本月目标：解锁"零bug月"成就 (+25.0分)                         │
+│ 🎯 挑战：连续30天无生产bug                                       │
+│ 💡 策略：加强单元测试，代码审查更严格                            │
+│ 📅 剩余时间：15天                                               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 6.2 团队成就展示
+
+```
+👥 团队成就展示 (Alpha项目组)
+┌─────────────────────────────────────────────────────────────────┐
+│ 🌟 团队总分：85.2分  🏆 超越75%的同类团队                        │
+├─────────────────────────────────────────────────────────────────┤
+│ 🔥 当前进行中的团队成就                                          │
+│                                                                 │
+│ 🏗️ 架构守护者 (85% ✓)                                           │
+│  • 目标：90%的提交保持架构一致性                                 │
+│  • 当前：17/20次提交符合标准                                     │
+│  • 贡献者：@you(5), @li(4), @wang(3)                            │
+│  • 奖励：每人+8.0分                                             │
+│                                                                 │
+│ 🐞 零bug月 (⚠️ 进行中)                                           │
+│  • 目标：整个月无生产bug                                         │
+│  • 当前：3个bug (允许5个)                                       │
+│  • 最后bug：2天前                                              │
+│  • 奖励：每人+15.0分                                            │
+│                                                                 │
+│ 💸 技术债务降低 (📉 65分)                                       │
+│  • 目标：从78分降低到60分                                       │
+│  • 当前：65分 (-13%)                                            │
+│  • 主要贡献：@you(重构核心模块), @li(优化数据库层)              │
+│  • 奖励：团队+20.0分                                            │
+├─────────────────────────────────────────────────────────────────┤
+│ 🎯 本周团队挑战                                                  │
+│  • 完成utils模块重构 (+10.0分/人)                                │
+│  • 帮助2个新人通过代码审查 (+5.0分/人)                          │
+│  • 减少技术债务5分 (+15.0分团队)                                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## 💎 七、核心设计价值总结
+
+### 7.1 UI设计原则
+- **最小干扰**：默认折叠详细信息，只显示最关键内容
+- **渐进披露**：点击展开更多细节，保持界面清爽
+- **情感化设计**：使用表情符号、颜色、动画增强情感连接
+- **上下文感知**：根据用户水平、项目类型自动调整界面复杂度
+- **行动导向**：每个界面都有明确的下一步行动建议
+
+### 7.2 提示词设计哲学
+- **新手友好**：详细解释、鼓励性语言、降低压力
+- **专家挑战**：哲学思考、深入分析、适度压力
+- **古法精神**：强调手写价值、能力提升、长期收益
+- **团队协作**：突出贡献、集体成就、互相学习
+- **真实反馈**：不粉饰问题，但提供改进路径
+
+### 7.3 差异化优势
+```
+传统AI工具 UI vs 古法编程 UI：
+┌─────────────────────────────────────────────────────────────┐
+│ 传统AI工具                  │ 古法编程                          │
+├─────────────────────────────┼───────────────────────────────────┤
+│ 代码补全面板居中            │ 问题分析面板居中                  │
+│ "生成代码"按钮最大          │ "最简提示"按钮最大                │
+│ 强调速度和效率              │ 强调质量和能力提升                │
+│ 个人成就为主                │ 个人+团队成就并重                 │
+│ 简单的分数显示              │ 多维度能力雷达图                  │
+│ 无时间压力                  │ 智能时间激励                      │
+│ 代码生成历史                │ 手写修复历史                      │
+└─────────────────────────────┴───────────────────────────────────┘
+```
+
+这个UI设计不仅仅是界面，而是一个**完整的编程能力培养系统**。它通过精心设计的提示词、交互元素和数据可视化，让程序员在享受"你打败了99%的程序员"成就感的同时，真正回归手写代码的本质，提升真实编程能力。
+
+### USER
+你按照以上帮我设计UI
+
+### ASSISTANT
+// App.jsx
+import React, { useState, useEffect } from 'react';
+
+const App = () => {
+  const [userProfile] = useState({
+    name: '古法程序员',
+    score: 87.5,
+    rankPercentile: 95,
+    level: 'professional',
+    learningMode: true,
+    learningLanguage: 'Rust',
+    handwriteRate: 85,
+    aiDependence: 15,
+    avgFixTime: 92,
+    overtimeRate: 5,
+    todayScore: 5.2,
+    todayGoal: 10,
+    teamRank: 2,
+    teamSize: 15,
+    commitsToday: 3,
+    commitsGoal: 5
+  });
+
+  const [problems] = useState([
+    {
+      id: 'ERR-001',
+      type: 'error',
+      severity: 'critical',
+      title: '变量\'a\'未定义',
+      location: 'main.ts:15',
+      difficulty: 3,
+      timeLeft: 135, // seconds
+      hint: '检查变量作用域，确保使用前声明',
+      estimatedReward: 1.0,
+      aiReward: 0.01,
+      overtimePenalty: 0.3,
+      isTerminal: false
+    },
+    {
+      id: 'ERR-002',
+      type: 'error',
+      severity: 'critical',
+      title: 'build failed: module \'lodash\' not found',
+      location: '终端错误',
+      difficulty: 4,
+      timeLeft: 330, // seconds
+      hint: '检查package.json依赖，确认模块是否安装',
+      terminalCommand: 'npm install lodash --save',
+      estimatedReward: 1.0,
+      aiReward: 0.01,
+      overtimePenalty: 0.3,
+      isTerminal: true
+    },
+    {
+      id: 'WRN-015',
+      type: 'warning',
+      severity: 'medium',
+      title: 'unused variable \'temp\'',
+      location: 'utils.ts:42',
+      difficulty: 1,
+      timeLeft: null,
+      hint: '移除未使用的变量以提高代码清晰度',
+      estimatedReward: 0.5,
+      aiReward: 0.01,
+      overtimePenalty: 0,
+      isTerminal: false
+    },
+    {
+      id: 'WRN-016',
+      type: 'warning',
+      severity: 'medium',
+      title: 'potential null reference in getUser()',
+      location: 'auth.ts:78',
+      difficulty: 2,
+      timeLeft: null,
+      hint: '添加空值检查以避免运行时错误',
+      estimatedReward: 0.5,
+      aiReward: 0.01,
+      overtimePenalty: 0,
+      isTerminal: false
+    },
+    {
+      id: 'INF-023',
+      type: 'info',
+      severity: 'low',
+      title: 'missing JSDoc comment for function',
+      location: 'api.ts:105',
+      difficulty: 1,
+      timeLeft: null,
+      hint: '添加文档注释以提高代码可维护性',
+      estimatedReward: 0.3,
+      aiReward: 0.01,
+      overtimePenalty: 0,
+      isTerminal: false
+    },
+    {
+      id: 'IMP-007',
+      type: 'improvement',
+      severity: 'low',
+      title: 'consider using const instead of let',
+      location: 'config.ts:22',
+      difficulty: 1,
+      timeLeft: null,
+      hint: '使用const声明不会重新赋值的变量',
+      estimatedReward: 0.3,
+      aiReward: 0.01,
+      overtimePenalty: 0,
+      isTerminal: false
+    },
+    {
+      id: 'IMP-008',
+      type: 'improvement',
+      severity: 'low',
+      title: 'extract function for better readability',
+      location: 'parser.ts:156',
+      difficulty: 2,
+      timeLeft: null,
+      hint: '将复杂逻辑提取为独立函数',
+      estimatedReward: 0.5,
+      aiReward: 0.01,
+      overtimePenalty: 0,
+      isTerminal: false
+    }
+  ]);
+
+  const [achievements] = useState([
+    {
+      id: 'handwrite-master',
+      name: '手写大师',
+      description: '连续10次手写修复',
+      progress: 10,
+      total: 10,
+      reward: 10.0,
+      unlocked: true,
+      type: 'personal'
+    },
+    {
+      id: 'lightning-fast',
+      name: '闪电手',
+      description: '连续5次在时限50%内完成',
+      progress: 4,
+      total: 5,
+      reward: 8.0,
+      unlocked: false,
+      type: 'personal'
+    },
+    {
+      id: 'legacy-hero',
+      name: '遗留代码英雄',
+      description: '重构2000行遗留代码',
+      progress: 2000,
+      total: 2000,
+      reward: 10.0,
+      unlocked: true,
+      type: 'team'
+    },
+    {
+      id: 'zero-bug-month',
+      name: '零bug月',
+      description: '连续30天无生产bug',
+      progress: 15,
+      total: 30,
+      reward: 25.0,
+      unlocked: false,
+      type: 'team'
+    }
+  ]);
+
+  const [timePressure] = useState({
+    critical: 'high',
+    medium: 'medium',
+    low: 'low'
+  });
+
+  const formatTime = (seconds) => {
+    if (seconds === null) return '';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  const getSeverityColor = (type) => {
+    switch (type) {
+      case 'error': return 'bg-red-50 border-red-200 text-red-800';
+      case 'warning': return 'bg-yellow-50 border-yellow-200 text-yellow-800';
+      case 'info': return 'bg-blue-50 border-blue-200 text-blue-800';
+      case 'improvement': return 'bg-green-50 border-green-200 text-green-800';
+      default: return 'bg-gray-50 border-gray-200 text-gray-800';
+    }
+  };
+
+  const getSeverityIcon = (type) => {
+    switch (type) {
+      case 'error': return '🐞';
+      case 'warning': return '⚠️';
+      case 'info': return 'ℹ️';
+      case 'improvement': return '✨';
+      default: return '🔧';
+    }
+  };
+
+  const getTimePressureColor = (pressure) => {
+    switch (pressure) {
+      case 'high': return 'bg-red-100 text-red-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getAchievementStatus = (achievement) => {
+    if (achievement.unlocked) return '✓ 已解锁';
+    if (achievement.progress >= achievement.total) return '✓ 准备解锁';
+    return `${achievement.progress}/${achievement.total}`;
+  };
+
+  const getAchievementColor = (achievement) => {
+    if (achievement.unlocked) return 'border-green-400 bg-green-50';
+    if (achievement.progress >= achievement.total) return 'border-blue-400 bg-blue-50';
+    return 'border-gray-300 bg-white';
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 font-sans">
+      {/* Main Container */}
+      <div className="max-w-6xl mx-auto p-4 pt-2">
+        {/* Header - Ancient Dojo */}
+        <div className="bg-gradient-to-r from-indigo-900 to-purple-800 text-white rounded-xl shadow-lg p-4 mb-6 border border-indigo-700">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="text-3xl">🏮</div>
+              <div>
+                <h1 className="text-2xl font-bold">古法道场</h1>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  <div className="bg-indigo-800 px-3 py-1 rounded-full text-sm font-medium">
+                    💯 {userProfile.score}分
+                  </div>
+                  <div className="bg-purple-800 px-3 py-1 rounded-full text-sm font-medium">
+                    🏆 超越{userProfile.rankPercentile}%的C#程序员
+                  </div>
+                  {userProfile.learningMode && (
+                    <div className="bg-yellow-400 text-gray-900 px-3 py-1 rounded-full text-sm font-medium">
+                      🌱 {userProfile.learningLanguage}新手模式
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2">
+              <button className="bg-white text-indigo-900 hover:bg-indigo-100 px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-md">
+                🎮 今日挑战
+              </button>
+              <button className="bg-white text-indigo-900 hover:bg-indigo-100 px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-md">
+                👥 团队排行
+              </button>
+              <button className="bg-white text-indigo-900 hover:bg-indigo-100 px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-md">
+                🏆 我的成就
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Problems Section */}
+        <div className="space-y-6 mb-8">
+          {/* Critical Problems */}
+          <div className="bg-white rounded-xl shadow-sm border border-red-100 overflow-hidden">
+            <div className="bg-red-50 px-6 py-4 border-b border-red-100 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="text-red-500 text-xl font-bold">🔴</div>
+                <h2 className="text-lg font-bold text-gray-800">紧急问题 (2)</h2>
+              </div>
+              <div className={`px-3 py-1 rounded-full font-medium text-sm ${getTimePressureColor(timePressure.critical)}`}>
+                ⏰ 时间压力：高 <span className="ml-1">[⏰ +2.0分奖励]</span>
+              </div>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {problems.filter(p => p.type === 'error').map((problem) => (
+                <div key={problem.id} className="p-5 hover:bg-red-50 transition-colors duration-200">
+                  <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-start gap-3">
+                        <div className="text-2xl mt-1">{getSeverityIcon(problem.type)}</div>
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">
+                            [{problem.id}] {problem.title}
+                          </div>
+                          <div className="text-gray-600 mt-1 flex items-center gap-2">
+                            <span className="text-sm bg-gray-100 px-2 py-1 rounded-md font-mono">{problem.location}</span>
+                            <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-md">难度:{problem.difficulty}</span>
+                            {problem.timeLeft !== null && (
+                              <span className="text-sm bg-red-100 text-red-800 px-2 py-1 rounded-md flex items-center gap-1">
+                                ⏳ {formatTime(problem.timeLeft)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-3 pl-1 border-l-2 border-indigo-300">
+                            <div className="flex items-start gap-2">
+                              <div className="text-indigo-600 mt-0.5 text-lg">💡</div>
+                              <div className="text-gray-700 leading-relaxed">
+                                <strong>古法提示：</strong>{problem.hint}
+                              </div>
+                            </div>
+                            {problem.isTerminal && (
+                              <div className="mt-2 flex items-start gap-2">
+                                <div className="text-green-600 mt-0.5 text-lg">🔧</div>
+                                <div className="text-gray-700 bg-gray-50 p-2 rounded-md font-mono text-sm">
+                                  终端命令：<span className="text-blue-600">{problem.terminalCommand}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-3 bg-gray-50 p-3 rounded-lg border border-dashed border-gray-300">
+                            <div className="text-sm text-gray-600">
+                              <strong className="text-gray-800">📊 修复预估：</strong>
+                              <span className="ml-2 text-green-600 font-medium">手写+{problem.estimatedReward}分</span> | 
+                              <span className="ml-2 text-blue-600 font-medium">AI生成+{problem.aiReward}分</span> | 
+                              <span className="ml-2 text-red-600 font-medium">超时-{problem.overtimePenalty}分</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col md:w-auto w-full gap-2 mt-3 md:mt-0">
+                      <button className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 shadow-md">
+                        💡 最简提示
+                      </button>
+                      <button className={`bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 ${problem.timeLeft !== null ? 'block' : 'hidden'}`}>
+                        ⏱️ 延长时间
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Warnings */}
+          <div className="bg-white rounded-xl shadow-sm border border-yellow-100 overflow-hidden">
+            <div className="bg-yellow-50 px-6 py-4 border-b border-yellow-100 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="text-yellow-500 text-xl font-bold">🟡</div>
+                <h2 className="text-lg font-bold text-gray-800">警告 (3)</h2>
+              </div>
+              <div className="px-3 py-1 rounded-full font-medium text-sm bg-green-100 text-green-800">
+                📈 今日进步：+{userProfile.todayScore}分
+              </div>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {problems.filter(p => p.type === 'warning').map((problem) => (
+                <div key={problem.id} className="p-4 hover:bg-yellow-50 transition-colors duration-200">
+                  <div className="flex items-start gap-3">
+                    <div className="text-xl mt-1">{getSeverityIcon(problem.type)}</div>
+                    <div>
+                      <div className="font-medium text-gray-900">
+                        [{problem.id}] {problem.title}
+                      </div>
+                      <div className="text-gray-600 mt-1 text-sm">
+                        {problem.location}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Improvements */}
+          <div className="bg-white rounded-xl shadow-sm border border-blue-100 overflow-hidden">
+            <div className="bg-blue-50 px-6 py-4 border-b border-blue-100 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="text-blue-500 text-xl font-bold">🔵</div>
+                <h2 className="text-lg font-bold text-gray-800">建议 (2)</h2>
+              </div>
+              <div className="px-3 py-1 rounded-full font-medium text-sm bg-purple-100 text-purple-800">
+                🎯 今日目标：+{userProfile.todayGoal}分
+              </div>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {problems.filter(p => p.type === 'improvement' || p.type === 'info').map((problem) => (
+                <div key={problem.id} className="p-4 hover:bg-blue-50 transition-colors duration-200">
+                  <div className="flex items-start gap-3">
+                    <div className="text-xl mt-1">{getSeverityIcon(problem.type)}</div>
+                    <div>
+                      <div className="font-medium text-gray-900">
+                        [{problem.id}] {problem.title}
+                      </div>
+                      <div className="text-gray-600 mt-1 text-sm">
+                        {problem.location}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Statistics and Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-xl shadow-sm p-4 border border-green-100">
+            <div className="text-sm text-gray-600 mb-1">📊 实时统计</div>
+            <div className="text-2xl font-bold text-green-600">{userProfile.handwriteRate}%</div>
+            <div className="text-sm text-gray-700 mt-1">手写率</div>
+            <div className="text-xs text-gray-500 mt-0.5">AI依赖: {userProfile.aiDependence}%</div>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-sm p-4 border border-blue-100">
+            <div className="text-sm text-gray-600 mb-1">⏱️ 今日效率</div>
+            <div className="text-2xl font-bold text-blue-600">{userProfile.avgFixTime}s</div>
+            <div className="text-sm text-gray-700 mt-1">平均修复时间</div>
+            <div className="text-xs text-gray-500 mt-0.5">超时率: {userProfile.overtimeRate}%</div>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-sm p-4 border border-amber-100">
+            <div className="text-sm text-gray-600 mb-1">🏅 成就进度</div>
+            <div className="text-2xl font-bold text-amber-600">🥇 95%</div>
+            <div className="text-sm text-gray-700 mt-1">手写大师</div>
+            <div className="text-xs text-gray-500 mt-0.5">下一成就: 闪电手(80%)</div>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-sm p-4 border border-purple-100">
+            <div className="text-sm text-gray-600 mb-1">👥 团队贡献</div>
+            <div className="text-2xl font-bold text-purple-600">📝 {userProfile.commitsToday}/{userProfile.commitsGoal}</div>
+            <div className="text-sm text-gray-700 mt-1">今日提交</div>
+            <div className="text-xs text-gray-500 mt-0.5">团队排名: #{userProfile.teamRank}/{userProfile.teamSize}</div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap justify-center gap-3 mb-12">
+          <button className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 shadow-lg flex items-center gap-2 text-lg">
+            💡 最简提示
+          </button>
+          <button className="bg-amber-500 hover:bg-amber-600 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 shadow-lg flex items-center gap-2 text-lg">
+            ⏱️ 延长时间
+          </button>
+          <button className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 shadow-lg flex items-center gap-2 text-lg">
+            🔍 详细分析
+          </button>
+          <button className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-3 px-6 rounded-xl transition-all duration-200 shadow flex items-center gap-2 text-lg">
+            🤖 AI生成(不推荐)
+          </button>
+          <button className="bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 shadow-lg flex items-center gap-2 text-lg">
+            📊 全部统计
+          </button>
+        </div>
+
+        {/* Achievements Section */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-12 border border-gray-200">
+          <div className="flex justify-between items-center mb-5">
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              🏆 您的成就殿堂 <span className="text-sm font-normal text-gray-600">(23/50)</span>
+            </h2>
+            <button className="text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
+              查看全部 <span className="ml-1">→</span>
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {achievements.slice(0, 3).map((achievement) => (
+              <div key={achievement.id} className={`border-2 rounded-xl p-4 transition-all duration-200 ${getAchievementColor(achievement)}`}>
+                <div className="flex justify-between items-start mb-2">
+                  <div className={`text-2xl ${achievement.unlocked ? 'text-green-500' : 'text-gray-400'}`}>
+                    {achievement.unlocked ? '🏆' : '🎖️'}
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                    achievement.type === 'personal' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+                  }`}>
+                    {achievement.type === 'personal' ? '个人成就' : '团队成就'}
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">{achievement.name}</h3>
+                <p className="text-gray-600 text-sm mb-3">{achievement.description}</p>
+                <div className="flex justify-between items-center">
+                  <div className="text-sm font-medium">
+                    {getAchievementStatus(achievement)}
+                  </div>
+                  <div className={`font-bold ${
+                    achievement.unlocked ? 'text-green-600' : 'text-indigo-600'
+                  }`}>
+                    +{achievement.reward}分
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="text-center text-gray-500 text-sm py-4 border-t border-gray-200">
+          <p>🏮 古法编程 v1.0 - 代码之道，贵在手写 | 今日已帮助 {1523} 位程序员提升手写能力</p>
+          <p className="mt-1">💪 真正的程序员相信自己的双手，而非AI的生成</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default App;

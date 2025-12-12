@@ -73,6 +73,8 @@ export interface TaskContext {
 	rootTaskDescription?: string
 	/** GSW历史记忆（用于理解用户需求变更和微调方向） */
 	gswHistoricalMemories?: string
+	/** 已读取的文件路径列表（来自 read_file 等工具） */
+	filesRead?: string[]
 }
 
 /**
