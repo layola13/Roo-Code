@@ -39,6 +39,9 @@ export const toolNames = [
 	"generate_image",
 	"use_subagent",
 	"split_file",
+	"spawn_parallel_tasks",
+	"spawn_edit_chain",
+	"spawn_parallel_edit_chains",
 ] as const
 
 export const toolNamesSchema = z.enum(toolNames)

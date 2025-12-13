@@ -72,6 +72,14 @@ export const toolParamNames = [
 	"format",
 	"max_depth",
 	"lines_per_chunk",
+	"tasks",
+	"execution_mode",
+	"max_concurrent",
+	"task_description",
+	"files",
+	"max_steps",
+	"chain_ids",
+	"steps",
 ] as const
 
 export type ToolParamName = (typeof toolParamNames)[number]
@@ -191,6 +199,21 @@ export interface UseSubagentToolUse extends ToolUse {
 	params: Partial<Pick<Record<ToolParamName, string>, "agent_name" | "task" | "context">>
 }
 
+export interface SpawnParallelTasksToolUse extends ToolUse {
+	name: "spawn_parallel_tasks"
+	params: Partial<Pick<Record<ToolParamName, string>, "tasks" | "execution_mode" | "max_concurrent">>
+}
+
+export interface SpawnEditChainToolUse extends ToolUse {
+	name: "spawn_edit_chain"
+	params: Partial<Pick<Record<ToolParamName, string>, "task_description" | "files" | "execution_mode" | "max_steps">>
+}
+
+export interface SpawnParallelEditChainsToolUse extends ToolUse {
+	name: "spawn_parallel_edit_chains"
+	params: Partial<Pick<Record<ToolParamName, string>, "chain_ids" | "max_concurrent">>
+}
+
 export interface SplitFileToolUse extends ToolUse {
 	name: "split_file"
 	params: Partial<Pick<Record<ToolParamName, string>, "path" | "lines_per_chunk">>
@@ -227,6 +250,9 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
 	generate_image: "generate images",
 	use_subagent: "use subagents",
 	split_file: "split large files",
+	spawn_parallel_tasks: "spawn parallel tasks",
+	spawn_edit_chain: "spawn edit chain",
+	spawn_parallel_edit_chains: "spawn parallel edit chains",
 } as const
 
 // Define available tool groups.
@@ -270,6 +296,9 @@ export const ALWAYS_AVAILABLE_TOOLS: ToolName[] = [
 	"update_todo_list",
 	"run_slash_command",
 	"use_subagent",
+	"spawn_parallel_tasks",
+	"spawn_edit_chain",
+	"spawn_parallel_edit_chains",
 ] as const
 
 export type DiffResult =

@@ -15,6 +15,7 @@ export const ContextCondenseRow = ({
 	subAgentTokenUsage,
 	apiConfigName,
 	durationMs,
+	isRealtimeCompression,
 	// GSW system usage information
 	gswUsed,
 	gswVectorSearchEnabled: _gswVectorSearchEnabled,
@@ -65,6 +66,19 @@ export const ContextCondenseRow = ({
 						<VSCodeBadge className="bg-vscode-badge-background">
 							<span className="codicon codicon-organization text-xs mr-1" />
 							{subAgentTokenUsage.length} {t("chat:contextCondense.subAgents")}
+						</VSCodeBadge>
+					)}
+					{/* Realtime compression badge */}
+					{isRealtimeCompression && (
+						<VSCodeBadge className="bg-vscode-charts-green">
+							<span className="codicon codicon-zap text-xs mr-1" />
+							Realtime
+						</VSCodeBadge>
+					)}
+					{/* Duration badge */}
+					{durationMs !== undefined && durationMs >= 0 && (
+						<VSCodeBadge className="opacity-80">
+							⏱️ {durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(1)}s`}
 						</VSCodeBadge>
 					)}
 					<VSCodeBadge className={displayCost > 0 ? "opacity-100" : "opacity-0"}>

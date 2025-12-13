@@ -71,6 +71,7 @@ import { SlashCommandsSettings } from "./SlashCommandsSettings"
 import { UISettings } from "./UISettings"
 import { SplitFileSettings } from "./SplitFileSettings"
 import { GswMemorySettings } from "./GswMemorySettings"
+import { RealtimeCompressionSettings } from "./RealtimeCompressionSettings"
 
 export const settingsTabsContainer = "flex flex-1 overflow-hidden [&.narrow_.tab-label]:hidden"
 export const settingsTabList =
@@ -223,6 +224,12 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		gswMaxFileSizeKB,
 		gswArchiveAfterDays,
 		gswEnableAutoRotation,
+		// Realtime compression settings
+		realtimeCompressionEnabled,
+		realtimeCompressionMessageIncrement,
+		realtimeCompressionTokenIncrement,
+		realtimeCompressionMinIntervalSeconds,
+		realtimeCompressionCacheValidityMinutes,
 		// enableSmartFileRead, // Temporarily disabled
 	} = cachedState
 
@@ -444,6 +451,24 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			vscode.postMessage({ type: "gswMaxFileSizeKB", value: gswMaxFileSizeKB ?? 50 })
 			vscode.postMessage({ type: "gswArchiveAfterDays", value: gswArchiveAfterDays ?? 30 })
 			vscode.postMessage({ type: "gswEnableAutoRotation", bool: gswEnableAutoRotation ?? true })
+			// Realtime compression settings
+			vscode.postMessage({ type: "realtimeCompressionEnabled", bool: realtimeCompressionEnabled ?? true })
+			vscode.postMessage({
+				type: "realtimeCompressionMessageIncrement",
+				value: realtimeCompressionMessageIncrement ?? 5,
+			})
+			vscode.postMessage({
+				type: "realtimeCompressionTokenIncrement",
+				value: realtimeCompressionTokenIncrement ?? 20000,
+			})
+			vscode.postMessage({
+				type: "realtimeCompressionMinIntervalSeconds",
+				value: realtimeCompressionMinIntervalSeconds ?? 60,
+			})
+			vscode.postMessage({
+				type: "realtimeCompressionCacheValidityMinutes",
+				value: realtimeCompressionCacheValidityMinutes ?? 5,
+			})
 			// vscode.postMessage({ type: "enableSmartFileRead", bool: enableSmartFileRead ?? true }) // Temporarily disabled
 			setChangeDetected(false)
 		}
@@ -787,35 +812,45 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 
 					{/* Context Management Section */}
 					{activeTab === "contextManagement" && (
-						<ContextManagementSettings
-							autoCondenseContext={autoCondenseContext}
-							autoCondenseContextPercent={autoCondenseContextPercent}
-							listApiConfigMeta={listApiConfigMeta ?? []}
-							maxOpenTabsContext={maxOpenTabsContext}
-							maxWorkspaceFiles={maxWorkspaceFiles ?? 200}
-							showRooIgnoredFiles={showRooIgnoredFiles}
-							maxReadFileLine={maxReadFileLine}
-							maxImageFileSize={maxImageFileSize}
-							maxTotalImageSize={maxTotalImageSize}
-							maxConcurrentFileReads={maxConcurrentFileReads}
-							profileThresholds={profileThresholds}
-							includeDiagnosticMessages={includeDiagnosticMessages}
-							maxDiagnosticMessages={maxDiagnosticMessages}
-							writeDelayMs={writeDelayMs}
-							vectorMemoryEnabled={vectorMemoryEnabled}
-							subAgentCompressionEnabled={subAgentCompressionEnabled}
-							useContextAnalyzer={useContextAnalyzer}
-							useMemoryExtractor={useMemoryExtractor}
-							useCodeSummarizer={useCodeSummarizer}
-							contextAnalyzerPrompt={contextAnalyzerPrompt}
-							memoryExtractorPrompt={memoryExtractorPrompt}
-							codeSummarizerPrompt={codeSummarizerPrompt}
-							redisUrl={redisUrl}
-							qdrantUrl={qdrantUrl}
-							qdrantCollectionName={qdrantCollectionName}
-							// enableSmartFileRead={enableSmartFileRead} // Temporarily disabled
-							setCachedStateField={setCachedStateField}
-						/>
+						<>
+							<ContextManagementSettings
+								autoCondenseContext={autoCondenseContext}
+								autoCondenseContextPercent={autoCondenseContextPercent}
+								listApiConfigMeta={listApiConfigMeta ?? []}
+								maxOpenTabsContext={maxOpenTabsContext}
+								maxWorkspaceFiles={maxWorkspaceFiles ?? 200}
+								showRooIgnoredFiles={showRooIgnoredFiles}
+								maxReadFileLine={maxReadFileLine}
+								maxImageFileSize={maxImageFileSize}
+								maxTotalImageSize={maxTotalImageSize}
+								maxConcurrentFileReads={maxConcurrentFileReads}
+								profileThresholds={profileThresholds}
+								includeDiagnosticMessages={includeDiagnosticMessages}
+								maxDiagnosticMessages={maxDiagnosticMessages}
+								writeDelayMs={writeDelayMs}
+								vectorMemoryEnabled={vectorMemoryEnabled}
+								subAgentCompressionEnabled={subAgentCompressionEnabled}
+								useContextAnalyzer={useContextAnalyzer}
+								useMemoryExtractor={useMemoryExtractor}
+								useCodeSummarizer={useCodeSummarizer}
+								contextAnalyzerPrompt={contextAnalyzerPrompt}
+								memoryExtractorPrompt={memoryExtractorPrompt}
+								codeSummarizerPrompt={codeSummarizerPrompt}
+								redisUrl={redisUrl}
+								qdrantUrl={qdrantUrl}
+								qdrantCollectionName={qdrantCollectionName}
+								// enableSmartFileRead={enableSmartFileRead} // Temporarily disabled
+								setCachedStateField={setCachedStateField}
+							/>
+							<RealtimeCompressionSettings
+								realtimeCompressionEnabled={realtimeCompressionEnabled}
+								realtimeCompressionMessageIncrement={realtimeCompressionMessageIncrement}
+								realtimeCompressionTokenIncrement={realtimeCompressionTokenIncrement}
+								realtimeCompressionMinIntervalSeconds={realtimeCompressionMinIntervalSeconds}
+								realtimeCompressionCacheValidityMinutes={realtimeCompressionCacheValidityMinutes}
+								setCachedStateField={setCachedStateField}
+							/>
+						</>
 					)}
 
 					{/* GSW Memory Section */}

@@ -34,6 +34,23 @@ export interface SubAgentInvocation {
 	error?: string
 }
 
+// Parallel SubAgent Info interface for UI display
+export interface ParallelSubAgentInfo {
+	id: string
+	name: string
+	status: "running" | "completed" | "queued" | "failed"
+	progress: number // 0-100
+	model: string
+	logs?: Array<{
+		id: string
+		sender: "user" | "system" | "agent"
+		text: string
+		type?: "info" | "code" | "thinking"
+		timestamp: number
+	}>
+	result?: string
+}
+
 // Command interface for frontend/backend communication
 export interface Command {
 	name: string
@@ -138,6 +155,15 @@ export interface ExtensionMessage {
 		| "insertTextIntoTextarea"
 		| "dismissedUpsells"
 		| "organizationSwitchResult"
+		| "parallelSubagentStarted"
+		| "parallelSubagentProgress"
+		| "parallelSubagentCompleted"
+		| "parallelSubagentFailed"
+		| "editChainStarted"
+		| "editChainStepUpdate"
+		| "editChainCompleted"
+		| "editChainPaused"
+		| "editChainAbandoned"
 	text?: string
 	payload?: any // Add a generic payload for now, can refine later
 	action?:
@@ -217,6 +243,10 @@ export interface ExtensionMessage {
 	queuedMessages?: QueuedMessage[]
 	list?: string[] // For dismissedUpsells
 	organizationId?: string | null // For organizationSwitchResult
+	parallelSubagents?: ParallelSubAgentInfo[] // For parallel subagent state management
+	parallelSubagent?: ParallelSubAgentInfo // For single subagent updates
+	editChain?: any // EditChain data from backend (will be typed in webview)
+	editStep?: any // Current EditStep data (will be typed in webview)
 }
 
 export type ExtensionState = Pick<
@@ -327,6 +357,12 @@ export type ExtensionState = Pick<
 	| "gswArchiveAfterDays"
 	| "gswEnableAutoRotation"
 	| "gswModelConfigId"
+	// Realtime compression configuration
+	| "realtimeCompressionEnabled"
+	| "realtimeCompressionMessageIncrement"
+	| "realtimeCompressionTokenIncrement"
+	| "realtimeCompressionMinIntervalSeconds"
+	| "realtimeCompressionCacheValidityMinutes"
 > & {
 	// Judge mode configuration
 	judgeConfig?: {
@@ -428,6 +464,8 @@ export interface ClineSayTool {
 		| "runSlashCommand"
 		| "parseAst"
 		| "splitFile"
+		| "spawnEditChain"
+		| "spawnParallelEditChains"
 	path?: string
 	diff?: string
 	content?: string
@@ -446,6 +484,9 @@ export interface ClineSayTool {
 	endLine?: number
 	lineNumber?: number
 	query?: string
+	steps?: string // JSON string of EditStep[] for spawn_edit_chain
+	chainIds?: string[] // Array of chain IDs for spawn_parallel_edit_chains
+	maxConcurrent?: number // Maximum concurrent chains for parallel execution
 	batchFiles?: Array<{
 		path: string
 		lineSnippet: string

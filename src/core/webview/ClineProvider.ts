@@ -1956,6 +1956,12 @@ export class ClineProvider
 			gswArchiveAfterDays,
 			gswEnableAutoRotation,
 			gswModelConfigId,
+			// Realtime compression settings
+			realtimeCompressionEnabled,
+			realtimeCompressionMessageIncrement,
+			realtimeCompressionTokenIncrement,
+			realtimeCompressionMinIntervalSeconds,
+			realtimeCompressionCacheValidityMinutes,
 		} = await this.getState()
 
 		let cloudOrganizations: CloudOrganizationMembership[] = []
@@ -2132,6 +2138,12 @@ export class ClineProvider
 			gswArchiveAfterDays: gswArchiveAfterDays ?? 30,
 			gswEnableAutoRotation: gswEnableAutoRotation ?? true,
 			gswModelConfigId,
+			// Realtime compression settings
+			realtimeCompressionEnabled: realtimeCompressionEnabled ?? false,
+			realtimeCompressionMessageIncrement: realtimeCompressionMessageIncrement ?? 5,
+			realtimeCompressionTokenIncrement: realtimeCompressionTokenIncrement ?? 20000,
+			realtimeCompressionMinIntervalSeconds: realtimeCompressionMinIntervalSeconds ?? 60,
+			realtimeCompressionCacheValidityMinutes: realtimeCompressionCacheValidityMinutes ?? 5,
 		}
 	}
 
@@ -2388,6 +2400,12 @@ export class ClineProvider
 			gswArchiveAfterDays: stateValues.gswArchiveAfterDays ?? 30,
 			gswEnableAutoRotation: stateValues.gswEnableAutoRotation ?? true,
 			gswModelConfigId: stateValues.gswModelConfigId,
+			// Realtime compression settings
+			realtimeCompressionEnabled: stateValues.realtimeCompressionEnabled ?? false,
+			realtimeCompressionMessageIncrement: stateValues.realtimeCompressionMessageIncrement ?? 5,
+			realtimeCompressionTokenIncrement: stateValues.realtimeCompressionTokenIncrement ?? 20000,
+			realtimeCompressionMinIntervalSeconds: stateValues.realtimeCompressionMinIntervalSeconds ?? 60,
+			realtimeCompressionCacheValidityMinutes: stateValues.realtimeCompressionCacheValidityMinutes ?? 5,
 		}
 	}
 

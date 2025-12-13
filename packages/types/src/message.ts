@@ -166,6 +166,8 @@ export const clineSays = [
 	"condense_context_error",
 	"codebase_search_result",
 	"user_edit_todos",
+	"edit_chain_created",
+	"parallel_edit_chains_started",
 ] as const
 
 export const clineSaySchema = z.enum(clineSays)
@@ -297,6 +299,7 @@ export const contextCondenseSchema = z.object({
 	subAgentTokenUsage: z.array(subAgentTokenUsageSchema).optional(),
 	apiConfigName: z.string().optional(), // API configuration name used for compression
 	durationMs: z.number().optional(), // Compression duration in milliseconds
+	isRealtimeCompression: z.boolean().optional(), // Whether this used pre-warmed realtime cache (instant)
 	// GSW System Usage Information
 	gswUsed: z.boolean().optional(), // Whether GSW system was used
 	gswVectorSearchEnabled: z.boolean().optional(), // Whether vector search is enabled in GSW

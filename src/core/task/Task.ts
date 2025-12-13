@@ -97,6 +97,9 @@ import { RooIgnoreController } from "../ignore/RooIgnoreController"
 import { RooProtectedController } from "../protect/RooProtectedController"
 import { type AssistantMessageContent, presentAssistantMessage } from "../assistant-message"
 import { AssistantMessageParser } from "../assistant-message/AssistantMessageParser"
+import { ParallelSubagentManager } from "../subagent/parallel/ParallelSubagentManager"
+import { SubagentExecutor } from "../subagent/executor/SubagentExecutor"
+import { SubagentResult } from "../subagent/types"
 import { truncateConversationIfNeeded } from "../sliding-window"
 import { RealtimeContextSummarizer } from "../condense/RealtimeContextSummarizer"
 import { ClineProvider } from "../webview/ClineProvider"
@@ -323,7 +326,15 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	toolUsage: ToolUsage = {}
 
 	// SubAgent Invocations
+	// Parallel Subagent Manager (for spawn_parallel_tasks tool)
+	public parallelManager?: ParallelSubagentManager
 	private subAgentInvocations: SubAgentInvocation[] = []
+
+	// NextEdit System (for spawn_edit_chain tool)
+	public nextEditService?: import("../next-edit").NextEditService
+	public nextEditProvider?: import("../next-edit").NextEditProvider
+	public nextEditMemoryManager?: import("../next-edit").NextEditMemoryManager
+	public nextEditAnalyzer?: import("../next-edit").EditChainAnalyzer
 
 	// Checkpoints
 	enableCheckpoints: boolean
@@ -432,11 +443,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			// 非关键功能，失败不影响主流程
 		})
 
-		// 初始化GSW三元记忆系统（如果配置启用）
-		this.initializeGSWMemorySystem(provider).catch((error) => {
-			console.warn("Failed to initialize GSW Memory System:", error)
-			// 非关键功能，失败不影响主流程
-		})
+		// 初始化GSW三元记忆系统和NextEdit编辑链系统（如果配置启用）
+		// NextEdit依赖GSW，需要按顺序初始化
+		this.initializeGSWMemorySystem(provider)
+			.then(() => this.initializeNextEditSystem(provider))
+			.catch((error) => {
+				console.warn("Failed to initialize GSW/NextEdit systems:", error)
+				// 非关键功能，失败不影响主流程
+			})
 
 		this.rooIgnoreController.initialize().catch((error) => {
 			console.error("Failed to initialize RooIgnoreController:", error)
@@ -746,6 +760,78 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			// 非关键功能，记录错误但不抛出
 			this.gswMemorySystem = undefined
 			this.gswMemoryCapture = undefined
+		}
+	}
+
+	/**
+	 * 初始化NextEdit编辑链系统
+	 * 依赖GSW系统，必须在GSW初始化之后调用
+	 */
+	private async initializeNextEditSystem(provider: ClineProvider): Promise<void> {
+		try {
+			// 检查GSW系统是否已初始化（NextEdit依赖GSW）
+			if (!this.gswMemorySystem || !this.gswMemoryCapture) {
+				console.warn(
+					"[Task#initializeNextEditSystem] GSW system not initialized, skipping NextEdit initialization",
+				)
+				return
+			}
+
+			// 检查是否启用NextEdit功能
+			const config = vscode.workspace.getConfiguration("roo-cline")
+			const nextEditEnabled = config.get<boolean>("nextEdit.enabled", false)
+
+			if (!nextEditEnabled) {
+				console.log("[Task#initializeNextEditSystem] NextEdit disabled in configuration")
+				return
+			}
+
+			// 动态导入NextEdit模块
+			const { NextEditService, NextEditProvider, NextEditMemoryManager, EditChainAnalyzer } = await import(
+				"../next-edit"
+			)
+
+			// 初始化NextEdit组件
+			this.nextEditMemoryManager = new NextEditMemoryManager(this.gswMemorySystem)
+
+			this.nextEditProvider = new NextEditProvider(this.api)
+
+			this.nextEditAnalyzer = new EditChainAnalyzer(this.gswMemorySystem)
+
+			this.nextEditService = new NextEditService(
+				this.nextEditMemoryManager,
+				this.nextEditProvider,
+				this.nextEditAnalyzer,
+				{
+					enabled: config.get<boolean>("nextEdit.enabled", false),
+					maxConcurrentChains: config.get<number>("nextEdit.maxConcurrentChains", 3),
+					validationMode: config.get<"strict" | "relaxed" | "none">("nextEdit.validationMode", "strict"),
+					patternLearning: {
+						minSuccessRate: config.get<number>("nextEdit.patternLearning.minSuccessRate", 0.7),
+						minUsageCount: config.get<number>("nextEdit.patternLearning.minUsageCount", 3),
+						autoUpdate: config.get<boolean>("nextEdit.patternLearning.autoUpdate", true),
+					},
+					predictiveGeneration: {
+						enablePrefetch: config.get<boolean>("nextEdit.predictiveGeneration.enablePrefetch", true),
+						prefetchBuffer: config.get<number>("nextEdit.predictiveGeneration.prefetchBuffer", 2),
+						cacheTimeout: config.get<number>("nextEdit.predictiveGeneration.cacheTimeout", 60000),
+					},
+					parallelExecution: {
+						maxConcurrency: config.get<number>("nextEdit.parallelExecution.maxConcurrency", 5),
+						slotTimeout: config.get<number>("nextEdit.parallelExecution.slotTimeout", 300000),
+						retryAttempts: config.get<number>("nextEdit.parallelExecution.retryAttempts", 2),
+					},
+				},
+			)
+
+			console.log("[Task#initializeNextEditSystem] ✅ NextEdit system initialized successfully")
+		} catch (error) {
+			console.error("[Task#initializeNextEditSystem] Error initializing NextEdit system:", error)
+			// 非关键功能，记录错误但不抛出
+			this.nextEditService = undefined
+			this.nextEditProvider = undefined
+			this.nextEditMemoryManager = undefined
+			this.nextEditAnalyzer = undefined
 		}
 	}
 
@@ -3086,6 +3172,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 					TelemetryService.instance.captureConversationMessage(this.taskId, "assistant")
 
+					// 🔒 [DISABLED] 实时上下文压缩功能已暂时禁用
+					// 原因：后台压缩失败时可能导致上下文丢失、对话脱节
+					// 保留传统的 truncateConversationIfNeeded 自动压缩机制
+					/*
 					// 🔥 实时上下文压缩：在每次API响应完成后，检查是否应该触发后台总结
 					// 这是"预热缓存"策略的核心：提前准备好压缩结果，等需要时直接使用
 					try {
@@ -3116,12 +3206,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 									gswMemorySystem: this.gswMemorySystem,
 									subAgentConfig: state?.useSubAgentCompression
 										? {
-												enabled: true,
-												useContextAnalyzer: true,
-												useMemoryExtractor: true,
-												useCodeSummarizer: true,
-												verboseLogging: false,
-											}
+											enabled: true,
+											useContextAnalyzer: true,
+											useMemoryExtractor: true,
+											useCodeSummarizer: true,
+											verboseLogging: false,
+										}
 										: undefined,
 								},
 							)
@@ -3130,6 +3220,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						// 后台总结失败不影响主流程
 						console.warn("[Task] 后台实时总结触发失败:", error)
 					}
+					*/
 
 					// NOTE: This comment is here for future reference - this was a
 					// workaround for `userMessageContent` not getting set to true.
@@ -3647,6 +3738,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 			const contextWindow = modelInfo.contextWindow
 
+			// 🔒 [DISABLED] 实时上下文压缩功能已暂时禁用
+			// 原因：后台压缩失败时可能导致上下文丢失、对话脱节
+			// 保留传统的 truncateConversationIfNeeded 自动压缩机制
+			/*
 			// 🔥 实时上下文压缩：临界点检测
 			// 如果上下文使用率达到临界点（85%），检查是否有预热的缓存可用
 			if (
@@ -3670,6 +3765,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						newContextTokens: cachedResult.newContextTokens,
 						prevContextTokens: contextTokens,
 						durationMs: 0, // 零等待
+						isRealtimeCompression: true, // 使用了预热缓存
 						// GSW system usage information
 						gswUsed: cachedResult.fullResponse.gswUsed,
 						gswVectorSearchEnabled: cachedResult.fullResponse.gswVectorSearchEnabled,
@@ -3680,21 +3776,18 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 					await this.say(
 						"condense_context",
-						undefined /* text */,
-						undefined /* images */,
-						false /* partial */,
-						undefined /* checkpoint */,
-						undefined /* progressStatus */,
-						{ isNonInteractive: true } /* options */,
+						undefined,
+						undefined,
+						false,
+						undefined,
+						undefined,
+						{ isNonInteractive: true },
 						contextCondense,
 					)
 
 					console.log(
 						`[Task#${this.taskId}] ✅ 零等待压缩完成！tokens: ${contextTokens} → ${cachedResult.newContextTokens}`,
 					)
-
-					// 跳过后续的传统压缩逻辑（因为已经使用了预热缓存）
-					// 继续执行 API 请求
 				}
 			} else if (this.realtimeContextSummarizer.isCriticalPoint(contextTokens, contextWindow)) {
 				// 临界点但没有缓存，尝试等待正在进行的后台总结
@@ -3714,6 +3807,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 							newContextTokens: cachedResult.newContextTokens,
 							prevContextTokens: contextTokens,
 							durationMs: cachedResult.fullResponse.durationMs,
+							isRealtimeCompression: true,
 							gswUsed: cachedResult.fullResponse.gswUsed,
 							gswVectorSearchEnabled: cachedResult.fullResponse.gswVectorSearchEnabled,
 							gswMemoriesRetrieved: cachedResult.fullResponse.gswMemoriesRetrieved,
@@ -3738,6 +3832,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					}
 				}
 			}
+			*/
 
 			// Get the current profile ID using the helper method
 			const currentProfileId = this.getCurrentProfileId(state)
@@ -5186,6 +5281,156 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 		} catch (e) {
 			console.error(`[Task] Queue processing error:`, e)
+		}
+	}
+
+	/**
+	 * 读取文件内容的辅助方法
+	 * 供NextEdit工具使用，将相对路径转换为绝对路径后读取
+	 * @param filePath 文件路径（相对或绝对）
+	 * @returns 文件内容字符串
+	 */
+	public async readFile(filePath: string): Promise<string> {
+		const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(this.cwd, filePath)
+		return await require("fs").promises.readFile(absolutePath, "utf-8")
+	}
+
+	/**
+	 * Run a parallel subagent task
+	 * This method is called by spawn_parallel_tasks tool to execute individual tasks
+	 */
+	public async runParallelSubagent(params: {
+		id: string
+		description: string
+		context?: string
+		targetFiles?: string[]
+		priority?: "high" | "medium" | "low"
+		model?: string
+		tools?: string[]
+	}): Promise<SubagentResult> {
+		// Initialize parallel manager if not already done
+		if (!this.parallelManager) {
+			// Create SubagentExecutor with current API handler
+			const subagentExecutor = new SubagentExecutor(this.api, {
+				enableCache: true,
+				enableMetrics: true,
+				verboseLogging: false,
+			})
+
+			// Initialize ParallelSubagentManager
+			this.parallelManager = new ParallelSubagentManager(subagentExecutor, {
+				slotCount: 10,
+				contextPool: {
+					maxPoolSize: 20,
+					contextTokenLimit: 200_000,
+					contextTTL: 30 * 60 * 1000,
+				},
+				scheduler: {
+					maxConcurrent: 10,
+					maxQueueSize: 100,
+					enablePriority: true,
+					queueTimeout: 60_000,
+				},
+				enableMonitoring: true,
+				verboseLogging: false,
+			})
+		}
+
+		// Send started message to UI
+		const provider = this.providerRef.deref()
+		if (provider) {
+			await provider.postMessageToWebview({
+				type: "parallelSubagentStarted",
+				parallelSubagent: {
+					id: params.id,
+					name: params.description.substring(0, 50), // Truncate long descriptions
+					status: "queued",
+					progress: 0,
+					model: params.model || this.api.getModel().id,
+				},
+			})
+		}
+
+		// Build subagent parameters
+		const subagentParams = {
+			agent_name: "condense-code-summarizer" as const, // Default agent for parallel tasks
+			task: params.description,
+			context: params.context,
+		}
+
+		// Build agent context from current conversation
+		const agentContext = {
+			messages: this.apiConversationHistory.slice(-10), // Last 10 messages for context
+			conversationMeta: {
+				taskId: this.taskId,
+				targetFiles: params.targetFiles,
+			},
+		}
+
+		// Execute through parallel manager
+		try {
+			// Send running status update
+			if (provider) {
+				await provider.postMessageToWebview({
+					type: "parallelSubagentProgress",
+					parallelSubagent: {
+						id: params.id,
+						name: params.description.substring(0, 50),
+						status: "running",
+						progress: 10,
+						model: params.model || this.api.getModel().id,
+					},
+				})
+			}
+
+			const result = await this.parallelManager.execute(subagentParams, agentContext, params.priority || "medium")
+
+			// Send completion message
+			if (provider) {
+				await provider.postMessageToWebview({
+					type: "parallelSubagentCompleted",
+					parallelSubagent: {
+						id: params.id,
+						name: params.description.substring(0, 50),
+						status: "completed",
+						progress: 100,
+						model: params.model || this.api.getModel().id,
+						result: typeof result.output === "string" ? result.output : JSON.stringify(result.output),
+					},
+				})
+			}
+
+			return {
+				agentName: params.id,
+				output: result.output || "",
+				tokensUsed: result.tokensUsed || 0,
+				executionTime: result.executionTime || 0,
+				success: result.success,
+				error: result.error,
+			}
+		} catch (error) {
+			// Send failure message
+			if (provider) {
+				await provider.postMessageToWebview({
+					type: "parallelSubagentFailed",
+					parallelSubagent: {
+						id: params.id,
+						name: params.description.substring(0, 50),
+						status: "failed",
+						progress: 0,
+						model: params.model || this.api.getModel().id,
+					},
+				})
+			}
+
+			return {
+				agentName: params.id,
+				output: "",
+				tokensUsed: 0,
+				executionTime: 0,
+				success: false,
+				error: error instanceof Error ? error.message : String(error),
+			}
 		}
 	}
 }

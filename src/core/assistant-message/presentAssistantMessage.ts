@@ -33,6 +33,9 @@ import { runSlashCommandTool } from "../tools/runSlashCommandTool"
 import { generateImageTool } from "../tools/generateImageTool"
 import { useSubagentTool } from "../tools/useSubagentTool"
 import { getSplitFileToolDescription, splitFileTool } from "../tools/splitFileTool"
+import { spawnParallelTasksTool } from "../tools/spawnParallelTasksTool"
+import { spawnEditChainTool } from "../tools/spawnEditChainTool"
+import { spawnParallelEditChainsTool } from "../tools/spawnParallelEditChainsTool"
 
 import { formatResponse } from "../prompts/responses"
 import { validateToolUse } from "../tools/validateToolUse"
@@ -237,6 +240,34 @@ export async function presentAssistantMessage(cline: Task) {
 						return `[${block.name} for '${block.params.path}']`
 					case "use_subagent":
 						return `[${block.name}${block.params.agent_name ? ` for '${block.params.agent_name}'` : ""}${block.params.task ? `: ${block.params.task}` : ""}]`
+					case "spawn_parallel_tasks": {
+						try {
+							const tasks = block.params.tasks ? JSON.parse(block.params.tasks) : []
+							const taskCount = Array.isArray(tasks) ? tasks.length : 0
+							const mode = block.params.execution_mode || "auto"
+							return `[${block.name}: ${taskCount} tasks in ${mode} mode]`
+						} catch {
+							return `[${block.name}]`
+						}
+					}
+					case "spawn_edit_chain": {
+						try {
+							const steps = block.params.steps ? JSON.parse(block.params.steps) : []
+							const stepCount = Array.isArray(steps) ? steps.length : 0
+							return `[${block.name}: ${stepCount} steps]`
+						} catch {
+							return `[${block.name}]`
+						}
+					}
+					case "spawn_parallel_edit_chains": {
+						try {
+							const chainIds = block.params.chain_ids ? JSON.parse(block.params.chain_ids) : []
+							const chainCount = Array.isArray(chainIds) ? chainIds.length : 0
+							return `[${block.name}: ${chainCount} chains]`
+						} catch {
+							return `[${block.name}]`
+						}
+					}
 				}
 			}
 
@@ -599,6 +630,36 @@ export async function presentAssistantMessage(cline: Task) {
 					break
 				case "split_file":
 					await splitFileTool(cline, block, askApproval, handleError, pushToolResult, removeClosingTag)
+					break
+				case "spawn_parallel_tasks":
+					await spawnParallelTasksTool(
+						cline,
+						block as any,
+						askApproval,
+						handleError,
+						pushToolResult,
+						removeClosingTag,
+					)
+					break
+				case "spawn_edit_chain":
+					await spawnEditChainTool(
+						cline,
+						block as any,
+						askApproval,
+						handleError,
+						pushToolResult,
+						removeClosingTag,
+					)
+					break
+				case "spawn_parallel_edit_chains":
+					await spawnParallelEditChainsTool(
+						cline,
+						block as any,
+						askApproval,
+						handleError,
+						pushToolResult,
+						removeClosingTag,
+					)
 					break
 			}
 

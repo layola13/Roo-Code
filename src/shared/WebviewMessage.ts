@@ -260,6 +260,11 @@ export interface WebviewMessage {
 		| "gswArchiveAfterDays"
 		| "gswEnableAutoRotation"
 		| "gswModelConfigId"
+		| "realtimeCompressionEnabled"
+		| "realtimeCompressionMessageIncrement"
+		| "realtimeCompressionTokenIncrement"
+		| "realtimeCompressionMinIntervalSeconds"
+		| "realtimeCompressionCacheValidityMinutes"
 	text?: string
 	editedMessageContent?: string
 	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "cloud"

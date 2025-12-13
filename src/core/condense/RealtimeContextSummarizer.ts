@@ -48,6 +48,8 @@ export interface RealtimeCompressorConfig {
 	criticalThresholdPercent: number
 	/** 预警阈值（开始更频繁地更新缓存） */
 	warningThresholdPercent: number
+	/** 两次总结之间的最小间隔（毫秒），避免触发大模型 rate limit */
+	minIntervalBetweenSummariesMs: number
 }
 
 const DEFAULT_CONFIG: RealtimeCompressorConfig = {
@@ -57,6 +59,7 @@ const DEFAULT_CONFIG: RealtimeCompressorConfig = {
 	cacheValidityMs: 5 * 60 * 1000, // 5分钟有效期
 	criticalThresholdPercent: 85, // 85%时使用缓存
 	warningThresholdPercent: 70, // 70%时开始更频繁更新
+	minIntervalBetweenSummariesMs: 60 * 1000, // 60秒最小间隔，避免 rate limit
 }
 
 export class RealtimeContextSummarizer {
@@ -65,8 +68,14 @@ export class RealtimeContextSummarizer {
 	private isGenerating: boolean = false
 	private lastTriggerMessageCount: number = 0
 	private lastTriggerTokenCount: number = 0
+	private lastTriggerTimestamp: number = 0
 	private pendingPromise: Promise<void> | null = null
 	private taskId: string
+	// 🔧 失败状态追踪 - 用于检测压缩失败并触发回退
+	private lastSummaryFailed: boolean = false
+	private failureReason: string | null = null
+	private failureTimestamp: number = 0
+	private consecutiveFailures: number = 0
 
 	constructor(taskId: string, config: Partial<RealtimeCompressorConfig> = {}) {
 		this.taskId = taskId
@@ -83,6 +92,13 @@ export class RealtimeContextSummarizer {
 		contextWindow: number,
 	): boolean {
 		if (!this.config.enabled || this.isGenerating) {
+			return false
+		}
+
+		// 检查是否满足最小间隔要求，避免触发 rate limit
+		const timeSinceLastTrigger = Date.now() - this.lastTriggerTimestamp
+		if (this.lastTriggerTimestamp > 0 && timeSinceLastTrigger < this.config.minIntervalBetweenSummariesMs) {
+			// console.log(`[RealtimeContextSummarizer#${this.taskId}] ⏱️ 距上次总结仅 ${Math.round(timeSinceLastTrigger / 1000)}s，需等待至少 ${this.config.minIntervalBetweenSummariesMs / 1000}s`)
 			return false
 		}
 
@@ -138,6 +154,8 @@ export class RealtimeContextSummarizer {
 		this.lastTriggerMessageCount = messages.length
 		// 估算token数
 		this.lastTriggerTokenCount = this.estimateTokens(messages)
+		// 记录触发时间戳
+		this.lastTriggerTimestamp = Date.now()
 
 		console.log(`[RealtimeContextSummarizer#${this.taskId}] 🚀 启动后台实时总结 (消息数: ${messages.length})`)
 
@@ -145,9 +163,19 @@ export class RealtimeContextSummarizer {
 		this.pendingPromise = this.generateSummaryAsync(messages, apiHandler, options)
 			.then(() => {
 				console.log(`[RealtimeContextSummarizer#${this.taskId}] ✅ 后台总结完成，已缓存`)
+				// 🟢 成功时重置失败状态
+				this.lastSummaryFailed = false
+				this.failureReason = null
+				this.consecutiveFailures = 0
 			})
 			.catch((error) => {
 				console.warn(`[RealtimeContextSummarizer#${this.taskId}] ⚠️ 后台总结失败:`, error.message)
+				// 🔴 记录失败状态，支持回退检测
+				this.lastSummaryFailed = true
+				this.failureReason = error.message || "Unknown error"
+				this.failureTimestamp = Date.now()
+				this.consecutiveFailures++
+				console.warn(`[RealtimeContextSummarizer#${this.taskId}] 📊 连续失败次数: ${this.consecutiveFailures}`)
 			})
 			.finally(() => {
 				this.isGenerating = false
@@ -314,6 +342,10 @@ export class RealtimeContextSummarizer {
 		isGenerating: boolean
 		cachedMessageCount: number | null
 		cacheAge: number | null
+		// 🔧 新增失败状态信息
+		lastSummaryFailed: boolean
+		failureReason: string | null
+		consecutiveFailures: number
 	} {
 		return {
 			enabled: this.config.enabled,
@@ -321,6 +353,9 @@ export class RealtimeContextSummarizer {
 			isGenerating: this.isGenerating,
 			cachedMessageCount: this.cachedSummary?.messageCount || null,
 			cacheAge: this.cachedSummary ? Date.now() - this.cachedSummary.generatedAt : null,
+			lastSummaryFailed: this.lastSummaryFailed,
+			failureReason: this.failureReason,
+			consecutiveFailures: this.consecutiveFailures,
 		}
 	}
 
@@ -338,7 +373,42 @@ export class RealtimeContextSummarizer {
 		this.cachedSummary = null
 		this.lastTriggerMessageCount = 0
 		this.lastTriggerTokenCount = 0
+		this.lastTriggerTimestamp = 0
 		this.isGenerating = false
 		this.pendingPromise = null
+		// 🔧 重置失败状态
+		this.lastSummaryFailed = false
+		this.failureReason = null
+		this.failureTimestamp = 0
+		this.consecutiveFailures = 0
+	}
+
+	/**
+	 * 检查最近是否发生压缩失败（用于触发回退到传统压缩）
+	 */
+	hasFailedRecently(): boolean {
+		return this.lastSummaryFailed
+	}
+
+	/**
+	 * 获取最近失败的原因
+	 */
+	getLastFailureReason(): string | null {
+		return this.failureReason
+	}
+
+	/**
+	 * 获取连续失败次数
+	 */
+	getConsecutiveFailures(): number {
+		return this.consecutiveFailures
+	}
+
+	/**
+	 * 清除失败状态（在回退到传统压缩后调用）
+	 */
+	clearFailureState(): void {
+		this.lastSummaryFailed = false
+		this.failureReason = null
 	}
 }

@@ -112,6 +112,13 @@ export const globalSettingsSchema = z.object({
 	gswEnableAutoRotation: z.boolean().optional(),
 	gswModelConfigId: z.string().optional(),
 
+	// Realtime compression configuration (pre-warmed cache strategy)
+	realtimeCompressionEnabled: z.boolean().optional(),
+	realtimeCompressionMessageIncrement: z.number().optional(),
+	realtimeCompressionTokenIncrement: z.number().optional(),
+	realtimeCompressionMinIntervalSeconds: z.number().optional(),
+	realtimeCompressionCacheValidityMinutes: z.number().optional(),
+
 	/**
 	 * Whether to include diagnostic messages (errors, warnings) in tool outputs
 	 * @default true

@@ -58,6 +58,10 @@ import { QueuedMessages } from "./QueuedMessages"
 import DismissibleUpsell from "../common/DismissibleUpsell"
 import { useCloudUpsell } from "@src/hooks/useCloudUpsell"
 import { Cloud } from "lucide-react"
+import { SubagentContextBanner } from "./SubagentContextBanner"
+import { UnifiedTaskView } from "./UnifiedTaskView"
+import type { ParallelSubAgentInfo } from "@roo/ExtensionMessage"
+import type { EditChain, EditStep } from "../../../../src/memory/gsw/types/next-edit"
 
 export interface ChatViewProps {
 	isHidden: boolean
@@ -209,6 +213,14 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	const autoApproveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 	const userRespondedRef = useRef<boolean>(false)
 	const [currentFollowUpTs, setCurrentFollowUpTs] = useState<number | null>(null)
+
+	// Parallel subagent state management
+	const [activeTabId, setActiveTabId] = useState<string>("main")
+	const [parallelSubagents, setParallelSubagents] = useState<ParallelSubAgentInfo[]>([])
+
+	// NextEdit state management
+	const [editChain, setEditChain] = useState<EditChain | null>(null)
+	const [currentEditStep, setCurrentEditStep] = useState<EditStep | null>(null)
 
 	const clineAskRef = useRef(clineAsk)
 	useEffect(() => {
@@ -865,6 +877,92 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 						}
 						setIsCondensing(false)
 					}
+					break
+				case "parallelSubagentStarted":
+					if (message.parallelSubagent) {
+						setParallelSubagents((prev) => {
+							// Check if subagent already exists
+							const exists = prev.some((agent) => agent.id === message.parallelSubagent!.id)
+							if (exists) {
+								// Update existing subagent
+								return prev.map((agent) =>
+									agent.id === message.parallelSubagent!.id ? message.parallelSubagent! : agent,
+								)
+							}
+							// Add new subagent
+							return [...prev, message.parallelSubagent!]
+						})
+					}
+					break
+				case "parallelSubagentProgress":
+					if (message.parallelSubagent) {
+						setParallelSubagents((prev) =>
+							prev.map((agent) =>
+								agent.id === message.parallelSubagent!.id
+									? { ...agent, ...message.parallelSubagent! }
+									: agent,
+							),
+						)
+					}
+					break
+				case "parallelSubagentCompleted":
+					if (message.parallelSubagent) {
+						setParallelSubagents((prev) =>
+							prev.map((agent) =>
+								agent.id === message.parallelSubagent!.id
+									? { ...agent, ...message.parallelSubagent!, status: "completed", progress: 100 }
+									: agent,
+							),
+						)
+						// Auto-close completed subagent after 3 seconds
+						setTimeout(() => {
+							setParallelSubagents((prev) =>
+								prev.filter((agent) => agent.id !== message.parallelSubagent!.id),
+							)
+							// If active tab was the completed subagent, switch to main
+							setActiveTabId((currentId) =>
+								currentId === message.parallelSubagent!.id ? "main" : currentId,
+							)
+						}, 3000)
+					}
+					break
+				case "parallelSubagentFailed":
+					if (message.parallelSubagent) {
+						setParallelSubagents((prev) =>
+							prev.map((agent) =>
+								agent.id === message.parallelSubagent!.id
+									? { ...agent, ...message.parallelSubagent!, status: "failed" }
+									: agent,
+							),
+						)
+					}
+					break
+				case "editChainStarted":
+					if (message.editChain) {
+						setEditChain(message.editChain as EditChain)
+						// 设置当前步骤为第一个步骤
+						const chain = message.editChain as EditChain
+						if (chain.steps && chain.steps.length > 0) {
+							setCurrentEditStep(chain.steps[chain.currentIndex] || chain.steps[0])
+						}
+					}
+					break
+				case "editChainStepUpdate":
+					if (message.editChain) {
+						setEditChain(message.editChain as EditChain)
+						if (message.editStep) {
+							setCurrentEditStep(message.editStep as EditStep)
+						}
+					}
+					break
+				case "editChainCompleted":
+				case "editChainPaused":
+				case "editChainAbandoned":
+					if (message.editChain) {
+						setEditChain(message.editChain as EditChain)
+					}
+					// 清空当前步骤
+					setCurrentEditStep(null)
 					break
 			}
 			// textAreaRef.current is not explicitly required here since React
@@ -1853,6 +1951,58 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 						useMemoryExtractor={useMemoryExtractor}
 						useCodeSummarizer={useCodeSummarizer}
 					/>
+
+					{/* Unified Task View - 统一任务视图 */}
+					<UnifiedTaskView
+						parallelSubagents={parallelSubagents}
+						activeTabId={activeTabId}
+						onTabChange={setActiveTabId}
+						onTabClose={(id) => {
+							setParallelSubagents((prev) => prev.filter((agent) => agent.id !== id))
+							// If closing active tab, switch to main
+							if (activeTabId === id) {
+								setActiveTabId("main")
+							}
+						}}
+						editChain={editChain}
+						currentStep={currentEditStep}
+						onAcceptEdit={(step) => {
+							vscode.postMessage({
+								type: "askResponse",
+								askResponse: "yesButtonClicked",
+								text: JSON.stringify({ stepId: step.stepId }),
+							})
+						}}
+						onRejectEdit={(step, reason) => {
+							vscode.postMessage({
+								type: "askResponse",
+								askResponse: "noButtonClicked",
+								text: JSON.stringify({ stepId: step.stepId, reason }),
+							})
+						}}
+						onModifyEdit={(step, code) => {
+							vscode.postMessage({
+								type: "askResponse",
+								askResponse: "messageResponse",
+								text: JSON.stringify({ stepId: step.stepId, modifiedCode: code }),
+							})
+						}}
+					/>
+
+					{/* Subagent Context Banner - 仅在有并行任务且非主任务时显示 */}
+					{parallelSubagents.length > 0 &&
+						activeTabId !== "main" &&
+						(() => {
+							const agent = parallelSubagents.find((a) => a.id === activeTabId)
+							return agent ? (
+								<SubagentContextBanner
+									agentId={agent.id}
+									agentName={agent.name}
+									model={agent.model}
+									status={agent.status}
+								/>
+							) : null
+						})()}
 
 					{hasSystemPromptOverride && (
 						<div className="px-3">

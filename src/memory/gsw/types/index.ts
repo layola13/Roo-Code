@@ -5,6 +5,12 @@
 
 import { MemoryType } from "./common"
 
+// Export NextEdit types
+export * from "./next-edit"
+
+// Export NextEdit types
+export * from "./next-edit"
+
 /**
  * 索引条目
  */

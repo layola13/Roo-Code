@@ -30,6 +30,7 @@ import { getRunSlashCommandDescription } from "./run-slash-command"
 import { getGenerateImageDescription } from "./generate-image"
 import { getUseSubagentDescription } from "./use-subagent"
 import { getSplitFileDescription } from "./split-file-description"
+import spawnParallelTasksPrompt from "./spawn-parallel-tasks"
 import { CodeIndexManager } from "../../../services/code-index/manager"
 
 // Map of tool names to their description functions
@@ -66,6 +67,7 @@ const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined>
 	generate_image: (args) => getGenerateImageDescription(args),
 	use_subagent: (args) => getUseSubagentDescription(args),
 	split_file: (args) => getSplitFileDescription(args),
+	spawn_parallel_tasks: () => spawnParallelTasksPrompt,
 }
 
 export function getToolDescriptionsForMode(

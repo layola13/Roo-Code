@@ -3232,6 +3232,27 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("gswModelConfigId", message.text)
 			await provider.postStateToWebview()
 			break
+		// Realtime compression settings
+		case "realtimeCompressionEnabled":
+			await updateGlobalState("realtimeCompressionEnabled", message.bool)
+			await provider.postStateToWebview()
+			break
+		case "realtimeCompressionMessageIncrement":
+			await updateGlobalState("realtimeCompressionMessageIncrement", message.value)
+			await provider.postStateToWebview()
+			break
+		case "realtimeCompressionTokenIncrement":
+			await updateGlobalState("realtimeCompressionTokenIncrement", message.value)
+			await provider.postStateToWebview()
+			break
+		case "realtimeCompressionMinIntervalSeconds":
+			await updateGlobalState("realtimeCompressionMinIntervalSeconds", message.value)
+			await provider.postStateToWebview()
+			break
+		case "realtimeCompressionCacheValidityMinutes":
+			await updateGlobalState("realtimeCompressionCacheValidityMinutes", message.value)
+			await provider.postStateToWebview()
+			break
 		// Judge settings - these are part of ProviderSettings (per-API-config)
 		case "judgeEnabled": {
 			const { apiConfiguration, currentApiConfigName } = await provider.getState()

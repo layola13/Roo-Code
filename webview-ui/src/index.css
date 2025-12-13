@@ -143,6 +143,20 @@
 
 	--color-vscode-banner-background: var(--vscode-banner-background);
 	--color-vscode-banner-foreground: var(--vscode-banner-foreground);
+
+	/* Tab system colors */
+	--color-vscode-tab-activeBackground: var(--vscode-tab-activeBackground, var(--vscode-editor-background));
+	--color-vscode-tab-inactiveBackground: var(--vscode-tab-inactiveBackground, var(--vscode-sideBar-background));
+	--color-vscode-tab-hoverBackground: var(--vscode-tab-hoverBackground, var(--vscode-list-hoverBackground));
+	--color-vscode-tab-inactiveForeground: var(--vscode-tab-inactiveForeground, var(--vscode-descriptionForeground));
+	--color-vscode-tab-activeForeground: var(--vscode-tab-activeForeground, var(--vscode-editor-foreground));
+
+	/* Progress bar colors */
+	--color-vscode-progressBar-background: var(--vscode-progressBar-background, var(--vscode-input-background));
+	--color-vscode-progressBar-foreground: var(--vscode-progressBar-foreground, var(--vscode-focusBorder));
+
+	/* Editor widget colors */
+	--color-vscode-editorWidget-background: var(--vscode-editorWidget-background, var(--vscode-input-background));
 }
 
 @layer base {
@@ -476,6 +490,21 @@ input[cmdk-input]:focus {
 
 .animate-pulse {
 	animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Pulse subtle animation for running subagents */
+@keyframes pulse-subtle {
+	0%,
+	100% {
+		opacity: 0.1;
+	}
+	50% {
+		opacity: 0.3;
+	}
+}
+
+.animate-pulse-subtle {
+	animation: pulse-subtle 2s ease-in-out infinite;
 }
 
 /* Transition utilities */
